@@ -10,7 +10,7 @@ import { ShiftUserCard } from './ShiftUserCard';
 import { TodayHero } from './TodayHero';
 import { StatsCard } from './StatsCard';
 import { DailyProcessModal } from './DailyProcessModal';
-import { FairnessAnalysisCard } from './FairnessAnalysisCard';
+import { FairnessAnalysisCard, isPersonInShiftSlot } from './FairnessAnalysisCard';
 import { DEFAULT_PROCESS_DEFINITIONS, generateFullBioprocessCampaign } from '../utils/bioprocessData';
 import { getTodayPersianDateStr } from '../utils/persianDate';
 import { getPersonColor } from '../utils/personnelColors';
@@ -444,13 +444,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
     return fullSchedule.filter(s => s.date >= startStr && s.date <= endStr);
   }, [scheduleData, fullSchedule, viewMode, appliedFilter]);
 
+  const [chartMetricMode, setChartMetricMode] = useState<'raw' | 'weighted' | 'shifts'>('raw');
+
   const filteredSchedule = useMemo(() => {
     return baseScheduleForView.filter((s) => {
       if (filterPerson === 'All') {
         return true;
       }
-      const dayMatches = s.dayShiftPerson === filterPerson || (s.extraDayPersons && s.extraDayPersons.includes(filterPerson));
-      const nightMatches = s.nightShiftPerson === filterPerson || (s.extraNightPersons && s.extraNightPersons.includes(filterPerson));
+      const dayMatches = isPersonInShiftSlot(filterPerson, s.dayShiftPerson, s.extraDayPersons);
+      const nightMatches = isPersonInShiftSlot(filterPerson, s.nightShiftPerson, s.extraNightPersons);
 
       if (filterShiftType === 'ALL') {
         return dayMatches || nightMatches;
@@ -470,10 +472,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
     let dayCount = 0;
     let nightCount = 0;
     baseScheduleForView.forEach((s) => {
-      if (s.dayShiftPerson === filterPerson || (s.extraDayPersons && s.extraDayPersons.includes(filterPerson))) {
+      if (isPersonInShiftSlot(filterPerson, s.dayShiftPerson, s.extraDayPersons)) {
         dayCount++;
       }
-      if (s.nightShiftPerson === filterPerson || (s.extraNightPersons && s.extraNightPersons.includes(filterPerson))) {
+      if (isPersonInShiftSlot(filterPerson, s.nightShiftPerson, s.extraNightPersons)) {
         nightCount++;
       }
     });
@@ -489,18 +491,34 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   const stats = useMemo(() => {
     const dataToAnalyze = baseScheduleForView;
-    
-    const result: StatEntry[] = shiftWorkers.map(worker => {
+
+    // Discover all shift workers + anyone assigned in this schedule period
+    const allWorkers: string[] = [...shiftWorkers];
+    dataToAnalyze.forEach((entry) => {
+      const checkAndAdd = (name?: string) => {
+        const clean = String(name || '').trim();
+        if (!clean || clean === 'نامشخص' || clean === '---') return;
+        if (!allWorkers.some((w) => isPersonInShiftSlot(w, clean))) {
+          allWorkers.push(clean);
+        }
+      };
+      checkAndAdd(entry.dayShiftPerson);
+      checkAndAdd(entry.nightShiftPerson);
+      (entry.extraDayPersons || []).forEach(checkAndAdd);
+      (entry.extraNightPersons || []).forEach(checkAndAdd);
+    });
+
+    const result: StatEntry[] = allWorkers.map(worker => {
       let dayShifts = 0;
       let nightShifts = 0;
       let workedHours = 0;
 
       dataToAnalyze.forEach(entry => {
-        if (entry.dayShiftPerson === worker || (entry.extraDayPersons && entry.extraDayPersons.includes(worker))) {
+        if (isPersonInShiftSlot(worker, entry.dayShiftPerson, entry.extraDayPersons)) {
           dayShifts++;
           workedHours += 11; 
         }
-        if (entry.nightShiftPerson === worker || (entry.extraNightPersons && entry.extraNightPersons.includes(worker))) {
+        if (isPersonInShiftSlot(worker, entry.nightShiftPerson, entry.extraNightPersons)) {
           nightShifts++;
           workedHours += 13; 
         }
@@ -523,8 +541,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
     return result;
   }, [baseScheduleForView, shiftWorkers]);
 
-  // Derived Stats for Cards
-  const totalShifts = filteredSchedule.length * 2; 
+  // Derived Stats for Cards (exact person-shifts including extra shifts)
+  const totalShifts = useMemo(() => {
+    if (filterPerson !== 'All' && selectedPersonStats) {
+      return selectedPersonStats.totalCount;
+    }
+    return stats.reduce((acc, curr) => acc + curr.dayShifts + curr.nightShifts, 0);
+  }, [filterPerson, selectedPersonStats, stats]);
   const totalHoursSum = stats.reduce((acc, curr) => acc + curr.totalHours, 0);
   
   // Top Performer Logic
@@ -541,13 +564,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
       };
   }, [stats]);
 
-  // Chart Data - Sorted by Total Hours
-  // Sync chartData with legend order strictly by sorting logic
+  // Chart Data - Sorted by Active Metric (Raw Hours, Weighted Score, or Shift Count)
   const chartData = useMemo(() => {
     return stats
       .filter(s => s.totalHours > 0)
-      .sort((a, b) => b.totalHours - a.totalHours);
-  }, [stats]);
+      .map(s => ({
+        ...s,
+        totalShiftsCount: s.dayShifts + s.nightShifts,
+        activeChartValue:
+          chartMetricMode === 'weighted'
+            ? s.weightedScore
+            : chartMetricMode === 'shifts'
+              ? s.dayShifts + s.nightShifts
+              : s.totalHours
+      }))
+      .sort((a, b) => b.activeChartValue - a.activeChartValue);
+  }, [stats, chartMetricMode]);
 
   // Sync pie chart focus when a person is filtered
   React.useEffect(() => {
@@ -2568,10 +2600,50 @@ export const Dashboard: React.FC<DashboardProps> = ({
            
            {/* Chart Section */}
            <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
-               <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-bold text-slate-800 text-sm lg:text-lg">نمودار توزیع کاری</h3>
-                  <Scale size={16} className="text-slate-400" />
+               <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5">
+                  <div className="flex items-center gap-1.5">
+                    <Scale size={16} className="text-indigo-600 shrink-0" />
+                    <h3 className="font-black text-slate-800 text-sm lg:text-base">نمودار توزیع عدالت و کارکرد</h3>
+                  </div>
+
+                  {/* Metric Switcher Pill */}
+                  <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-[10px] font-bold">
+                    <button
+                      type="button"
+                      onClick={() => setChartMetricMode('raw')}
+                      className={`px-2 py-1 rounded-md transition cursor-pointer ${
+                        chartMetricMode === 'raw'
+                          ? 'bg-white text-slate-900 shadow-2xs font-black'
+                          : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      ساعت خام
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setChartMetricMode('weighted')}
+                      className={`px-2 py-1 rounded-md transition cursor-pointer ${
+                        chartMetricMode === 'weighted'
+                          ? 'bg-white text-indigo-700 shadow-2xs font-black'
+                          : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      ساعت وزنی
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setChartMetricMode('shifts')}
+                      className={`px-2 py-1 rounded-md transition cursor-pointer ${
+                        chartMetricMode === 'shifts'
+                          ? 'bg-white text-emerald-700 shadow-2xs font-black'
+                          : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      تعداد شیفت
+                    </button>
+                  </div>
                </div>
+
                <div className="flex flex-col items-center w-full">
                   {/* Donut Chart Container with Center Info */}
                   <div className="h-64 sm:h-72 w-full relative flex items-center justify-center">
@@ -2584,7 +2656,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                            innerRadius="62%"
                            outerRadius="84%"
                            paddingAngle={3}
-                           dataKey="totalHours"
+                           dataKey="activeChartValue"
                            nameKey="name"
                            shape={renderCustomSector}
                            onClick={onPieClick}
@@ -2601,23 +2673,38 @@ export const Dashboard: React.FC<DashboardProps> = ({
                        </PieChart>
                      </ResponsiveContainer>
 
-                     {/* Center Display: Always centered in the donut, shows the hovered person's name and hours (no percentages, no color indicator) */}
+                     {/* Center Display: Shows hovered person's name, active value, and exact Day/Night breakdown */}
                      {activePerson && (
-                       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none transition-all duration-200">
+                       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none transition-all duration-200 px-4 text-center">
                          <span className="text-sm sm:text-base font-black text-slate-800 tracking-tight leading-tight">
                            {activePerson.name.replace("مهندس", "").trim()}
                          </span>
                          <div className="flex items-center gap-1 mt-1" dir="rtl">
-                           <span className="text-xs sm:text-sm font-black text-slate-900 tabular-nums">
-                             {toPersianDigits(activePerson.totalHours)}
+                           <span className="text-sm sm:text-base font-black text-slate-900 tabular-nums">
+                             {toPersianDigits(
+                               Number.isInteger((activePerson as any).activeChartValue)
+                                 ? (activePerson as any).activeChartValue
+                                 : (activePerson as any).activeChartValue?.toFixed(1).replace('.', '٫')
+                             )}
                            </span>
-                           <span className="text-[11px] font-bold text-slate-500">ساعت کار</span>
+                           <span className="text-[11px] font-bold text-slate-500">
+                             {chartMetricMode === 'weighted'
+                               ? 'ساعت وزنی'
+                               : chartMetricMode === 'shifts'
+                                 ? 'شیفت کل'
+                                 : 'ساعت کار'}
+                           </span>
+                         </div>
+                         <div className="flex items-center gap-1.5 mt-1 text-[10px] font-bold text-slate-500 bg-slate-100/90 px-2 py-0.5 rounded-full">
+                           <span className="text-amber-700">{toPersianDigits(activePerson.dayShifts)} روز</span>
+                           <span>•</span>
+                           <span className="text-indigo-700">{toPersianDigits(activePerson.nightShifts)} شب</span>
                          </div>
                        </div>
                      )}
                   </div>
 
-                  {/* Personnel Name Grid (Legend) - 2 people per row, no hours, odd last centered */}
+                  {/* Personnel Name Grid (Legend) - 2 people per row with exact shift/hour numbers */}
                   <ul className="grid grid-cols-2 gap-2 mt-3.5 w-full px-1">
                      {chartData.map((entry, index) => {
                          const isActive = index === activeIndex;
@@ -2625,12 +2712,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
                          const isOdd = chartData.length % 2 !== 0;
                          const isLast = index === chartData.length - 1;
                          const isOddLast = isOdd && isLast;
+                         const rawVal = (entry as any).activeChartValue;
+                         const formattedVal = toPersianDigits(
+                           Number.isInteger(rawVal) ? rawVal : rawVal?.toFixed(1).replace('.', '٫')
+                         );
                          
                          return (
                             <li 
                                 key={`legend-item-${index}`} 
-                                className={`flex items-center justify-center gap-2 px-2.5 sm:px-3 py-2 rounded-xl cursor-pointer transition-all duration-200 select-none border ${
-                                  isOddLast ? "col-span-2 justify-self-center w-full max-w-[170px] sm:max-w-[200px]" : ""
+                                className={`flex flex-col items-center justify-center px-2.5 py-2 rounded-xl cursor-pointer transition-all duration-200 select-none border ${
+                                  isOddLast ? "col-span-2 justify-self-center w-full max-w-[200px] sm:max-w-[230px]" : ""
                                 } ${
                                   isActive 
                                     ? "bg-white shadow-md ring-2 ring-offset-1 ring-slate-200" 
@@ -2643,16 +2734,33 @@ export const Dashboard: React.FC<DashboardProps> = ({
                                 onClick={() => setActiveIndex(index)}
                                 onMouseEnter={() => setActiveIndex(index)}
                             >
-                                <span 
-                                  className={`w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full transition-transform duration-200 shrink-0 ring-1 ring-white ${isActive ? "scale-125 shadow-xs" : ""}`} 
-                                  style={{ backgroundColor: color }}
-                                />
-                                <span 
-                                    className={`text-xs sm:text-sm truncate transition-colors duration-200 ${isActive ? "font-black" : "font-bold text-slate-700"}`}
-                                    style={{ color: isActive ? color : undefined }}
-                                >
-                                  {entry.name.replace("مهندس", "").trim()}
-                                </span>
+                                <div className="flex items-center justify-between w-full gap-1.5">
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                    <span 
+                                      className={`w-2.5 h-2.5 rounded-full transition-transform duration-200 shrink-0 ring-1 ring-white ${isActive ? "scale-125 shadow-xs" : ""}`} 
+                                      style={{ backgroundColor: color }}
+                                    />
+                                    <span 
+                                        className={`text-xs truncate transition-colors duration-200 ${isActive ? "font-black" : "font-bold text-slate-700"}`}
+                                        style={{ color: isActive ? color : undefined }}
+                                    >
+                                      {entry.name.replace("مهندس", "").trim()}
+                                    </span>
+                                  </div>
+                                  <span className="text-[11px] font-black text-slate-800 tabular-nums shrink-0">
+                                    {formattedVal}
+                                    <span className="text-[9px] font-bold text-slate-400 mr-0.5">
+                                      {chartMetricMode === 'shifts' ? 'نوبت' : 'h'}
+                                    </span>
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between w-full text-[9px] font-bold text-slate-400 mt-1 pt-1 border-t border-slate-200/60">
+                                  <span className="text-amber-700">{toPersianDigits(entry.dayShifts)} روز</span>
+                                  <span>|</span>
+                                  <span className="text-indigo-700">{toPersianDigits(entry.nightShifts)} شب</span>
+                                  <span>|</span>
+                                  <span className="text-slate-600">{toPersianDigits(entry.dayShifts + entry.nightShifts)} کل</span>
+                                </div>
                             </li>
                          );
                      })}

@@ -10,9 +10,9 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: 'نسخه انتشار (مثلاً v4.0.0)'
+        description: 'نسخه انتشار اختیاری (در صورت خالی بودن، خودکار بر اساس شماره بیلد ساخته می‌شود)'
         required: false
-        default: 'v4.0.0'
+        default: ''
 
 permissions:
   contents: write
@@ -26,6 +26,25 @@ jobs:
     runs-on: ubuntu-24.04
 
     steps:
+      - name: 🏷️ تعیین خودکار شماره نسخه بیلد جدید (Dynamic Version)
+        id: version
+        run: |
+          RUN_NUM="${GITHUB_RUN_NUMBER:-1}"
+          INPUT_TAG="${{ github.event.inputs.release_tag }}"
+          if [ -n "$INPUT_TAG" ]; then
+            CLEAN_VER="${INPUT_TAG#v}"
+          elif [[ "${GITHUB_REF:-}" == refs/tags/v* ]]; then
+            CLEAN_VER="${GITHUB_REF#refs/tags/v}"
+          else
+            CLEAN_VER="4.2.${RUN_NUM}"
+          fi
+          REL_TAG="v${CLEAN_VER}"
+          VER_CODE=$((100 + RUN_NUM))
+          echo "VERSION_NAME=${CLEAN_VER}" >> "$GITHUB_ENV"
+          echo "RELEASE_TAG=${REL_TAG}" >> "$GITHUB_ENV"
+          echo "VERSION_CODE=${VER_CODE}" >> "$GITHUB_ENV"
+          echo "Building ShiftFlow FMD ${REL_TAG} (versionCode=${VER_CODE})"
+
       - name: 📥 دریافت سورس پروژه (Native Git Checkout)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -122,7 +141,7 @@ jobs:
           ls -la dist/ || true
           exit 0
 
-      - name: 🔨 کامپایل مستقیم و امضای دیجیتال فایل نصبی مستقل اندروید (ShiftFlow-FMD.apk)
+      - name: 🔨 کامپایل مستقیم و امضای دیجیتال فایل نصبی مستقل اندروید (ShiftFlow-FMD)
         run: |
           set -e
           SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
@@ -144,7 +163,7 @@ jobs:
           elif [ -f "index.html" ]; then
             cp index.html "$WORK/assets/public/"
           else
-            printf '<!DOCTYPE html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ShiftFlow FMD</title></head><body><h2>ShiftFlow FMD v4.0.0</h2></body></html>\n' > "$WORK/assets/public/index.html"
+            printf "<!DOCTYPE html><html lang=\"fa\" dir=\"rtl\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>ShiftFlow FMD v${VERSION_NAME}</title></head><body><h2>ShiftFlow FMD v${VERSION_NAME}</h2></body></html>\n" > "$WORK/assets/public/index.html"
           fi
           [ -f "public/sw.js" ] && cp -f public/sw.js "$WORK/assets/public/sw.js" || true
           [ -f "public/sw-notif-handler.js" ] && cp -f public/sw-notif-handler.js "$WORK/assets/public/sw-notif-handler.js" || true
@@ -163,12 +182,12 @@ jobs:
           '
           fi
 
-          cat << 'EOF' > "$WORK/AndroidManifest.xml"
+          cat << EOF > "$WORK/AndroidManifest.xml"
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android"
               package="ir.fmd.shiftflow.app"
-              android:versionCode="5"
-              android:versionName="4.1.0">
+              android:versionCode="${VERSION_CODE}"
+              android:versionName="${VERSION_NAME}">
               <uses-sdk android:minSdkVersion="24" android:targetSdkVersion="34" />
               <uses-permission android:name="android.permission.INTERNET" />
               <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -200,10 +219,10 @@ jobs:
           </manifest>
           EOF
 
-          cat << 'EOF' > "$WORK/res/values/strings.xml"
+          cat << EOF > "$WORK/res/values/strings.xml"
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
-              <string name="app_name">ShiftFlow FMD</string>
+              <string name="app_name">ShiftFlow FMD v${VERSION_NAME}</string>
           </resources>
           EOF
 
@@ -314,7 +333,7 @@ jobs:
                   webView.addJavascriptInterface(new AndroidBridge(this), "AndroidBridge");
                   webView.setWebViewClient(new AssetWebViewClient(this));
                   webView.setWebChromeClient(new AppWebChromeClient(this));
-                  webView.loadUrl(LOCAL_ORIGIN + "/index.html?v=4.1.0");
+                  webView.loadUrl(LOCAL_ORIGIN + "/index.html?v=__APP_VERSION__");
               }
 
               void purgeStaleServiceWorkerAndCache() {
@@ -501,7 +520,7 @@ jobs:
               public static class AndroidBridge {
                   final MainActivity activity;
                   public AndroidBridge(MainActivity a) { this.activity = a; }
-                  @JavascriptInterface public String getAppVersion() { return "4.1.0"; }
+                  @JavascriptInterface public String getAppVersion() { return "__APP_VERSION__"; }
                   @JavascriptInterface public boolean isNativeAndroid() { return true; }
                   @JavascriptInterface public void requestNotificationPermission() {
                       activity.runOnUiThread(new Runnable() {
@@ -625,6 +644,8 @@ jobs:
           }
           EOF
 
+          sed -i "s/__APP_VERSION__/${VERSION_NAME}/g" "$WORK/src/ir/fmd/shiftflow/app/MainActivity.java"
+
           "$BUILD_TOOLS/aapt2" compile --dir "$WORK/res" -o "$WORK/res.zip"
           "$BUILD_TOOLS/aapt2" link \
             -I "$PLATFORM_JAR" \
@@ -667,65 +688,66 @@ jobs:
             -validity 10000 \
             -dname "CN=ShiftFlow FMD, OU=Bioprocess, O=FMD, L=Tehran, ST=Tehran, C=IR"
 
+          VERSIONED_APK="ShiftFlow-FMD-${RELEASE_TAG}.apk"
+          VERSIONED_ZIP="ShiftFlow-FMD-Android-Package-${RELEASE_TAG}.zip"
+
           "$BUILD_TOOLS/apksigner" sign \
             --ks "$WORK/signing.keystore" \
             --ks-pass pass:shiftflow1405 \
             --key-pass pass:shiftflow1405 \
             --ks-key-alias shiftflow \
-            --out "ShiftFlow-FMD.apk" \
+            --out "${VERSIONED_APK}" \
             "$WORK/aligned.apk"
 
-          cp "ShiftFlow-FMD.apk" "ShiftFlow-FMD-Standalone.apk"
+          cp "${VERSIONED_APK}" "ShiftFlow-FMD.apk"
           cp "$WORK/signing.keystore" "signing.keystore"
-          jar cMf "ShiftFlow-FMD-Android-Package.zip" "ShiftFlow-FMD.apk" "signing.keystore"
-          ls -lh ShiftFlow-FMD.apk ShiftFlow-FMD-Standalone.apk ShiftFlow-FMD-Android-Package.zip
+          jar cMf "${VERSIONED_ZIP}" "${VERSIONED_APK}" "ShiftFlow-FMD.apk" "signing.keystore"
+          ls -lh "${VERSIONED_APK}" "ShiftFlow-FMD.apk" "${VERSIONED_ZIP}"
 
-      - name: 🚀 انتشار خودکار در بخش Releases گیت‌هاب (GitHub CLI)
+      - name: 🚀 انتشار خودکار در بخش Releases گیت‌هاب (با حفظ تمام نسخه‌های قبلی)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ github.event.inputs.release_tag || 'v4.1.0' }}
         run: |
-          cat << 'EOF' > release_notes.md
-          ## 📱 نسخه رسمی و مستقل اندروید سامانه مدیریت شیفت تولید (ShiftFlow FMD v4.1.0 — ضد فیلتر با سرور Vercel)
+          VERSIONED_APK="ShiftFlow-FMD-${RELEASE_TAG}.apk"
+          VERSIONED_ZIP="ShiftFlow-FMD-Android-Package-${RELEASE_TAG}.zip"
 
-          ### فایل‌های قابل دانلود در این انتشار:
-          - **`ShiftFlow-FMD.apk`**: نسخه کامل، مستقل و بدون نیاز به فیلترشکن (Standalone Native APK v4.1.0)
-          - **`ShiftFlow-FMD-Standalone.apk`**: خروجی بیلد مستقیم GitHub Actions
-          - **`ShiftFlow-FMD-Android-Package.zip`**: پکیج کامل شامل `.apk` و کلید امضای دیجیتال (`signing.keystore`)
+          cat << EOF > release_notes.md
+          ## 📱 اپلیکیشن اندروید سامانه مدیریت شیفت تولید (ShiftFlow FMD ${RELEASE_TAG})
 
-          ### ویژگی‌های نسخه ۴.۱.۰:
-          - **اتصال مستقیم به سرور Vercel (`https://android-fmd-shift-flow.vercel.app`) بدون نیاز به فیلترشکن در ایران**: تمام تغییرات شیفت توسط مدیر و دریافت آنی نوتیفیکیشن‌ها برای افراد درگیر، بدون نیاز به روشن بودن VPN انجام می‌شود.
-          - **ارسال فوری نوتیفیکیشن اصلی گوشی (OS Notification) برای تمام افراد درگیر در جابجایی شیفت**: به محض جابجایی، افزودن یا حذف هر نفر در شیفت، اعلان سیستم‌عامل اندروید و مرورگر بدون نیاز به زدن دکمه بروزرسانی ارسال می‌شود.
-          - **پروکسی داخلی اندروید و سرویس پس‌زمینه**: پشتیبانی همزمان در WebView و Service Worker برای پایداری ۱۰۰٪ در شبکه‌های ایران.
+          ### 📥 فایل‌های قابل دانلود در این نسخه (${RELEASE_TAG}):
+          - **\`${VERSIONED_APK}\`**: فایل نصبی اندروید با شماره نسخه **${RELEASE_TAG}** در نام برنامه و فایل (بدون نیاز به فیلترشکن)
+          - **\`ShiftFlow-FMD.apk\`**: لینک ثابت آخرین نسخه برای دانلود مستقیم
+          - **\`${VERSIONED_ZIP}\`**: پکیج کامل شامل فایل نصبی و کلید امضای دیجیتال
+
+          ### ✨ امکانات و ویژگی‌های این نسخه:
+          - **نام برنامه همراه با شماره نسخه (\`ShiftFlow FMD ${RELEASE_TAG}\`)**: درج خودکار شماره نسخه در نام اپلیکیشن روی گوشی و فایل نصبی در هر بیلد جدید.
+          - **اتصال مستقیم و بدون فیلترشکن از طریق سرور Vercel (\`https://android-fmd-shift-flow.vercel.app\`)**: همگام‌سازی آنی جدول شیفت‌ها و دریافت نوتیفیکیشن‌ها در شبکه‌های داخلی بدون نیاز به VPN.
+          - **ارسال فوری نوتیفیکیشن اصلی گوشی (OS Notification)**: اطلاع‌رسانی لحظه‌ای جابجایی، افزودن یا حذف شیفت برای تمام نفرات درگیر + یادآور روزانه شیفت فردا.
+          - **حفظ آرشیو کامل نسخه‌ها**: تمامی نسخه‌های قبلی در بخش [Releases](https://github.com/${GITHUB_REPOSITORY}/releases) برای دانلود و دسترسی همیشگی نگهداری می‌شوند.
           EOF
 
-          # حذف ریلیزهای قدیمی v3.0.0 و v4.0.0 در صورت وجود تا v4.1.0 به عنوان آخرین نسخه (Latest Release) قرار گیرد
-          for old_tag in "v3.0.0" "v4.0.0"; do
-            if [ "${RELEASE_TAG}" != "${old_tag}" ]; then
-              gh release delete "${old_tag}" --yes --cleanup-tag --repo "${GITHUB_REPOSITORY}" 2>/dev/null || true
-            fi
-          done
-
+          # توجه: هیچ‌یک از نسخه‌های قبلی حذف نمی‌شوند تا تمام ورژن‌های پیشین در بخش Releases قابل دانلود باقی بمانند.
           if gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
             gh release upload "${RELEASE_TAG}" \
-              ShiftFlow-FMD.apk \
-              ShiftFlow-FMD-Standalone.apk \
-              ShiftFlow-FMD-Android-Package.zip \
+              "${VERSIONED_APK}" \
+              "ShiftFlow-FMD.apk" \
+              "${VERSIONED_ZIP}" \
               --clobber \
               --repo "${GITHUB_REPOSITORY}"
             gh release edit "${RELEASE_TAG}" \
-              --title "ShiftFlow FMD Android ${RELEASE_TAG}" \
+              --title "ShiftFlow FMD ${RELEASE_TAG}" \
               --notes-file release_notes.md \
               --latest \
               --repo "${GITHUB_REPOSITORY}"
           else
             gh release create "${RELEASE_TAG}" \
-              ShiftFlow-FMD.apk \
-              ShiftFlow-FMD-Standalone.apk \
-              ShiftFlow-FMD-Android-Package.zip \
+              "${VERSIONED_APK}" \
+              "ShiftFlow-FMD.apk" \
+              "${VERSIONED_ZIP}" \
               --target "${GITHUB_SHA}" \
-              --title "ShiftFlow FMD Android ${RELEASE_TAG}" \
+              --title "ShiftFlow FMD ${RELEASE_TAG}" \
               --notes-file release_notes.md \
               --latest \
               --repo "${GITHUB_REPOSITORY}"
           fi
+

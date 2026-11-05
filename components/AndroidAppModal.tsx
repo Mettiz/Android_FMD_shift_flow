@@ -66,6 +66,7 @@ import {
 } from '../utils/shiftNotifications';
 
 const GITHUB_REPO = 'Mettiz/Android';
+const ALL_RELEASES_PAGE_URL = `https://github.com/${GITHUB_REPO}/releases`;
 const LATEST_RELEASE_PAGE_URL = `https://github.com/${GITHUB_REPO}/releases/latest`;
 const LATEST_APK_DIRECT_URL = `https://github.com/${GITHUB_REPO}/releases/latest/download/ShiftFlow-FMD.apk`;
 
@@ -107,61 +108,78 @@ interface GitHubReleaseInfo {
   publishedAt: string;
   htmlUrl: string;
   apkDownloadUrl: string;
+  apkFileName: string;
   apkSizeMb?: string;
 }
 
 /**
  * دکمه «اپلیکیشن اندروید»:
- * در موبایل فقط آیکون اندروید نمایش داده می‌شود تا هدر بالا شلوغ نشود.
- * با کلیک روی آن فقط لینک آخرین انتشار (Latest Releases) و دانلود مستقیم باز می‌شود.
+ * نمایش آخرین نسخه همراه با شماره ورژن و همچنین لیست نسخه‌های قبلی در GitHub Releases
  */
 export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({ className = '' }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [releaseInfo, setReleaseInfo] = useState<GitHubReleaseInfo>({
-    tagName: 'v4.0.0',
-    name: 'ShiftFlow FMD Android v4.0.0',
+    tagName: 'v4.2.0',
+    name: 'ShiftFlow FMD v4.2.0',
     publishedAt: '',
     htmlUrl: LATEST_RELEASE_PAGE_URL,
     apkDownloadUrl: LATEST_APK_DIRECT_URL,
+    apkFileName: 'ShiftFlow-FMD-v4.2.0.apk',
   });
+  const [previousReleases, setPreviousReleases] = useState<GitHubReleaseInfo[]>([]);
 
   useEffect(() => {
     if (!isModalOpen) return;
     document.body.style.overflow = 'hidden';
 
-    fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, {
+    const parseReleaseItem = (data: any): GitHubReleaseInfo | null => {
+      if (!data || !data.tag_name) return null;
+      const assets = Array.isArray(data.assets) ? data.assets : [];
+      const versionedApk =
+        assets.find(
+          (a: { name?: string }) =>
+            a.name && a.name.endsWith('.apk') && a.name.includes(data.tag_name)
+        ) ||
+        assets.find((a: { name?: string }) => a.name && a.name.endsWith('.apk'));
+
+      const sizeMb =
+        versionedApk && typeof versionedApk.size === 'number'
+          ? toPersianDigits((versionedApk.size / (1024 * 1024)).toFixed(1)) + ' مگابایت'
+          : undefined;
+
+      let pubDate = '';
+      if (data.published_at) {
+        try {
+          pubDate = new Date(data.published_at).toLocaleDateString('fa-IR');
+        } catch {}
+      }
+
+      const rawTag = String(data.tag_name);
+      const rawName = data.name ? String(data.name) : `ShiftFlow FMD ${rawTag}`;
+
+      return {
+        tagName: rawTag,
+        name: rawName,
+        publishedAt: pubDate,
+        htmlUrl: data.html_url || `${ALL_RELEASES_PAGE_URL}/tag/${rawTag}`,
+        apkDownloadUrl: versionedApk?.browser_download_url || LATEST_APK_DIRECT_URL,
+        apkFileName: versionedApk?.name || `ShiftFlow-FMD-${rawTag}.apk`,
+        apkSizeMb: sizeMb,
+      };
+    };
+
+    fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases?per_page=15`, {
       headers: { Accept: 'application/vnd.github+json' },
     })
       .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (!data) return;
-        const apkAsset = Array.isArray(data.assets)
-          ? data.assets.find((a: { name?: string }) => a.name && a.name.endsWith('.apk'))
-          : null;
-        const sizeMb =
-          apkAsset && typeof apkAsset.size === 'number'
-            ? toPersianDigits((apkAsset.size / (1024 * 1024)).toFixed(1)) + ' مگابایت'
-            : undefined;
-        let pubDate = '';
-        if (data.published_at) {
-          try {
-            pubDate = new Date(data.published_at).toLocaleDateString('fa-IR');
-          } catch {}
+      .then((list) => {
+        if (!Array.isArray(list) || list.length === 0) return;
+        const parsed = list.map(parseReleaseItem).filter(Boolean) as GitHubReleaseInfo[];
+        if (parsed.length > 0) {
+          setReleaseInfo(parsed[0]);
+          setPreviousReleases(parsed.slice(1));
         }
-        const rawTag = data.tag_name && data.tag_name !== 'v3.0.0' ? data.tag_name : 'v4.0.0';
-        const rawName =
-          data.name && !String(data.name).includes('v3.0.0')
-            ? data.name
-            : `ShiftFlow FMD Android ${rawTag}`;
-        setReleaseInfo({
-          tagName: rawTag,
-          name: rawName,
-          publishedAt: pubDate,
-          htmlUrl: data.html_url || LATEST_RELEASE_PAGE_URL,
-          apkDownloadUrl: apkAsset?.browser_download_url || LATEST_APK_DIRECT_URL,
-          apkSizeMb: sizeMb,
-        });
       })
       .catch(() => {});
 
@@ -194,10 +212,10 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({ className = 
             </div>
             <div>
               <h2 className="text-sm sm:text-base font-black flex items-center gap-2">
-                <span>اپلیکیشن اندروید ( آخرین Releases )</span>
+                <span>اپلیکیشن اندروید (GitHub Releases)</span>
               </h2>
               <p className="text-[11px] text-emerald-100/90 mt-0.5">
-                دریافت آخرین نسخه رسمی منتشرشده در GitHub Releases
+                دانلود آخرین نسخه رسمی و آرشیو نسخه‌های قبلی
               </p>
             </div>
           </div>
@@ -210,21 +228,21 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({ className = 
           </button>
         </div>
 
-        {/* Single Clean Content: Latest Releases Link Only */}
-        <div className="p-5 space-y-4 bg-white">
+        <div className="p-5 space-y-4 bg-white max-h-[78vh] overflow-y-auto">
+          {/* Latest Release Box */}
           <div className="rounded-2xl border-2 border-emerald-500 bg-emerald-50/60 p-4 space-y-3">
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <span className="text-xs font-black text-emerald-950">
                 {releaseInfo.name}
               </span>
               <span className="px-2.5 py-0.5 rounded-lg bg-emerald-600 text-white text-[11px] font-black dir-ltr">
-                {releaseInfo.tagName}
+                {releaseInfo.tagName} (آخرین نسخه)
               </span>
             </div>
 
             {releaseInfo.publishedAt && (
               <div className="text-[11px] text-slate-600 font-medium">
-                تاریخ آخرین انتشار: <strong>{releaseInfo.publishedAt}</strong>
+                تاریخ انتشار: <strong>{releaseInfo.publishedAt}</strong>
                 {releaseInfo.apkSizeMb ? ` · حجم: ${releaseInfo.apkSizeMb}` : ''}
               </div>
             )}
@@ -262,28 +280,76 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({ className = 
               </button>
             </div>
 
-            {/* Primary CTA: Open Latest Releases Page */}
-            <a
-              href={releaseInfo.htmlUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-black text-xs sm:text-sm px-4 py-3.5 rounded-xl shadow-md transition cursor-pointer"
-            >
-              <ExternalLink className="w-4 h-4 shrink-0" />
-              <span>مشاهده و دانلود از صفحه آخرین Releases گیت‌هاب</span>
-            </a>
-
             {/* Direct APK Asset Link from Latest Release */}
             <a
               href={releaseInfo.apkDownloadUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="w-full flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-4 py-3 rounded-xl transition cursor-pointer"
+              className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-black text-xs sm:text-sm px-4 py-3.5 rounded-xl shadow-md transition cursor-pointer"
             >
-              <Download className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>دانلود مستقیم فایل ShiftFlow-FMD.apk (آخرین Release)</span>
+              <Download className="w-4 h-4 shrink-0" />
+              <span>دانلود مستقیم {releaseInfo.apkFileName}</span>
+            </a>
+
+            {/* Open All Releases Page */}
+            <a
+              href={ALL_RELEASES_PAGE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition cursor-pointer"
+            >
+              <ExternalLink className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>مشاهده تمام نسخه‌ها در صفحه Releases گیت‌هاب</span>
             </a>
           </div>
+
+          {/* Previous Releases Archive */}
+          {previousReleases.length > 0 && (
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3.5 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-extrabold text-slate-800">
+                  آرشیو نسخه‌های قبلی (قابل دانلود)
+                </h3>
+                <span className="text-[11px] text-slate-500 font-bold">
+                  {toPersianDigits(previousReleases.length)} نسخه پیشین
+                </span>
+              </div>
+              <div className="space-y-2 max-h-44 overflow-y-auto pr-0.5">
+                {previousReleases.map((rel) => (
+                  <div
+                    key={rel.tagName}
+                    className="flex items-center justify-between gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-extrabold text-slate-800 truncate">
+                          {rel.name}
+                        </span>
+                        <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-mono font-bold dir-ltr">
+                          {rel.tagName}
+                        </span>
+                      </div>
+                      {rel.publishedAt && (
+                        <div className="text-[10px] text-slate-500 mt-0.5">
+                          انتشار: {rel.publishedAt}
+                          {rel.apkSizeMb ? ` · ${rel.apkSizeMb}` : ''}
+                        </div>
+                      )}
+                    </div>
+                    <a
+                      href={rel.apkDownloadUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-[11px] font-bold transition"
+                    >
+                      <Download className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>دانلود</span>
+                    </a>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -295,7 +361,7 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({ className = 
         type="button"
         onClick={() => setIsModalOpen(true)}
         className={`flex items-center justify-center gap-1.5 w-8 h-8 sm:w-9 sm:h-9 md:w-auto md:h-auto md:px-3 md:py-1.5 rounded-xl text-xs font-bold transition-all shadow-2xs border cursor-pointer shrink-0 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200 ${className}`}
-        title="دانلود اپلیکیشن اندروید (آخرین Releases)"
+        title="دانلود اپلیکیشن اندروید (آخرین نسخه و آرشیو نسخه‌های قبلی)"
         aria-label="اپلیکیشن اندروید"
       >
         <AndroidLogoIcon className="w-4 h-4 sm:w-[18px] sm:h-[18px] shrink-0 text-emerald-600" />
