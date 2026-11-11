@@ -10,12 +10,11 @@
 
 | نوع دسترسی | لینک مستقیم | توضیحات |
 | :--- | :--- | :--- |
-| **📱 دانلود آخرین نسخه اندروید (APK)** | [**دانلود مستقیم آخرین نسخه ShiftFlow-FMD.apk**](https://github.com/Mettiz/Android/releases/latest/download/ShiftFlow-FMD.apk) | نصب مستقیم روی گوشی اندروید (همراه با شماره نسخه در نام برنامه) |
-| **🗂️ آرشیو تمام نسخه‌ها (Releases)** | [**مشاهده نسخه جدید و نسخه‌های قبلی در GitHub Releases**](https://github.com/Mettiz/Android/releases) | دسترسی به آخرین انتشار و امکان دانلود تمامی ورژن‌های قبلی |
-| **🌐 نسخه وب روی GitHub Pages** | [**https://mettiz.github.io/Android/**](https://mettiz.github.io/Android/) | انتشار خودکار روی گیت‌هاب (قابل استفاده در موبایل، آیفون و کامپیوتر بدون فیلترشکن) |
-| **☁️ نسخه وب روی سرور Vercel** | [**https://android-fmd-shift-flow.vercel.app**](https://android-fmd-shift-flow.vercel.app/) | آدرس کمکی و سرور رله ابری همگام‌سازی |
+| **🌐 نسخه وب روی GitHub Pages (بدون فیلترشکن)** | [**https://mettiz.github.io/Android_FMD_shift_flow/**](https://mettiz.github.io/Android_FMD_shift_flow/) | آدرس اصلی وب‌اپلیکیشن (موبایل، آیفون، تبلت و کامپیوتر) |
+| **📱 دانلود آخرین نسخه اندروید (APK)** | [**دانلود مستقیم آخرین نسخه ShiftFlow-FMD.apk**](https://github.com/Mettiz/Android_FMD_shift_flow/releases/latest/download/ShiftFlow-FMD.apk) | نصب مستقیم روی گوشی اندروید (همراه با شماره نسخه در نام برنامه) |
+| **🗂️ آرشیو تمام نسخه‌ها (Releases)** | [**مشاهده نسخه جدید و نسخه‌های قبلی در GitHub Releases**](https://github.com/Mettiz/Android_FMD_shift_flow/releases) | دسترسی به آخرین انتشار و امکان دانلود تمامی ورژن‌های قبلی |
 
-> **نکته درباره نسخه‌های اپلیکیشن:** در هر بیلد جدید، شماره نسخه (مانند `ShiftFlow FMD v4.2.x`) به صورت خودکار در نام برنامه و نام فایل نصبی درج می‌شود و تمام نسخه‌های قبلی نیز در بخش [**Releases**](https://github.com/Mettiz/Android/releases) برای دانلود باقی می‌مانند.
+> **نکته درباره نسخه‌های اپلیکیشن:** در هر بیلد جدید، شماره نسخه (مانند `ShiftFlow FMD v4.2.x`) به صورت خودکار در نام برنامه و نام فایل نصبی درج می‌شود و تمام نسخه‌های قبلی نیز در بخش [**Releases**](https://github.com/Mettiz/Android_FMD_shift_flow/releases) برای دانلود باقی می‌مانند.
 
 ---
 

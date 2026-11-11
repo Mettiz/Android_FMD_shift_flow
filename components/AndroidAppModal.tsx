@@ -65,7 +65,7 @@ import {
   generatePersonalShiftICS,
 } from '../utils/shiftNotifications';
 
-const GITHUB_REPO = 'Mettiz/Android';
+const GITHUB_REPO = 'Mettiz/Android_FMD_shift_flow';
 const ALL_RELEASES_PAGE_URL = `https://github.com/${GITHUB_REPO}/releases`;
 const LATEST_RELEASE_PAGE_URL = `https://github.com/${GITHUB_REPO}/releases/latest`;
 const LATEST_APK_DIRECT_URL = `https://github.com/${GITHUB_REPO}/releases/latest/download/ShiftFlow-FMD.apk`;
