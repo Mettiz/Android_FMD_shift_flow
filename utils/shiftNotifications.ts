@@ -270,7 +270,7 @@ export async function syncBackgroundServiceWorkerState(
     try {
       let reg = await navigator.serviceWorker.getRegistration();
       if (!reg) {
-        reg = await navigator.serviceWorker.register('/sw.js');
+        reg = await navigator.serviceWorker.register('./sw.js');
       }
       const target = reg?.active || navigator.serviceWorker.controller;
       if (target) {
@@ -326,8 +326,8 @@ export async function sendNativeAndroidNotification(
       const uniqueTag = `${tag}-${Date.now()}`;
       const notifOptions: NotificationOptions & { renotify?: boolean; vibrate?: number[] } = {
         body,
-        icon: '/pwa-192x192.png',
-        badge: '/pwa-192x192.png',
+        icon: './pwa-192x192.png',
+        badge: './pwa-192x192.png',
         dir: 'rtl',
         lang: 'fa',
         tag: uniqueTag,
@@ -339,7 +339,7 @@ export async function sendNativeAndroidNotification(
         try {
           let reg = await navigator.serviceWorker.getRegistration();
           if (!reg) {
-            reg = await navigator.serviceWorker.register('/sw.js');
+            reg = await navigator.serviceWorker.register('./sw.js');
           }
           if (reg && 'showNotification' in reg) {
             await reg.showNotification(title, notifOptions);

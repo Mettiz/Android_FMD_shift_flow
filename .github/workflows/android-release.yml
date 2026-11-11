@@ -16,6 +16,8 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -116,6 +118,7 @@ jobs:
           import { defineConfig } from "vite";
           import react from "@vitejs/plugin-react";
           export default defineConfig({
+            base: "./",
             plugins: [react()],
             resolve: { alias: { "@": path.resolve(".") } },
             build: { target: "esnext", outDir: "dist", emptyOutDir: true, chunkSizeWarningLimit: 3000 }
@@ -750,4 +753,48 @@ jobs:
               --latest \
               --repo "${GITHUB_REPOSITORY}"
           fi
+
+      - name: 🌐 انتشار خودکار وب‌اپلیکیشن روی GitHub Pages (https://mettiz.github.io/Android/)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set +e
+          PAGES_DIR="/tmp/shiftflow_gh_pages"
+          rm -rf "$PAGES_DIR"
+          mkdir -p "$PAGES_DIR"
+
+          if [ -d "dist" ] && [ -f "dist/index.html" ]; then
+            cp -r dist/* "$PAGES_DIR/"
+          elif [ -d "android/app/src/main/assets/public" ]; then
+            cp -r android/app/src/main/assets/public/* "$PAGES_DIR/"
+          fi
+
+          [ -f "public/sw.js" ] && cp -f public/sw.js "$PAGES_DIR/sw.js" || true
+          [ -f "public/sw-notif-handler.js" ] && cp -f public/sw-notif-handler.js "$PAGES_DIR/sw-notif-handler.js" || true
+          rm -f "$PAGES_DIR/"*.apk "$PAGES_DIR/"*.zip "$PAGES_DIR/"*.yml "$PAGES_DIR/"*.keystore
+
+          # ایجاد فایل .nojekyll و 404.html برای پشتیبانی کامل SPA در GitHub Pages
+          touch "$PAGES_DIR/.nojekyll"
+          cp "$PAGES_DIR/index.html" "$PAGES_DIR/404.html"
+
+          # انتشار در شاخه gh-pages
+          cd "$PAGES_DIR"
+          git init .
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b gh-pages
+          git add -A
+          git commit -m "Deploy ShiftFlow FMD ${RELEASE_TAG} to GitHub Pages"
+          git push -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" gh-pages
+
+          # تلاش برای فعال‌سازی خودکار GitHub Pages روی شاخه gh-pages از طریق API گیت‌هاب
+          gh api -X POST "/repos/${GITHUB_REPOSITORY}/pages" \
+            -f "source[branch]=gh-pages" \
+            -f "source[path]=/" 2>/dev/null || \
+          gh api -X PUT "/repos/${GITHUB_REPOSITORY}/pages" \
+            -f "source[branch]=gh-pages" \
+            -f "source[path]=/" 2>/dev/null || true
+
+          echo "✅ GitHub Pages published to branch gh-pages -> https://mettiz.github.io/Android/"
+          exit 0
 

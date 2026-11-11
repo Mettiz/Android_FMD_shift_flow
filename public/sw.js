@@ -1,6 +1,6 @@
-// Clean Service Worker for ShiftFlow PWA v4.0.0 (With OS Notifications & Background Sync)
+// Clean Service Worker for ShiftFlow PWA v4.2.0 (With OS Notifications & Background Sync)
 try {
-  importScripts('/sw-notif-handler.js');
+  importScripts('./sw-notif-handler.js');
 } catch (e) {
   // Fallback if importScripts fails
 }
