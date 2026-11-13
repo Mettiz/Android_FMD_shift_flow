@@ -37,9 +37,13 @@ import { getDayNameForJalali } from './persianDate';
 
 export { isValidPersonCandidate };
 
-// Configure pdfjs worker safely for standalone Android APK and browser client
-if (typeof window !== 'undefined' && pdfjsLib.GlobalWorkerOptions && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.mjs';
+// Configure pdfjs worker safely for GitHub Pages subpaths, Cloudflare Pages, standalone Android APK, and browsers
+if (typeof window !== 'undefined' && pdfjsLib.GlobalWorkerOptions) {
+  try {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('./pdf.worker.mjs', document.baseURI || window.location.href).href;
+  } catch {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = './pdf.worker.mjs';
+  }
 }
 
 /**
@@ -313,7 +317,7 @@ export async function parsePdfBuffer(
     }
   });
 
-  try {
+  const extractWithPdfJs = async () => {
     const loadingTask = pdfjsLib.getDocument({
       data: rawBytes,
       useSystemFonts: true,
@@ -360,19 +364,34 @@ export async function parsePdfBuffer(
         matchedGroup.items.push({ x: tx, text });
       }
     }
+  };
+
+  try {
+    await extractWithPdfJs();
   } catch (workerErr) {
-    console.warn('pdfjs extraction failed, attempting binary text extraction:', workerErr);
-    const fallbackText = extractTextFromBinaryPdf(rawBytes.buffer as ArrayBuffer);
-    const lines = fallbackText.split(/[\r\n]+/);
-    lines.forEach((l, idx) => {
-      const cleaned = cleanScheduleLineText(l);
-      if (cleaned) {
-        rowGroups.push({
-          y: 1000 - idx * 20,
-          items: [{ x: 500, text: cleaned }]
-        });
+    console.warn('Primary pdfjs worker failed, retrying with in-thread pdfjsWorker fallback:', workerErr);
+    rowGroups.length = 0;
+    allItems.length = 0;
+    try {
+      const workerMod: any = await import('pdfjs-dist/legacy/build/pdf.worker.mjs');
+      if (typeof globalThis !== 'undefined' && !(globalThis as any).pdfjsWorker && workerMod) {
+        (globalThis as any).pdfjsWorker = workerMod;
       }
-    });
+      await extractWithPdfJs();
+    } catch (inThreadErr) {
+      console.warn('In-thread pdfjs extraction failed, attempting binary text extraction:', inThreadErr);
+      const fallbackText = extractTextFromBinaryPdf(rawBytes.buffer as ArrayBuffer);
+      const lines = fallbackText.split(/[\r\n]+/);
+      lines.forEach((l, idx) => {
+        const cleaned = cleanScheduleLineText(l);
+        if (cleaned) {
+          rowGroups.push({
+            y: 1000 - idx * 20,
+            items: [{ x: 500, text: cleaned }]
+          });
+        }
+      });
+    }
   }
 
   // Sort rows top-to-bottom
@@ -637,32 +656,44 @@ export async function parsePdfSchedule(
 ): Promise<ParsePdfResult> {
   const arrayBuffer = await file.arrayBuffer();
 
-  // 1. Try server-side parsing (ultra-fast Node parser with 100% font/layout fidelity)
-  try {
-    const bytes = new Uint8Array(arrayBuffer);
-    let binary = '';
-    const chunk = 8192;
-    for (let i = 0; i < bytes.byteLength; i += chunk) {
-      binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunk)));
-    }
-    const pdfBase64 = btoa(binary);
+  const host = typeof window !== 'undefined' ? window.location.hostname.toLowerCase() : '';
+  const proto = typeof window !== 'undefined' ? window.location.protocol : '';
+  const isClientOnlyEnv =
+    host.endsWith('github.io') ||
+    host.endsWith('pages.dev') ||
+    host.endsWith('netlify.app') ||
+    proto === 'capacitor:' ||
+    proto === 'file:' ||
+    (typeof window !== 'undefined' && Boolean((window as any).AndroidBridge));
 
-    const resp = await fetch('/api/parse-pdf', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pdfBase64, knownPersonnel }),
-    });
-
-    if (resp.ok) {
-      const result = await resp.json();
-      if (result.success && result.data && result.data.shifts?.length > 0) {
-        return result.data;
+  // 1. Try server-side parsing ONLY when running on a Node/Express backend
+  if (!isClientOnlyEnv) {
+    try {
+      const bytes = new Uint8Array(arrayBuffer);
+      let binary = '';
+      const chunk = 8192;
+      for (let i = 0; i < bytes.byteLength; i += chunk) {
+        binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunk)));
       }
+      const pdfBase64 = btoa(binary);
+
+      const resp = await fetch('/api/parse-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pdfBase64, knownPersonnel }),
+      });
+
+      if (resp.ok) {
+        const result = await resp.json();
+        if (result.success && result.data && result.data.shifts?.length > 0) {
+          return result.data;
+        }
+      }
+    } catch (apiErr) {
+      console.warn('Server parse fallback notice:', apiErr);
     }
-  } catch (apiErr) {
-    console.warn('Server parse fallback notice:', apiErr);
   }
 
-  // 2. Client-side fallback (offline / PWA standalone)
+  // 2. Client-side PDF parsing (GitHub Pages, Cloudflare Pages, Android APK, offline PWA)
   return parsePdfBuffer(arrayBuffer, knownPersonnel);
 }
