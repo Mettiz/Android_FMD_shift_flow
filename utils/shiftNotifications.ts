@@ -231,7 +231,7 @@ export async function requestSystemNotificationPermission(): Promise<string> {
     try {
       const existing = await navigator.serviceWorker.getRegistration();
       if (!existing) {
-        await navigator.serviceWorker.register('/sw.js');
+        await navigator.serviceWorker.register('./sw.js');
       }
     } catch {}
   }
@@ -313,8 +313,8 @@ export async function sendNativeAndroidNotification(
     }
   }
 
-  // 2. Standard Web / Mobile Chrome / PWA OS Notification API
-  if (typeof Notification !== 'undefined') {
+  // 2. Standard Web / Mobile Chrome / PWA OS Notification API (only if AndroidBridge didn't already dispatch)
+  if (!dispatched && typeof Notification !== 'undefined') {
     let perm = Notification.permission;
     if (perm === 'default') {
       try {

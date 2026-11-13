@@ -359,10 +359,15 @@ async function writeFirestoreDocREST(data: Record<string, any>, merge = true): P
   }
 }
 
+function isCloudflarePagesOrigin(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.location.hostname.toLowerCase().endsWith('.pages.dev');
+}
+
 function isStaticHostingOrigin(): boolean {
   if (typeof window === 'undefined') return false;
   const h = window.location.hostname.toLowerCase();
-  return h.endsWith('github.io') || h.endsWith('pages.dev') || h.endsWith('netlify.app');
+  return h.endsWith('github.io') || h.endsWith('netlify.app');
 }
 
 export function getCustomServerUrl(): string {
@@ -452,6 +457,10 @@ export async function testServerUrlConnection(rawUrl: string): Promise<{ success
 
 export function getSyncApiBase(): string {
   const custom = getCustomServerUrl();
+  // On Cloudflare Pages (*.pages.dev), prefer same-origin /api/sync Pages Function unless user specified a custom non-default relay
+  if (isCloudflarePagesOrigin() && (!custom || custom === DEFAULT_VERCEL_SYNC_URL) && !deadEndpointUrls.has('__local__')) {
+    return '';
+  }
   if (custom && !deadEndpointUrls.has(custom)) return custom;
   if (isStandaloneAndroidRuntime() && getActiveServerUrls().length > 0) {
     return getActiveServerUrls()[0];
@@ -749,7 +758,7 @@ export function subscribeToCloudRoster(
     const currentBase = getSyncApiBase();
     const activeKey = currentBase || '__local__';
     if (
-      (!currentBase && (isNativeAndroid || isStaticHost)) ||
+      (!currentBase && (isNativeAndroid || isStaticHost || isCloudflarePagesOrigin())) ||
       deadEndpointUrls.has(activeKey) ||
       currentBase.includes('.workers.dev')
     ) {
@@ -1087,9 +1096,10 @@ export async function saveCloudRoster(data: Partial<CloudRosterState>): Promise<
     );
   }
 
-  // 3. Direct Server Sync POST (only to active non-dead server endpoints)
+  // 3. Direct Server Sync POST (only to active non-dead server endpoints; avoid duplicate relay writes on *.pages.dev)
   const isAndroid = isStandaloneAndroidRuntime();
   const isStaticHost = isStaticHostingOrigin();
+  const isPagesHost = isCloudflarePagesOrigin();
   const customUrl = getCustomServerUrl();
   const targetUrls: string[] = [];
   if (isAndroid) {
@@ -1098,7 +1108,11 @@ export async function saveCloudRoster(data: Partial<CloudRosterState>): Promise<
     if (!isStaticHost && !deadEndpointUrls.has('__local__')) {
       targetUrls.push('/api/sync');
     }
-    if (customUrl && !deadEndpointUrls.has(customUrl)) {
+    if (
+      customUrl &&
+      !deadEndpointUrls.has(customUrl) &&
+      (!isPagesHost || deadEndpointUrls.has('__local__') || customUrl !== DEFAULT_VERCEL_SYNC_URL)
+    ) {
       targetUrls.push(`${customUrl}/api/sync`);
     }
   }
@@ -1165,6 +1179,7 @@ export async function resetCloudRoster(data: CloudRosterState): Promise<void> {
 
   const isAndroid = isStandaloneAndroidRuntime();
   const isStaticHost = isStaticHostingOrigin();
+  const isPagesHost = isCloudflarePagesOrigin();
   const customUrl = getCustomServerUrl();
   const targetUrls: string[] = [];
   if (isAndroid) {
@@ -1173,7 +1188,11 @@ export async function resetCloudRoster(data: CloudRosterState): Promise<void> {
     if (!isStaticHost && !deadEndpointUrls.has('__local__')) {
       targetUrls.push('/api/sync/reset');
     }
-    if (customUrl && !deadEndpointUrls.has(customUrl)) {
+    if (
+      customUrl &&
+      !deadEndpointUrls.has(customUrl) &&
+      (!isPagesHost || deadEndpointUrls.has('__local__') || customUrl !== DEFAULT_VERCEL_SYNC_URL)
+    ) {
       targetUrls.push(`${customUrl}/api/sync/reset`);
     }
   }

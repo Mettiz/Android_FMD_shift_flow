@@ -84,7 +84,7 @@ async function fetchSyncPayload() {
   const isStaticHost =
     typeof self !== 'undefined' &&
     self.location &&
-    /(github\.io|pages\.dev|netlify\.app)$/i.test(self.location.hostname || '');
+    /(github\.io|netlify\.app)$/i.test(self.location.hostname || '');
 
   if (!isStaticHost && !isLocalApiDead) {
     try {
@@ -322,8 +322,8 @@ self.addEventListener('message', (event) => {
       const isStaticHost =
         typeof self !== 'undefined' &&
         self.location &&
-        /(github\.io|pages\.dev|netlify\.app)$/i.test(self.location.hostname || '');
-      BG_STATE.pollingTimer = setInterval(checkServerScheduleInBackground, isStaticHost ? 20000 : 8000);
+        /(github\.io|netlify\.app)$/i.test(self.location.hostname || '');
+      BG_STATE.pollingTimer = setInterval(checkServerScheduleInBackground, isStaticHost ? 12000 : 8000);
     }
   } else if (data.type === 'BG_HEARTBEAT_PING') {
     event.waitUntil(checkServerScheduleInBackground());
