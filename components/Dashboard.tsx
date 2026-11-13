@@ -284,17 +284,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
   // Keep state synchronized with publishedRange
   const prevPublishedRangeRef = React.useRef(publishedRange);
   React.useEffect(() => {
+    const wasActive = Boolean(prevPublishedRangeRef.current?.isActive);
     if (publishedRange && publishedRange.isActive) {
       setAppliedFilter({ from: publishedRange.from, to: publishedRange.to });
       setFromDate(publishedRange.from);
       setToDate(publishedRange.to);
       setViewMode('RANGE');
-    } else {
-      // If not owner, always follow publishedRange (or default month if none)
-      if (!isOwner) {
-        setAppliedFilter(null);
-        setViewMode('MONTH');
-      }
+    } else if (!isOwner || wasActive) {
+      setAppliedFilter(null);
+      setViewMode('MONTH');
     }
   }, [publishedRange, isOwner]);
 
@@ -2248,7 +2246,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
 
             {/* Mobile Cards */}
-            <div className="md:hidden space-y-4 print:hidden">
+            <div className="md:hidden space-y-3 print:hidden">
               {filteredSchedule.length === 0 && (
                  <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
                     <CalendarRange size={32} className="text-slate-300 mx-auto mb-2" />
@@ -2269,6 +2267,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     </button>
                  </div>
               )}
+
               {filteredSchedule.map(entry => {
                  const isToday = entry.date === todayPersianDate;
                  const isFriday = entry.dayName === 'جمعه';
@@ -2276,319 +2275,337 @@ export const Dashboard: React.FC<DashboardProps> = ({
                  const isThursday = entry.dayName === 'پنج‌شنبه';
                  
                  let cardBg = 'bg-white';
-                 let borderColor = 'border-slate-200';
+                 let borderColor = 'border-slate-200/90';
                  if (isToday) {
-                     cardBg = 'bg-emerald-50/70';
+                     cardBg = 'bg-emerald-50/75';
                      borderColor = 'border-emerald-500 ring-1 ring-emerald-400';
                  } else if (isFriday || isHoliday) {
-                     cardBg = 'bg-red-50';
+                     cardBg = 'bg-red-50/85';
                      borderColor = 'border-red-200';
                  } else if (isThursday) {
-                     cardBg = 'bg-[#f3e8ff]';
+                     cardBg = 'bg-[#f5eeff]';
                      borderColor = 'border-purple-200';
                  }
+
+                 const dateTasks = (showProcessSchedule && dailyProcesses && dailyProcesses[entry.date]) || [];
+                 const isPersonMatchedDay =
+                   filterPerson !== 'All' &&
+                   isPersonInShiftSlot(filterPerson, entry.dayShiftPerson, entry.extraDayPersons);
+                 const isPersonMatchedNight =
+                   filterPerson !== 'All' &&
+                   isPersonInShiftSlot(filterPerson, entry.nightShiftPerson, entry.extraNightPersons);
+
+                 const dayTileTone =
+                   filterShiftType === 'NIGHT'
+                     ? 'bg-orange-50/45 border-orange-200/60 opacity-60'
+                     : filterShiftType === 'DAY' || isPersonMatchedDay
+                       ? 'bg-white border-amber-400 ring-2 ring-amber-400/50 shadow-2xs'
+                       : 'bg-orange-50/85 border-orange-200/85';
+
+                 const nightTileTone =
+                   filterShiftType === 'DAY'
+                     ? 'bg-indigo-50/45 border-indigo-200/60 opacity-60'
+                     : filterShiftType === 'NIGHT' || isPersonMatchedNight
+                       ? 'bg-white border-indigo-400 ring-2 ring-indigo-500/45 shadow-2xs'
+                       : 'bg-indigo-50/85 border-indigo-200/85';
 
                  return (
                   <div 
                     key={entry.id} 
                     id={isToday ? "shift-today-card" : `shift-card-${entry.date.replace(/\//g, '-')}`}
-                    className={`${cardBg} rounded-xl shadow-sm border ${borderColor} p-4 ${isToday ? 'scroll-mt-28' : ''}`}
+                    className={`${cardBg} rounded-2xl shadow-xs border ${borderColor} p-3 ${isToday ? 'scroll-mt-28' : ''}`}
                   >
-                    {(() => {
-                      const dateTasks = (showProcessSchedule && dailyProcesses && dailyProcesses[entry.date]) || [];
-                      return (
-                        <div 
-                          onClick={() => {
-                            if (showProcessSchedule) {
-                              setSelectedProcessDate({ date: entry.date, dayName: entry.dayName });
-                              setIsProcessModalOpen(true);
-                            }
-                          }}
-                          className={`flex flex-col gap-1.5 mb-3 border-b border-slate-100 pb-2 ${
-                            showProcessSchedule ? 'cursor-pointer hover:bg-slate-50/80 rounded-lg p-1 transition' : ''
-                          }`}
-                          title={showProcessSchedule ? "برای مشاهده و مدیریت فرآیندهای تولید این روز کلیک کنید" : undefined}
-                        >
-                          <div className="flex justify-between items-center">
-                            <div className="flex items-center gap-2">
-                              <span className={`font-black ${isToday ? 'text-emerald-800' : isFriday || isHoliday ? 'text-red-600' : 'text-slate-700'}`}>{entry.dayName}</span>
-                              <span className="text-xs text-slate-500 font-bold">{toPersianDigits(entry.date)}</span>
-                              {isToday && (
-                                <span className="text-[10px] bg-emerald-600 text-white font-bold px-2 py-0.5 rounded-full shadow-xs">
-                                  امروز
-                                </span>
-                              )}
+                    {/* Top Row: Day, Date, Today/Holiday & Process Badge */}
+                    <div 
+                      onClick={() => {
+                        if (showProcessSchedule) {
+                          setSelectedProcessDate({ date: entry.date, dayName: entry.dayName });
+                          setIsProcessModalOpen(true);
+                        }
+                      }}
+                      className={`flex flex-col gap-1.5 mb-2.5 pb-2 border-b border-slate-200/70 ${
+                        showProcessSchedule ? 'cursor-pointer hover:bg-white/60 rounded-lg p-1 -m-1 mb-2 transition' : ''
+                      }`}
+                      title={showProcessSchedule ? "برای مشاهده و مدیریت فرآیندهای تولید این روز کلیک کنید" : undefined}
+                    >
+                      <div className="flex justify-between items-center gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className={`font-black text-sm ${isToday ? 'text-emerald-800' : isFriday || isHoliday ? 'text-red-600' : 'text-slate-800'}`}>
+                            {entry.dayName}
+                          </span>
+                          <span className="text-xs text-slate-500 font-bold tabular-nums">
+                            {toPersianDigits(entry.date)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {isToday && (
+                            <span className="text-[10px] bg-emerald-600 text-white font-black px-2 py-0.5 rounded-full shadow-2xs">
+                              امروز
+                            </span>
+                          )}
+                          {entry.isHoliday && (
+                            <span className="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-bold border border-red-200/80">
+                              تعطیل
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {showProcessSchedule && dateTasks.length > 0 && (
+                        <div className="flex items-center gap-1.5 text-[10.5px] font-bold text-emerald-900 bg-emerald-100/90 border border-emerald-300 px-2 py-1 rounded-lg truncate">
+                          <FlaskConical size={12} className="shrink-0 text-emerald-700" />
+                          <span className="truncate">{dateTasks[0].title}</span>
+                          {dateTasks.length > 1 && (
+                            <span className="text-[9.5px] bg-emerald-200 text-emerald-950 px-1.5 py-0.2 rounded-full font-black mr-auto">
+                              +{toPersianDigits(dateTasks.length - 1)}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Side-by-Side 2-Column Shift Grid (Day | Night) */}
+                    <div className="grid grid-cols-2 gap-2">
+                      {/* Day Shift Column */}
+                      <div className={`${dayTileTone} border rounded-xl p-2.5 flex flex-col justify-between transition-all`}>
+                        <div>
+                          <div className="flex items-center justify-between gap-1 mb-1.5">
+                            <div className="flex items-center gap-1 min-w-0">
+                              <Sun size={13} className="text-amber-500 shrink-0" />
+                              <span className="text-[11px] font-black text-amber-800 truncate">روز</span>
+                              <span className="text-[9.5px] font-bold text-amber-700/75 tabular-nums hidden xs:inline">۰۸–۱۹</span>
                             </div>
-                            <div className="flex items-center gap-1.5">
-                              {entry.isHoliday && <span className="text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold">تعطیل</span>}
-                            </div>
+                            {isOwner && (
+                              <div className="flex items-center gap-0.5 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => setQuickEditShift({
+                                    id: entry.id,
+                                    date: entry.date,
+                                    dayName: entry.dayName,
+                                    field: 'dayShiftPerson',
+                                    currentPerson: entry.dayShiftPerson
+                                  })}
+                                  className="min-h-[36px] min-w-[32px] -my-1.5 flex items-center justify-center text-slate-400 hover:text-amber-700 hover:bg-amber-100 rounded-lg transition cursor-pointer"
+                                  title="تغییر پرسنل شیفت روز"
+                                >
+                                  <Edit size={13} />
+                                </button>
+                                {(!entry.extraDayPersons || entry.extraDayPersons.length === 0) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setQuickEditShift({
+                                      id: entry.id,
+                                      date: entry.date,
+                                      dayName: entry.dayName,
+                                      field: 'extraDayPerson',
+                                      currentPerson: '',
+                                      extraIndex: 0,
+                                      actionType: 'add'
+                                    })}
+                                    className="min-h-[36px] min-w-[32px] -my-1.5 flex items-center justify-center text-slate-400 hover:text-amber-700 hover:bg-amber-100 rounded-lg transition cursor-pointer"
+                                    title="افزودن پرسنل کمکی"
+                                  >
+                                    <UserPlus size={13} />
+                                  </button>
+                                )}
+                              </div>
+                            )}
                           </div>
 
-                          {/* Process Badge in Mobile */}
-                          {showProcessSchedule && dateTasks.length > 0 && (
-                            <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-900 bg-emerald-100/90 border border-emerald-300 px-2 py-0.5 rounded-md truncate">
-                              <FlaskConical size={11} className="shrink-0 text-emerald-700" />
-                              <span className="truncate">{dateTasks[0].title}</span>
-                              {dateTasks.length > 1 && (
-                                <span className="text-[9px] bg-emerald-200 text-emerald-950 px-1 py-0.2 rounded-full font-black mr-auto">
-                                  +{toPersianDigits(dateTasks.length - 1)}
-                                </span>
-                              )}
+                          <div className="font-black text-slate-900 text-[13px] leading-snug break-words">
+                            {entry.dayShiftPerson}
+                          </div>
+                          {entry.originalDayShiftPerson && entry.originalDayShiftPerson !== entry.dayShiftPerson && (
+                            <div className="text-[10px] text-red-500 line-through decoration-red-300 mt-0.5">
+                              {entry.originalDayShiftPerson}
                             </div>
                           )}
                         </div>
-                      );
-                    })()}
-                    
-                    <div className="space-y-3">
-                       {/* Day Shift */}
-                       <div className="flex items-start gap-2">
-                          <Sun size={16} className="text-orange-400 mt-0.5 shrink-0" />
-                          <span className="text-xs font-bold w-12 text-slate-500 mt-0.5 shrink-0">روز:</span>
-                          <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between gap-1">
-                                  <div className="flex items-center gap-1.5 flex-wrap">
-                                      <span className="font-bold text-slate-800 text-sm">{entry.dayShiftPerson}</span>
-                                      {entry.originalDayShiftPerson && entry.originalDayShiftPerson !== entry.dayShiftPerson && (
-                                          <span className="text-[10px] text-red-400 line-through decoration-red-300">
-                                              {entry.originalDayShiftPerson}
-                                          </span>
-                                      )}
-                                  </div>
-                                  {isOwner && (
-                                    <div className="flex items-center gap-1 shrink-0">
-                                      <button
-                                        type="button"
-                                        onClick={() => setQuickEditShift({
-                                          id: entry.id,
-                                          date: entry.date,
-                                          dayName: entry.dayName,
-                                          field: 'dayShiftPerson',
-                                          currentPerson: entry.dayShiftPerson
-                                        })}
-                                        className="p-1 text-slate-400 hover:text-amber-700 hover:bg-amber-100 rounded transition cursor-pointer"
-                                        title="تغییر پرسنل شیفت روز"
-                                      >
-                                        <Edit size={13} />
-                                      </button>
-                                      {(!entry.extraDayPersons || entry.extraDayPersons.length === 0) && (
-                                        <button
-                                          type="button"
-                                          onClick={() => setQuickEditShift({
-                                            id: entry.id,
-                                            date: entry.date,
-                                            dayName: entry.dayName,
-                                            field: 'extraDayPerson',
-                                            currentPerson: '',
-                                            extraIndex: 0,
-                                            actionType: 'add'
-                                          })}
-                                          className="p-1 text-slate-400 hover:text-amber-700 hover:bg-amber-100 rounded transition cursor-pointer"
-                                          title="افزودن پرسنل کمکی"
-                                        >
-                                          <UserPlus size={13} />
-                                        </button>
-                                      )}
-                                    </div>
-                                  )}
-                              </div>
-                              {entry.extraDayPersons && entry.extraDayPersons.length > 0 && (
-                                <div className={`mt-1.5 pt-1.5 border-t border-orange-100/90 ${
-                                  entry.extraDayPersons.length === 2 ? 'grid grid-cols-2 gap-1.5' : 'flex items-center justify-between gap-1.5'
-                                }`}>
-                                  {entry.extraDayPersons.map((extraPerson, extraIdx) => {
-                                    const isTwo = entry.extraDayPersons!.length === 2;
-                                    const nameLen = extraPerson.length;
-                                    const fontClass = isTwo
-                                      ? (nameLen > 13 ? 'text-[8px] leading-tight' : nameLen > 9 ? 'text-[8.5px]' : 'text-[9.5px]')
-                                      : (nameLen > 14 ? 'text-[9.5px]' : 'text-[10.5px]');
 
-                                    return (
-                                      <div key={extraIdx} className={`flex items-center justify-between gap-1 bg-orange-50/80 border border-orange-200/90 px-1.5 py-0.5 rounded shadow-2xs ${isTwo ? 'w-full' : 'flex-1'}`}>
-                                        <div className="flex items-center gap-1 min-w-0 flex-1">
-                                          <span className="w-1.5 h-1.5 rounded-full bg-orange-500 shrink-0"></span>
-                                          {!isTwo && <span className="text-[8.5px] font-black text-orange-800 shrink-0">کمکی:</span>}
-                                          <span className={`font-bold text-slate-800 truncate ${fontClass}`}>{extraPerson}</span>
-                                        </div>
-                                        {isOwner && (
-                                          <button
-                                            type="button"
-                                            onClick={() => setQuickEditShift({
-                                              id: entry.id,
-                                              date: entry.date,
-                                              dayName: entry.dayName,
-                                              field: 'extraDayPerson',
-                                              currentPerson: extraPerson,
-                                              extraIndex: extraIdx,
-                                              actionType: 'change'
-                                            })}
-                                            className="p-0.5 text-slate-400 hover:text-amber-800 hover:bg-amber-200/70 rounded transition cursor-pointer shrink-0"
-                                            title="تغییر پرسنل کمکی"
-                                          >
-                                            <Edit size={11} />
-                                          </button>
-                                        )}
-                                      </div>
-                                    );
-                                  })}
-                                  {isOwner && entry.extraDayPersons.length === 1 && (
-                                    <button
-                                      type="button"
-                                      onClick={() => setQuickEditShift({
-                                        id: entry.id,
-                                        date: entry.date,
-                                        dayName: entry.dayName,
-                                        field: 'extraDayPerson',
-                                        currentPerson: '',
-                                        extraIndex: 1,
-                                        actionType: 'add'
-                                      })}
-                                      className="p-1 text-slate-400 hover:text-amber-700 hover:bg-amber-100 rounded transition cursor-pointer shrink-0"
-                                      title="افزودن کمکی دوم"
-                                    >
-                                      <UserPlus size={12} />
-                                    </button>
-                                  )}
+                        {entry.extraDayPersons && entry.extraDayPersons.length > 0 && (
+                          <div className="mt-2 pt-1.5 border-t border-orange-200/70 space-y-1">
+                            {entry.extraDayPersons.map((extraPerson, extraIdx) => (
+                              <div key={extraIdx} className="flex items-center justify-between gap-1 bg-white/95 border border-orange-200/90 px-1.5 py-0.5 rounded-lg shadow-2xs">
+                                <div className="flex items-center gap-1 min-w-0 flex-1">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-orange-500 shrink-0" />
+                                  <span className="text-[10px] font-bold text-slate-800 truncate">{extraPerson}</span>
                                 </div>
-                              )}
-                          </div>
-                       </div>
-                       
-                       {/* Night Shift */}
-                       <div className="flex items-start gap-2">
-                          <Moon size={16} className="text-indigo-400 mt-0.5 shrink-0" />
-                          <span className="text-xs font-bold w-12 text-slate-500 mt-0.5 shrink-0">شب:</span>
-                          <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between gap-1">
-                                  <div className="flex items-center gap-1.5 flex-wrap">
-                                      <span className="font-bold text-slate-800 text-sm">{entry.nightShiftPerson}</span>
-                                      {entry.originalNightShiftPerson && entry.originalNightShiftPerson !== entry.nightShiftPerson && (
-                                          <span className="text-[10px] text-red-400 line-through decoration-red-300">
-                                              {entry.originalNightShiftPerson}
-                                          </span>
-                                      )}
-                                  </div>
-                                  {isOwner && (
-                                    <div className="flex items-center gap-1 shrink-0">
-                                      <button
-                                        type="button"
-                                        onClick={() => setQuickEditShift({
-                                          id: entry.id,
-                                          date: entry.date,
-                                          dayName: entry.dayName,
-                                          field: 'nightShiftPerson',
-                                          currentPerson: entry.nightShiftPerson
-                                        })}
-                                        className="p-1 text-slate-400 hover:text-indigo-700 hover:bg-indigo-100 rounded transition cursor-pointer"
-                                        title="تغییر پرسنل شیفت شب"
-                                      >
-                                        <Edit size={13} />
-                                      </button>
-                                      {(!entry.extraNightPersons || entry.extraNightPersons.length === 0) && (
-                                        <button
-                                          type="button"
-                                          onClick={() => setQuickEditShift({
-                                            id: entry.id,
-                                            date: entry.date,
-                                            dayName: entry.dayName,
-                                            field: 'extraNightPerson',
-                                            currentPerson: '',
-                                            extraIndex: 0,
-                                            actionType: 'add'
-                                          })}
-                                          className="p-1 text-slate-400 hover:text-indigo-700 hover:bg-indigo-100 rounded transition cursor-pointer"
-                                          title="افزودن پرسنل کمکی"
-                                        >
-                                          <UserPlus size={13} />
-                                        </button>
-                                      )}
-                                    </div>
-                                  )}
+                                {isOwner && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setQuickEditShift({
+                                      id: entry.id,
+                                      date: entry.date,
+                                      dayName: entry.dayName,
+                                      field: 'extraDayPerson',
+                                      currentPerson: extraPerson,
+                                      extraIndex: extraIdx,
+                                      actionType: 'change'
+                                    })}
+                                    className="p-0.5 text-slate-400 hover:text-amber-800 hover:bg-amber-100 rounded transition cursor-pointer shrink-0"
+                                    title="تغییر پرسنل کمکی"
+                                  >
+                                    <Edit size={11} />
+                                  </button>
+                                )}
                               </div>
-                              {entry.extraNightPersons && entry.extraNightPersons.length > 0 && (
-                                <div className={`mt-1.5 pt-1.5 border-t border-indigo-100/90 ${
-                                  entry.extraNightPersons.length === 2 ? 'grid grid-cols-2 gap-1.5' : 'flex items-center justify-between gap-1.5'
-                                }`}>
-                                  {entry.extraNightPersons.map((extraPerson, extraIdx) => {
-                                    const isTwo = entry.extraNightPersons!.length === 2;
-                                    const nameLen = extraPerson.length;
-                                    const fontClass = isTwo
-                                      ? (nameLen > 13 ? 'text-[8px] leading-tight' : nameLen > 9 ? 'text-[8.5px]' : 'text-[9.5px]')
-                                      : (nameLen > 14 ? 'text-[9.5px]' : 'text-[10.5px]');
-
-                                    return (
-                                      <div key={extraIdx} className={`flex items-center justify-between gap-1 bg-indigo-50/80 border border-indigo-200/90 px-1.5 py-0.5 rounded shadow-2xs ${isTwo ? 'w-full' : 'flex-1'}`}>
-                                        <div className="flex items-center gap-1 min-w-0 flex-1">
-                                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0"></span>
-                                          {!isTwo && <span className="text-[8.5px] font-black text-indigo-900 shrink-0">کمکی:</span>}
-                                          <span className={`font-bold text-slate-800 truncate ${fontClass}`}>{extraPerson}</span>
-                                        </div>
-                                        {isOwner && (
-                                          <button
-                                            type="button"
-                                            onClick={() => setQuickEditShift({
-                                              id: entry.id,
-                                              date: entry.date,
-                                              dayName: entry.dayName,
-                                              field: 'extraNightPerson',
-                                              currentPerson: extraPerson,
-                                              extraIndex: extraIdx,
-                                              actionType: 'change'
-                                            })}
-                                            className="p-0.5 text-slate-400 hover:text-indigo-800 hover:bg-indigo-200/70 rounded transition cursor-pointer shrink-0"
-                                            title="تغییر پرسنل کمکی"
-                                          >
-                                            <Edit size={11} />
-                                          </button>
-                                        )}
-                                      </div>
-                                    );
-                                  })}
-                                  {isOwner && entry.extraNightPersons.length === 1 && (
-                                    <button
-                                      type="button"
-                                      onClick={() => setQuickEditShift({
-                                        id: entry.id,
-                                        date: entry.date,
-                                        dayName: entry.dayName,
-                                        field: 'extraNightPerson',
-                                        currentPerson: '',
-                                        extraIndex: 1,
-                                        actionType: 'add'
-                                      })}
-                                      className="p-1 text-slate-400 hover:text-indigo-700 hover:bg-indigo-100 rounded transition cursor-pointer shrink-0"
-                                      title="افزودن کمکی دوم"
-                                    >
-                                      <UserPlus size={12} />
-                                    </button>
-                                  )}
-                                </div>
-                              )}
+                            ))}
+                            {isOwner && entry.extraDayPersons.length === 1 && (
+                              <button
+                                type="button"
+                                onClick={() => setQuickEditShift({
+                                  id: entry.id,
+                                  date: entry.date,
+                                  dayName: entry.dayName,
+                                  field: 'extraDayPerson',
+                                  currentPerson: '',
+                                  extraIndex: 1,
+                                  actionType: 'add'
+                                })}
+                                className="w-full py-0.5 flex items-center justify-center gap-1 text-[10px] font-bold text-amber-700 hover:bg-amber-100/80 border border-dashed border-amber-300 rounded-lg transition cursor-pointer"
+                                title="افزودن کمکی دوم"
+                              >
+                                <UserPlus size={11} />
+                                <span>کمکی دوم</span>
+                              </button>
+                            )}
                           </div>
-                       </div>
+                        )}
+                      </div>
 
-                       {/* Supervisor */}
-                       <div className="flex items-center gap-2">
-                          <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
-                          <span className="text-xs font-bold w-12 text-slate-500 shrink-0">سرپرست:</span>
-                          <span className="flex-1 font-medium text-slate-700 text-sm truncate">{entry.onCallPerson}</span>
-                          {isOwner && (
-                            <button
-                              type="button"
-                              onClick={() => setQuickEditShift({
-                                id: entry.id,
-                                date: entry.date,
-                                dayName: entry.dayName,
-                                field: 'onCallPerson',
-                                currentPerson: entry.onCallPerson
-                              })}
-                              className="p-1 text-slate-400 hover:text-emerald-700 hover:bg-emerald-100 rounded transition cursor-pointer shrink-0"
-                              title="تغییر سرپرست کشیک"
-                            >
-                              <Edit size={13} />
-                            </button>
+                      {/* Night Shift Column */}
+                      <div className={`${nightTileTone} border rounded-xl p-2.5 flex flex-col justify-between transition-all`}>
+                        <div>
+                          <div className="flex items-center justify-between gap-1 mb-1.5">
+                            <div className="flex items-center gap-1 min-w-0">
+                              <Moon size={13} className="text-indigo-600 shrink-0" />
+                              <span className="text-[11px] font-black text-indigo-800 truncate">شب</span>
+                              <span className="text-[9.5px] font-bold text-indigo-700/75 tabular-nums hidden xs:inline">۱۹–۰۸</span>
+                            </div>
+                            {isOwner && (
+                              <div className="flex items-center gap-0.5 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => setQuickEditShift({
+                                    id: entry.id,
+                                    date: entry.date,
+                                    dayName: entry.dayName,
+                                    field: 'nightShiftPerson',
+                                    currentPerson: entry.nightShiftPerson
+                                  })}
+                                  className="min-h-[36px] min-w-[32px] -my-1.5 flex items-center justify-center text-slate-400 hover:text-indigo-700 hover:bg-indigo-100 rounded-lg transition cursor-pointer"
+                                  title="تغییر پرسنل شیفت شب"
+                                >
+                                  <Edit size={13} />
+                                </button>
+                                {(!entry.extraNightPersons || entry.extraNightPersons.length === 0) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setQuickEditShift({
+                                      id: entry.id,
+                                      date: entry.date,
+                                      dayName: entry.dayName,
+                                      field: 'extraNightPerson',
+                                      currentPerson: '',
+                                      extraIndex: 0,
+                                      actionType: 'add'
+                                    })}
+                                    className="min-h-[36px] min-w-[32px] -my-1.5 flex items-center justify-center text-slate-400 hover:text-indigo-700 hover:bg-indigo-100 rounded-lg transition cursor-pointer"
+                                    title="افزودن پرسنل کمکی"
+                                  >
+                                    <UserPlus size={13} />
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="font-black text-slate-900 text-[13px] leading-snug break-words">
+                            {entry.nightShiftPerson}
+                          </div>
+                          {entry.originalNightShiftPerson && entry.originalNightShiftPerson !== entry.nightShiftPerson && (
+                            <div className="text-[10px] text-red-500 line-through decoration-red-300 mt-0.5">
+                              {entry.originalNightShiftPerson}
+                            </div>
                           )}
-                       </div>
+                        </div>
+
+                        {entry.extraNightPersons && entry.extraNightPersons.length > 0 && (
+                          <div className="mt-2 pt-1.5 border-t border-indigo-200/70 space-y-1">
+                            {entry.extraNightPersons.map((extraPerson, extraIdx) => (
+                              <div key={extraIdx} className="flex items-center justify-between gap-1 bg-white/95 border border-indigo-200/90 px-1.5 py-0.5 rounded-lg shadow-2xs">
+                                <div className="flex items-center gap-1 min-w-0 flex-1">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
+                                  <span className="text-[10px] font-bold text-slate-800 truncate">{extraPerson}</span>
+                                </div>
+                                {isOwner && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setQuickEditShift({
+                                      id: entry.id,
+                                      date: entry.date,
+                                      dayName: entry.dayName,
+                                      field: 'extraNightPerson',
+                                      currentPerson: extraPerson,
+                                      extraIndex: extraIdx,
+                                      actionType: 'change'
+                                    })}
+                                    className="p-0.5 text-slate-400 hover:text-indigo-800 hover:bg-indigo-100 rounded transition cursor-pointer shrink-0"
+                                    title="تغییر پرسنل کمکی"
+                                  >
+                                    <Edit size={11} />
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                            {isOwner && entry.extraNightPersons.length === 1 && (
+                              <button
+                                type="button"
+                                onClick={() => setQuickEditShift({
+                                  id: entry.id,
+                                  date: entry.date,
+                                  dayName: entry.dayName,
+                                  field: 'extraNightPerson',
+                                  currentPerson: '',
+                                  extraIndex: 1,
+                                  actionType: 'add'
+                                })}
+                                className="w-full py-0.5 flex items-center justify-center gap-1 text-[10px] font-bold text-indigo-700 hover:bg-indigo-100/80 border border-dashed border-indigo-300 rounded-lg transition cursor-pointer"
+                                title="افزودن کمکی دوم"
+                              >
+                                <UserPlus size={11} />
+                                <span>کمکی دوم</span>
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Compact Supervisor Strip */}
+                    <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-slate-200/60">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+                        <span className="text-[11px] font-bold text-slate-500 shrink-0">سرپرست:</span>
+                        <span className="font-bold text-slate-800 text-xs truncate">{entry.onCallPerson}</span>
+                      </div>
+                      {isOwner && (
+                        <button
+                          type="button"
+                          onClick={() => setQuickEditShift({
+                            id: entry.id,
+                            date: entry.date,
+                            dayName: entry.dayName,
+                            field: 'onCallPerson',
+                            currentPerson: entry.onCallPerson
+                          })}
+                          className="min-h-[40px] min-w-[40px] -my-2 -ml-1.5 flex items-center justify-center text-slate-400 hover:text-emerald-700 hover:bg-emerald-100 rounded-lg transition cursor-pointer shrink-0"
+                          title="تغییر سرپرست کشیک"
+                        >
+                          <Edit size={13} />
+                        </button>
+                      )}
                     </div>
                   </div>
               );})}

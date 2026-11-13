@@ -203,17 +203,31 @@ export async function onRequest(context) {
 
     const incoming = (body && body.data) || body || {};
     const now = new Date().toISOString();
-    const payload = {
-      ...(isReset ? {} : memoryCache || {}),
+
+    let baseState = memoryCache;
+    if (!isReset && (!baseState || !Array.isArray(baseState.schedule))) {
+      try {
+        const fresh = await fetchFromFirestore();
+        if (fresh) baseState = fresh;
+      } catch {}
+    }
+
+    const firestorePatch = {
       ...incoming,
       updatedAt: now,
     };
+    const payload = {
+      ...(isReset ? {} : baseState || {}),
+      ...firestorePatch,
+    };
 
-    memoryCache = payload;
-    lastReadTime = Date.now();
+    if (isReset || Array.isArray(payload.schedule)) {
+      memoryCache = payload;
+      lastReadTime = Date.now();
+    }
 
     try {
-      await writeToFirestore(payload, !isReset);
+      await writeToFirestore(isReset ? payload : firestorePatch, !isReset);
     } catch (err) {
       return new Response(
         JSON.stringify({ success: false, error: String((err && err.message) || err) }),

@@ -158,6 +158,8 @@ export function getScheduleFingerprint(schedule?: ShiftEntry[]): string {
 // Per-instance in-memory fingerprint of the currently applied schedule
 let currentInstanceScheduleFingerprint = '';
 let lastLocalMutationTimeMs = 0;
+let lastLocalMutationUpdatedAt = '';
+let lastKnownCloudUpdatedAt = '';
 
 export function setLocalScheduleFingerprint(schedule: ShiftEntry[]) {
   const fp = getScheduleFingerprint(schedule);
@@ -518,10 +520,23 @@ export function subscribeToCloudRoster(
     const incomingMeta = getMetaHash(data);
     const incomingVersion = typeof data._version === 'number' ? data._version : 0;
 
-    if (Date.now() - lastLocalMutationTimeMs < 1500 && hasReceivedAnyData) {
-      if (incomingFp === currentInstanceScheduleFingerprint) {
-        return;
-      }
+    // Never allow a strictly older cloud snapshot to revert newer local/cloud state
+    if (
+      (hasReceivedAnyData || lastLocalMutationTimeMs > 0) &&
+      data.updatedAt &&
+      lastKnownCloudUpdatedAt &&
+      data.updatedAt < lastKnownCloudUpdatedAt
+    ) {
+      return;
+    }
+
+    // Protect recent local mutations against stale edge-cache reads or lagging snapshots
+    if (
+      source !== 'broadcast' &&
+      lastLocalMutationTimeMs > 0 &&
+      Date.now() - lastLocalMutationTimeMs < 5000
+    ) {
+      return;
     }
 
     const nextServerConnected =
@@ -557,6 +572,9 @@ export function subscribeToCloudRoster(
     if (incomingVersion > lastAppliedVersion) {
       lastAppliedVersion = incomingVersion;
     }
+    if (data.updatedAt && (!lastKnownCloudUpdatedAt || data.updatedAt > lastKnownCloudUpdatedAt)) {
+      lastKnownCloudUpdatedAt = data.updatedAt;
+    }
     if (typeof localStorage !== 'undefined' && data.updatedAt) {
       try {
         localStorage.setItem('shiftflow_updated_at', data.updatedAt);
@@ -589,11 +607,8 @@ export function subscribeToCloudRoster(
             handleIncomingData(
               {
                 schedule: parsedSchedule,
-                personnelList: [],
-                unlockedMonths: [],
-                publishedRange: undefined as any,
                 updatedAt: new Date().toISOString(),
-              },
+              } as CloudRosterState,
               'broadcast'
             );
           }
@@ -716,9 +731,10 @@ export function subscribeToCloudRoster(
 
   const doFetchInitial = (attempt = 1) => {
     if (isCancelled) return;
+    const reqStartedAt = Date.now();
     fetchFromEndpoints()
       .then(({ result: resData, source }) => {
-        if (isCancelled) return;
+        if (isCancelled || lastLocalMutationTimeMs > reqStartedAt) return;
         if (resData && resData.exists && resData.data) {
           handleIncomingData(resData.data, source);
         } else if (resData && !resData.exists) {
@@ -815,9 +831,10 @@ export function subscribeToCloudRoster(
     if (currentSyncDetails.firestoreConnected && activeServers.length === 0 && !canUseLocalServer) {
       return;
     }
+    const reqStartedAt = Date.now();
     fetchFromEndpoints()
       .then(({ result: resData, source }) => {
-        if (isCancelled || !resData) return;
+        if (isCancelled || !resData || lastLocalMutationTimeMs > reqStartedAt) return;
         updateSyncDetails({
           serverConnected: source === 'server' ? true : currentSyncDetails.serverConnected,
           firestoreConnected: source === 'firestore' ? true : currentSyncDetails.firestoreConnected,
@@ -1051,6 +1068,8 @@ function cleanFirestoreData<T>(obj: T): T {
 export async function saveCloudRoster(data: Partial<CloudRosterState>): Promise<void> {
   const now = new Date().toISOString();
   lastLocalMutationTimeMs = Date.now();
+  lastLocalMutationUpdatedAt = now;
+  lastKnownCloudUpdatedAt = now;
 
   if (data.schedule && Array.isArray(data.schedule)) {
     setLocalScheduleFingerprint(data.schedule);
@@ -1131,6 +1150,14 @@ export async function saveCloudRoster(data: Partial<CloudRosterState>): Promise<
         }
         if (!r.ok) throw new Error(`Server returned ${r.status}`);
         const json = await r.json();
+        if (json?.updatedAt && typeof json.updatedAt === 'string') {
+          if (!lastKnownCloudUpdatedAt || json.updatedAt > lastKnownCloudUpdatedAt) {
+            lastKnownCloudUpdatedAt = json.updatedAt;
+          }
+          if (!lastLocalMutationUpdatedAt || json.updatedAt > lastLocalMutationUpdatedAt) {
+            lastLocalMutationUpdatedAt = json.updatedAt;
+          }
+        }
         updateSyncDetails({
           serverConnected: true,
           lastSyncTime: new Date().toLocaleTimeString('fa-IR'),
@@ -1157,6 +1184,8 @@ export async function saveCloudRoster(data: Partial<CloudRosterState>): Promise<
 export async function resetCloudRoster(data: CloudRosterState): Promise<void> {
   const now = new Date().toISOString();
   lastLocalMutationTimeMs = Date.now();
+  lastLocalMutationUpdatedAt = now;
+  lastKnownCloudUpdatedAt = now;
   if (data.schedule) {
     setLocalScheduleFingerprint(data.schedule);
   }

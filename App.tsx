@@ -16,7 +16,7 @@ import { ShiftEntry, Personnel, AppData, PublishedRange, DailyProcessMap, Proces
 import { Settings, Plus, Trash2, Save, ArrowUp, ArrowDown, UserCog, Users, ArrowRightLeft, AlertCircle, AlertTriangle, CheckCircle2, Edit, Calendar as CalendarIcon, List, Table as TableIcon, Check, Lock, X, KeyRound, CalendarPlus, Crown, LogOut, ShieldCheck, Palette, Cloud, CloudUpload, Wifi, RefreshCw, UserPlus, Sun, Moon, Sparkles, FlaskConical, Server, SlidersHorizontal } from 'lucide-react';
 import { getTodayPersianParts, getDayNameForJalali, toPersianDigits, getNextJalaliDate } from './utils/persianDate';
 import { getNextPersonnelColor, getPersonColor, ensureUniquePersonnelColors, upgradeToVibrantPersonnel } from './utils/personnelColors';
-import { subscribeToCloudRoster, saveCloudRoster, resetCloudRoster, subscribeSyncStatus, SyncStatusDetails, getSyncApiBase, setLocalScheduleFingerprint, fetchLatestCloudRosterNow } from './utils/firebase';
+import { subscribeToCloudRoster, saveCloudRoster, resetCloudRoster, subscribeSyncStatus, SyncStatusDetails, getSyncApiBase, setLocalScheduleFingerprint, fetchLatestCloudRosterNow, CloudRosterState } from './utils/firebase';
 import { unifyPersonnelAndShifts } from './utils/customFormatHandler';
 import { DEFAULT_PROCESS_DEFINITIONS, generateFullBioprocessCampaign } from './utils/bioprocessData';
 import { dispatchScheduleChangeNotifications } from './utils/shiftNotifications';
@@ -174,16 +174,6 @@ const App: React.FC = () => {
     }
   });
 
-  const handleSavePublishedRange = (range: PublishedRange | null) => {
-    setPublishedRange(range);
-    if (range && range.isActive) {
-      localStorage.setItem(STORAGE_KEYS.PUBLISHED_RANGE, JSON.stringify(range));
-    } else {
-      localStorage.removeItem(STORAGE_KEYS.PUBLISHED_RANGE);
-    }
-    saveCloudRoster({ publishedRange: range }).catch(console.error);
-  };
-
   // --- DAILY BIOPROCESSES & BIOREACTOR TASKS STATE ---
   const [dailyProcesses, setDailyProcesses] = useState<DailyProcessMap>(() => {
     try {
@@ -206,6 +196,7 @@ const App: React.FC = () => {
   });
 
   const handleSaveDailyProcesses = (updated: DailyProcessMap) => {
+    dailyProcessesRef.current = updated;
     setDailyProcesses(updated);
     const now = new Date().toISOString();
     try {
@@ -215,16 +206,7 @@ const App: React.FC = () => {
       console.error('LocalStorage error', e);
     }
     setSyncStatus('syncing');
-    saveCloudRoster({
-      schedule,
-      personnelList,
-      unlockedMonths,
-      publishedRange,
-      adminPassword,
-      dailyProcesses: updated,
-      processDefinitions,
-      showProcessSchedule
-    })
+    saveCloudRoster(buildCloudRosterSnapshot({ dailyProcesses: updated }))
       .then(() => setSyncStatus('synced'))
       .catch((e) => {
         console.warn('Process save error:', e);
@@ -233,6 +215,7 @@ const App: React.FC = () => {
   };
 
   const handleSaveProcessDefinitions = (updated: ProcessDefinition[]) => {
+    processDefinitionsRef.current = updated;
     setProcessDefinitions(updated);
     const now = new Date().toISOString();
     try {
@@ -242,16 +225,7 @@ const App: React.FC = () => {
       console.error('LocalStorage error', e);
     }
     setSyncStatus('syncing');
-    saveCloudRoster({
-      schedule,
-      personnelList,
-      unlockedMonths,
-      publishedRange,
-      adminPassword,
-      dailyProcesses,
-      processDefinitions: updated,
-      showProcessSchedule
-    })
+    saveCloudRoster(buildCloudRosterSnapshot({ processDefinitions: updated }))
       .then(() => setSyncStatus('synced'))
       .catch(() => setSyncStatus('synced'));
   };
@@ -267,7 +241,79 @@ const App: React.FC = () => {
     }
   });
 
+  // Staged Preview Mode flag & live refs so async/debounced cloud writes never read stale closures
+  const [isStagingPreview, setIsStagingPreview] = useState(false);
+  const isStagingPreviewRef = useRef(false);
+  const scheduleSyncTimeoutRef = useRef<any>(null);
+
+  const scheduleRef = useRef<ShiftEntry[]>(schedule);
+  const personnelListRef = useRef<Personnel[]>(personnelList);
+  const unlockedMonthsRef = useRef<string[]>(unlockedMonths);
+  const publishedRangeRef = useRef<PublishedRange | null>(publishedRange);
+  const adminPasswordRef = useRef<string>(adminPassword);
+  const dailyProcessesRef = useRef<DailyProcessMap>(dailyProcesses);
+  const processDefinitionsRef = useRef<ProcessDefinition[]>(processDefinitions);
+  const showProcessScheduleRef = useRef<boolean>(showProcessSchedule);
+
+  useEffect(() => { scheduleRef.current = schedule; }, [schedule]);
+  useEffect(() => { personnelListRef.current = personnelList; }, [personnelList]);
+  useEffect(() => { unlockedMonthsRef.current = unlockedMonths; }, [unlockedMonths]);
+  useEffect(() => { publishedRangeRef.current = publishedRange; }, [publishedRange]);
+  useEffect(() => { adminPasswordRef.current = adminPassword; }, [adminPassword]);
+  useEffect(() => { dailyProcessesRef.current = dailyProcesses; }, [dailyProcesses]);
+  useEffect(() => { processDefinitionsRef.current = processDefinitions; }, [processDefinitions]);
+  useEffect(() => { showProcessScheduleRef.current = showProcessSchedule; }, [showProcessSchedule]);
+  useEffect(() => { isStagingPreviewRef.current = isStagingPreview; }, [isStagingPreview]);
+
+  const buildCloudRosterSnapshot = (overrides: Partial<CloudRosterState> = {}): Partial<CloudRosterState> => ({
+    schedule: overrides.schedule ?? scheduleRef.current,
+    personnelList: overrides.personnelList ?? personnelListRef.current,
+    unlockedMonths: overrides.unlockedMonths ?? unlockedMonthsRef.current,
+    publishedRange: overrides.publishedRange !== undefined ? overrides.publishedRange : publishedRangeRef.current,
+    adminPassword: overrides.adminPassword ?? adminPasswordRef.current,
+    dailyProcesses: overrides.dailyProcesses ?? dailyProcessesRef.current,
+    processDefinitions: overrides.processDefinitions ?? processDefinitionsRef.current,
+    showProcessSchedule: overrides.showProcessSchedule !== undefined ? overrides.showProcessSchedule : showProcessScheduleRef.current,
+  });
+
+  const handleSavePublishedRange = (range: PublishedRange | null) => {
+    publishedRangeRef.current = range;
+    setPublishedRange(range);
+
+    // During temporary preview mode, only adjust local preview range without modifying cloud/live roster
+    if (isStagingPreviewRef.current) {
+      return;
+    }
+
+    if (scheduleSyncTimeoutRef.current) {
+      clearTimeout(scheduleSyncTimeoutRef.current);
+      scheduleSyncTimeoutRef.current = null;
+    }
+
+    const now = new Date().toISOString();
+    try {
+      if (range && range.isActive) {
+        localStorage.setItem(STORAGE_KEYS.PUBLISHED_RANGE, JSON.stringify(range));
+      } else {
+        localStorage.removeItem(STORAGE_KEYS.PUBLISHED_RANGE);
+      }
+      localStorage.setItem(STORAGE_KEYS.SCHEDULE, JSON.stringify(scheduleRef.current));
+      localStorage.setItem(STORAGE_KEYS.UPDATED_AT, now);
+    } catch (e) {
+      console.error('LocalStorage error', e);
+    }
+
+    setSyncStatus('syncing');
+    saveCloudRoster(buildCloudRosterSnapshot({ publishedRange: range }))
+      .then(() => setSyncStatus('synced'))
+      .catch((e) => {
+        console.error(e);
+        setSyncStatus('synced');
+      });
+  };
+
   const handleToggleProcessSchedule = (enabled: boolean) => {
+    showProcessScheduleRef.current = enabled;
     setShowProcessSchedule(enabled);
     const now = new Date().toISOString();
     try {
@@ -277,16 +323,7 @@ const App: React.FC = () => {
       console.error('LocalStorage error', e);
     }
     setSyncStatus('syncing');
-    saveCloudRoster({
-      schedule,
-      personnelList,
-      unlockedMonths,
-      publishedRange,
-      adminPassword,
-      dailyProcesses,
-      processDefinitions,
-      showProcessSchedule: enabled
-    })
+    saveCloudRoster(buildCloudRosterSnapshot({ showProcessSchedule: enabled }))
       .then(() => setSyncStatus('synced'))
       .catch(() => setSyncStatus('synced'));
 
@@ -360,9 +397,10 @@ const App: React.FC = () => {
           return;
       }
 
+      adminPasswordRef.current = pwdForm.new;
       setAdminPassword(pwdForm.new);
       localStorage.setItem(STORAGE_KEYS.PASSWORD, pwdForm.new);
-      saveCloudRoster({ adminPassword: pwdForm.new }).catch(console.error);
+      saveCloudRoster(buildCloudRosterSnapshot({ adminPassword: pwdForm.new })).catch(console.error);
       alert('رمز عبور با موفقیت تغییر کرد.');
       setChangePwdOpen(false);
       setPwdForm({ current: '', new: '', confirm: '' });
@@ -398,18 +436,22 @@ const App: React.FC = () => {
         if (cloudData.schedule && Array.isArray(cloudData.schedule)) {
           dispatchScheduleChangeNotifications(scheduleRef.current, cloudData.schedule);
           setLocalScheduleFingerprint(cloudData.schedule);
+          scheduleRef.current = cloudData.schedule;
           setSchedule(cloudData.schedule);
           localStorage.setItem(STORAGE_KEYS.SCHEDULE, JSON.stringify(cloudData.schedule));
         }
         if (cloudData.personnelList && Array.isArray(cloudData.personnelList)) {
+          personnelListRef.current = cloudData.personnelList;
           setPersonnelList(cloudData.personnelList);
           localStorage.setItem(STORAGE_KEYS.PERSONNEL, JSON.stringify(cloudData.personnelList));
         }
         if (cloudData.unlockedMonths && Array.isArray(cloudData.unlockedMonths)) {
+          unlockedMonthsRef.current = cloudData.unlockedMonths;
           setUnlockedMonths(cloudData.unlockedMonths);
           localStorage.setItem(STORAGE_KEYS.LOCKED, JSON.stringify(cloudData.unlockedMonths));
         }
         if (cloudData.publishedRange !== undefined) {
+          publishedRangeRef.current = cloudData.publishedRange;
           setPublishedRange(cloudData.publishedRange);
           if (cloudData.publishedRange && cloudData.publishedRange.isActive) {
             localStorage.setItem(STORAGE_KEYS.PUBLISHED_RANGE, JSON.stringify(cloudData.publishedRange));
@@ -418,18 +460,22 @@ const App: React.FC = () => {
           }
         }
         if (cloudData.adminPassword) {
+          adminPasswordRef.current = cloudData.adminPassword;
           setAdminPassword(cloudData.adminPassword);
           localStorage.setItem(STORAGE_KEYS.PASSWORD, cloudData.adminPassword);
         }
         if (cloudData.dailyProcesses) {
+          dailyProcessesRef.current = cloudData.dailyProcesses;
           setDailyProcesses(cloudData.dailyProcesses);
           localStorage.setItem(STORAGE_KEYS.DAILY_PROCESSES, JSON.stringify(cloudData.dailyProcesses));
         }
         if (cloudData.processDefinitions) {
+          processDefinitionsRef.current = cloudData.processDefinitions;
           setProcessDefinitions(cloudData.processDefinitions);
           localStorage.setItem(STORAGE_KEYS.PROCESS_DEFINITIONS, JSON.stringify(cloudData.processDefinitions));
         }
         if (cloudData.showProcessSchedule !== undefined) {
+          showProcessScheduleRef.current = cloudData.showProcessSchedule;
           setShowProcessSchedule(cloudData.showProcessSchedule);
           localStorage.setItem(STORAGE_KEYS.SHOW_PROCESS_SCHEDULE, String(cloudData.showProcessSchedule));
         }
@@ -467,16 +513,6 @@ const App: React.FC = () => {
     }, 1500);
     return () => clearTimeout(timer);
   }, []);
-
-  const personnelListRef = useRef<Personnel[]>(personnelList);
-  useEffect(() => {
-    personnelListRef.current = personnelList;
-  }, [personnelList]);
-
-  const scheduleRef = useRef<ShiftEntry[]>(schedule);
-  useEffect(() => {
-    scheduleRef.current = schedule;
-  }, [schedule]);
 
   useEffect(() => {
     setLocalScheduleFingerprint(schedule);
@@ -520,6 +556,8 @@ const App: React.FC = () => {
           const { unifiedShifts, unifiedPersonnel } = unifyPersonnelAndShifts(normalizedSchedule, updated, updated);
           dispatchScheduleChangeNotifications(scheduleRef.current, unifiedShifts);
           setLocalScheduleFingerprint(unifiedShifts);
+          scheduleRef.current = unifiedShifts;
+          personnelListRef.current = unifiedPersonnel;
           setSchedule(unifiedShifts);
           setPersonnelList(unifiedPersonnel);
           try {
@@ -661,6 +699,7 @@ const App: React.FC = () => {
 
       // 1. Ensure distinct non-duplicate colors for all personnel
       const distinctPersonnel = ensureUniquePersonnelColors(personnelList);
+      personnelListRef.current = distinctPersonnel;
       setPersonnelList(distinctPersonnel);
 
       // 2. Automatically synchronize supervisors with calendar and dashboard
@@ -668,24 +707,24 @@ const App: React.FC = () => {
         .filter(p => p.roles.includes('Supervisor') && p.isActive)
         .map(p => p.name);
 
-      let finalSchedule = schedule;
+      let finalSchedule = scheduleRef.current;
       if (activeSupervisors.length > 0) {
         if (activeSupervisors.length === 1) {
           // If exactly 1 active supervisor, assign them to all shifts in the calendar
-          finalSchedule = schedule.map(entry => ({
+          finalSchedule = finalSchedule.map(entry => ({
             ...entry,
             onCallPerson: activeSupervisors[0]
           }));
         } else {
           // If multiple active supervisors, reconcile any missing or obsolete supervisors
           const activeSet = new Set(activeSupervisors);
-          const needsSupervisorReconcile = schedule.some(
+          const needsSupervisorReconcile = finalSchedule.some(
             s => !s.onCallPerson || !activeSet.has(s.onCallPerson)
           );
 
           if (needsSupervisorReconcile) {
             let supIndex = 0;
-            finalSchedule = schedule.map((entry, idx) => {
+            finalSchedule = finalSchedule.map((entry, idx) => {
               if (entry.dayName === 'شنبه' && idx > 0) {
                 supIndex = (supIndex + 1) % activeSupervisors.length;
               }
@@ -696,32 +735,29 @@ const App: React.FC = () => {
             });
           }
         }
+        scheduleRef.current = finalSchedule;
         setSchedule(finalSchedule);
       }
+
+      setLocalScheduleFingerprint(finalSchedule);
 
       // 3. Immediately persist to localStorage
       localStorage.setItem(STORAGE_KEYS.SCHEDULE, JSON.stringify(finalSchedule));
       localStorage.setItem(STORAGE_KEYS.PERSONNEL, JSON.stringify(distinctPersonnel));
-      localStorage.setItem(STORAGE_KEYS.LOCKED, JSON.stringify(unlockedMonths));
-      if (publishedRange && publishedRange.isActive) {
-        localStorage.setItem(STORAGE_KEYS.PUBLISHED_RANGE, JSON.stringify(publishedRange));
+      localStorage.setItem(STORAGE_KEYS.LOCKED, JSON.stringify(unlockedMonthsRef.current));
+      if (publishedRangeRef.current && publishedRangeRef.current.isActive) {
+        localStorage.setItem(STORAGE_KEYS.PUBLISHED_RANGE, JSON.stringify(publishedRangeRef.current));
       } else {
         localStorage.removeItem(STORAGE_KEYS.PUBLISHED_RANGE);
       }
-      localStorage.setItem(STORAGE_KEYS.PASSWORD, adminPassword);
+      localStorage.setItem(STORAGE_KEYS.PASSWORD, adminPasswordRef.current);
 
       // 4. Immediately commit to Firestore cloud database
       setSyncStatus('syncing');
-      await saveCloudRoster({
+      await saveCloudRoster(buildCloudRosterSnapshot({
         schedule: finalSchedule,
         personnelList: distinctPersonnel,
-        unlockedMonths,
-        publishedRange,
-        adminPassword,
-        dailyProcesses,
-        processDefinitions,
-        showProcessSchedule,
-      });
+      }));
 
       setSyncStatus('synced');
       setSaveNotice({
@@ -803,14 +839,6 @@ const App: React.FC = () => {
     return Array.from(new Set(schedule.map(s => s.date.substring(0, 7)))).sort();
   }, [schedule]);
 
-  // Staged Preview Mode (Load button applies to dashboard in preview mode before saving)
-  const [isStagingPreview, setIsStagingPreview] = useState(false);
-  const isStagingPreviewRef = useRef(false);
-
-  useEffect(() => {
-    isStagingPreviewRef.current = isStagingPreview;
-  }, [isStagingPreview]);
-
   const [openChatSignal, setOpenChatSignal] = useState(0);
   const [stagingMeta, setStagingMeta] = useState<{ source: string; rangeText?: string } | null>(null);
   const [backupBeforeStaging, setBackupBeforeStaging] = useState<{
@@ -824,10 +852,10 @@ const App: React.FC = () => {
     // Only take snapshot of original state before the first staging starts
     if (!isStagingPreviewRef.current) {
       setBackupBeforeStaging({
-        schedule,
-        personnel: personnelList,
-        unlockedMonths,
-        publishedRange
+        schedule: scheduleRef.current,
+        personnel: personnelListRef.current,
+        unlockedMonths: unlockedMonthsRef.current,
+        publishedRange: publishedRangeRef.current
       });
     }
 
@@ -835,16 +863,18 @@ const App: React.FC = () => {
     isStagingPreviewRef.current = true;
     setStagingMeta(meta || { source: 'فایل ورودی' });
 
-    const rawSched = data.schedule || schedule;
+    const rawSched = data.schedule || scheduleRef.current;
     const non1404 = rawSched.filter(s => !s.date.startsWith('1404'));
     const incomingStaff = data.personnel || [];
-    const { unifiedShifts, unifiedPersonnel } = unifyPersonnelAndShifts(non1404, incomingStaff, personnelList);
+    const { unifiedShifts, unifiedPersonnel } = unifyPersonnelAndShifts(non1404, incomingStaff, personnelListRef.current);
 
     if (incomingStaff.length > 0) {
+      personnelListRef.current = unifiedPersonnel;
       setPersonnelList(unifiedPersonnel);
     }
 
     if (unifiedShifts.length > 0) {
+      scheduleRef.current = unifiedShifts;
       setSchedule(unifiedShifts);
 
       // Prefer the explicit range of the newly imported file (from data.publishedRange or meta.rangeText)
@@ -876,10 +906,15 @@ const App: React.FC = () => {
         };
       }
 
+      publishedRangeRef.current = targetRange;
       setPublishedRange(targetRange);
 
-      const yNum = parseInt(targetRange.from.year, 10);
-      const mIdx = MONTHS.findIndex(mObj => mObj.code === targetRange!.from.month);
+      const useEndMonth =
+        targetRange.from.month !== targetRange.to.month &&
+        parseInt(targetRange.from.day, 10) >= 20;
+      const focusDate = useEndMonth ? targetRange.to : targetRange.from;
+      const yNum = parseInt(focusDate.year, 10);
+      const mIdx = MONTHS.findIndex(mObj => mObj.code === focusDate.month);
       if (yNum) setCurrentYear(yNum);
       if (mIdx !== -1) setMonthIndex(mIdx);
     }
@@ -897,6 +932,11 @@ const App: React.FC = () => {
 
   const handleCancelStaging = () => {
     if (backupBeforeStaging) {
+      scheduleRef.current = backupBeforeStaging.schedule;
+      personnelListRef.current = backupBeforeStaging.personnel;
+      unlockedMonthsRef.current = backupBeforeStaging.unlockedMonths;
+      publishedRangeRef.current = backupBeforeStaging.publishedRange;
+      setLocalScheduleFingerprint(backupBeforeStaging.schedule);
       setSchedule(backupBeforeStaging.schedule);
       setPersonnelList(backupBeforeStaging.personnel);
       setUnlockedMonths(backupBeforeStaging.unlockedMonths);
@@ -972,7 +1012,8 @@ const App: React.FC = () => {
       color: assignedColor
     };
 
-    const updatedList = [...personnelList, newPerson];
+    const updatedList = [...personnelListRef.current, newPerson];
+    personnelListRef.current = updatedList;
     setPersonnelList(updatedList);
     setNewPersonName('');
     
@@ -986,33 +1027,41 @@ const App: React.FC = () => {
         .filter(p => p.roles.includes('Supervisor') && p.isActive)
         .map(p => p.name);
 
+      const prevSched = scheduleRef.current;
+      let nextSched = prevSched;
       if (activeSupervisors.length === 1) {
-        setSchedule(prev => prev.map(entry => ({
+        nextSched = prevSched.map(entry => ({
           ...entry,
           onCallPerson: trimmedName
-        })));
+        }));
       } else {
-        setSchedule(prev => prev.map(entry => {
+        nextSched = prevSched.map(entry => {
           if (!entry.onCallPerson || !activeSupervisors.includes(entry.onCallPerson)) {
             return { ...entry, onCallPerson: trimmedName };
           }
           return entry;
-        }));
+        });
       }
+      scheduleRef.current = nextSched;
+      setLocalScheduleFingerprint(nextSched);
+      setSchedule(nextSched);
     }
   };
 
   const handleColorChange = (name: string, newColor: string) => {
-    setPersonnelList(prev => prev.map(p => {
+    const updatedList = personnelListRef.current.map(p => {
       if (p.name === name) {
         return { ...p, color: newColor };
       }
       return p;
-    }));
+    });
+    personnelListRef.current = updatedList;
+    setPersonnelList(updatedList);
   };
 
   const handleRemovePersonnel = (name: string) => {
-    const remainingPersonnel = personnelList.filter(p => p.name !== name);
+    const remainingPersonnel = personnelListRef.current.filter(p => p.name !== name);
+    personnelListRef.current = remainingPersonnel;
     setPersonnelList(remainingPersonnel);
 
     const remainingSupervisors = remainingPersonnel
@@ -1024,7 +1073,7 @@ const App: React.FC = () => {
       .map(p => p.name);
 
     // Automatically reassign shifts so orphaned names never linger in schedule or dashboard
-    setSchedule(prev => prev.map(entry => {
+    const nextSched = scheduleRef.current.map(entry => {
       let item = { ...entry };
       if (item.onCallPerson === name) {
         item.onCallPerson = remainingSupervisors.length > 0 ? remainingSupervisors[0] : 'نامشخص';
@@ -1042,13 +1091,17 @@ const App: React.FC = () => {
         item.extraNightPersons = item.extraNightPersons.filter(p => p !== name);
       }
       return item;
-    }));
+    });
+    scheduleRef.current = nextSched;
+    setLocalScheduleFingerprint(nextSched);
+    setSchedule(nextSched);
   };
   
   const handleToggleActive = (name: string) => {
-      const updatedList = personnelList.map(p => 
+      const updatedList = personnelListRef.current.map(p => 
           p.name === name ? { ...p, isActive: !p.isActive } : p
       );
+      personnelListRef.current = updatedList;
       setPersonnelList(updatedList);
 
       const activeSupervisors = updatedList
@@ -1056,41 +1109,43 @@ const App: React.FC = () => {
         .map(p => p.name);
 
       if (activeSupervisors.length > 0) {
-        setSchedule(prev => prev.map(entry => {
+        const nextSched = scheduleRef.current.map(entry => {
           if (!activeSupervisors.includes(entry.onCallPerson)) {
             return { ...entry, onCallPerson: activeSupervisors[0] };
           }
           return entry;
-        }));
+        });
+        scheduleRef.current = nextSched;
+        setLocalScheduleFingerprint(nextSched);
+        setSchedule(nextSched);
       }
   };
 
   const movePersonnel = (name: string, direction: 'up' | 'down', roleFilter: 'Shift' | 'Supervisor') => {
-    setPersonnelList(prev => {
-      const relevantNames = prev
-        .filter(p => p.roles.includes(roleFilter))
-        .map(p => p.name);
+    const prev = personnelListRef.current;
+    const relevantNames = prev
+      .filter(p => p.roles.includes(roleFilter))
+      .map(p => p.name);
 
-      const currentIndexInRelevant = relevantNames.indexOf(name);
-      if (currentIndexInRelevant === -1) return prev;
+    const currentIndexInRelevant = relevantNames.indexOf(name);
+    if (currentIndexInRelevant === -1) return;
 
-      if (direction === 'up' && currentIndexInRelevant === 0) return prev;
-      if (direction === 'down' && currentIndexInRelevant === relevantNames.length - 1) return prev;
+    if (direction === 'up' && currentIndexInRelevant === 0) return;
+    if (direction === 'down' && currentIndexInRelevant === relevantNames.length - 1) return;
 
-      const swapTargetName = direction === 'up' 
-        ? relevantNames[currentIndexInRelevant - 1]
-        : relevantNames[currentIndexInRelevant + 1];
+    const swapTargetName = direction === 'up' 
+      ? relevantNames[currentIndexInRelevant - 1]
+      : relevantNames[currentIndexInRelevant + 1];
 
-      const realIndexA = prev.findIndex(p => p.name === name);
-      const realIndexB = prev.findIndex(p => p.name === swapTargetName);
+    const realIndexA = prev.findIndex(p => p.name === name);
+    const realIndexB = prev.findIndex(p => p.name === swapTargetName);
 
-      if (realIndexA === -1 || realIndexB === -1) return prev;
+    if (realIndexA === -1 || realIndexB === -1) return;
 
-      const newList = [...prev];
-      [newList[realIndexA], newList[realIndexB]] = [newList[realIndexB], newList[realIndexA]];
-      
-      return newList;
-    });
+    const newList = [...prev];
+    [newList[realIndexA], newList[realIndexB]] = [newList[realIndexB], newList[realIndexA]];
+    personnelListRef.current = newList;
+    setPersonnelList(newList);
   };
 
   // --- SCHEDULING LOGIC ---
@@ -1104,27 +1159,30 @@ const App: React.FC = () => {
     
     const nextMonthKey = `${nextYear}/${nextMonthObj.code}`;
     const isNextLocked = !unlockedMonths.includes(nextMonthKey);
-    const existingDays = schedule.filter(s => s.date.includes(`${nextYear}/${nextMonthObj.code}/`));
+    const currentSched = scheduleRef.current;
+    const existingDays = currentSched.filter(s => s.date.includes(`${nextYear}/${nextMonthObj.code}/`));
     const daysInNextMonth = getDaysInPersianMonth(nextMonthObj.code);
 
     if (!isNextLocked && existingDays.length < daysInNextMonth) {
              let startDayIndex = 6; 
-             if (schedule.length > 0) {
-                 const lastEntry = schedule[schedule.length - 1];
+             if (currentSched.length > 0) {
+                 const lastEntry = currentSched[currentSched.length - 1];
                  const lastDayName = lastEntry.dayName;
                  const weekDays = ['شنبه', 'یک‌شنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'];
                  const lastDayIdx = weekDays.indexOf(lastDayName);
                  startDayIndex = (lastDayIdx + 1) % 7;
              }
              const newMonthData = generateNextMonth(
-                 schedule, 
+                 currentSched, 
                  nextYear, 
                  nextMonthObj.code, 
                  startDayIndex, 
-                 personnelList,
+                 personnelListRef.current,
                  daysInNextMonth
              );
-             setSchedule(prev => [...prev, ...newMonthData]);
+             const updated = [...currentSched, ...newMonthData];
+             setSchedule(updated);
+             syncUpdatedSchedule(updated);
     }
 
     setMonthIndex(nextIdx);
@@ -1133,9 +1191,10 @@ const App: React.FC = () => {
 
   // Manual Generation from Settings
   const handleManualAddNextMonth = () => {
-      if (schedule.length === 0) return;
+      const currentSched = scheduleRef.current;
+      if (currentSched.length === 0) return;
 
-      const lastEntry = schedule[schedule.length - 1];
+      const lastEntry = currentSched[currentSched.length - 1];
       const lastDateParts = lastEntry.date.split('/');
       const lastYear = parseInt(lastDateParts[0]);
       const lastMonth = parseInt(lastDateParts[1]);
@@ -1149,11 +1208,10 @@ const App: React.FC = () => {
       const nextMonthCode = String(nextMonth).padStart(2, '0');
       const nextMonthName = MONTHS.find(m => m.code === nextMonthCode)?.name || 'نامشخص';
       const daysInNextMonth = getDaysInPersianMonth(nextMonthCode);
-      const nextMonthKey = `${nextYear}/${nextMonthCode}`;
 
       if (confirm(`آیا می‌خواهید برنامه برای ${nextMonthName} ${nextYear} تولید شود؟`)) {
           // Check if already exists (partially or fully)
-          const exists = schedule.some(s => s.date.startsWith(`${nextYear}/${nextMonthCode}`));
+          const exists = currentSched.some(s => s.date.startsWith(`${nextYear}/${nextMonthCode}`));
           if (exists) {
               alert('بخشی از برنامه این ماه قبلا تولید شده است.');
               return;
@@ -1163,15 +1221,17 @@ const App: React.FC = () => {
           const startDayIndex = (weekDays.indexOf(lastEntry.dayName) + 1) % 7;
 
           const newMonthData = generateNextMonth(
-                 schedule, 
+                 currentSched, 
                  nextYear, 
                  nextMonthCode, 
                  startDayIndex, 
-                 personnelList,
+                 personnelListRef.current,
                  daysInNextMonth
           );
           
-          setSchedule(prev => [...prev, ...newMonthData]);
+          const updated = [...currentSched, ...newMonthData];
+          setSchedule(updated);
+          syncUpdatedSchedule(updated);
           alert(`برنامه ${nextMonthName} ${nextYear} با موفقیت تولید شد.`);
       }
   };
@@ -1210,11 +1270,16 @@ const App: React.FC = () => {
        setCurrentYear(newYear);
   };
 
-  const scheduleSyncTimeoutRef = useRef<any>(null);
-
   const syncUpdatedSchedule = (newSchedule: ShiftEntry[]) => {
-    const now = new Date().toISOString();
+    scheduleRef.current = newSchedule;
     setLocalScheduleFingerprint(newSchedule);
+
+    // During temporary preview mode, do not overwrite live cloud roster or trigger remote overwrites
+    if (isStagingPreviewRef.current) {
+      return;
+    }
+
+    const now = new Date().toISOString();
     try {
       localStorage.setItem(STORAGE_KEYS.SCHEDULE, JSON.stringify(newSchedule));
       localStorage.setItem(STORAGE_KEYS.UPDATED_AT, now);
@@ -1227,169 +1292,156 @@ const App: React.FC = () => {
     }
     setSyncStatus('syncing');
     scheduleSyncTimeoutRef.current = setTimeout(() => {
-      saveCloudRoster({
-        schedule: newSchedule,
-        personnelList,
-        unlockedMonths,
-        publishedRange,
-        adminPassword,
-        dailyProcesses,
-        processDefinitions,
-        showProcessSchedule
-      })
+      scheduleSyncTimeoutRef.current = null;
+      saveCloudRoster(buildCloudRosterSnapshot({ schedule: scheduleRef.current }))
         .then(() => setSyncStatus('synced'))
         .catch(() => setSyncStatus('synced'));
     }, 25);
   };
 
   const handleUpdateShift = (id: number, field: 'dayShiftPerson' | 'nightShiftPerson' | 'onCallPerson', value: string) => {
-    setSchedule(prev => {
-      const currentEntry = prev.find(item => item.id === id);
-      if (!currentEntry) return prev;
+    const prev = scheduleRef.current;
+    const currentEntry = prev.find(item => item.id === id);
+    if (!currentEntry) return;
 
-      let newSched = prev;
-      if (field === 'nightShiftPerson' && value && value !== 'نامشخص' && currentEntry.date) {
-        const targetDate = getNextJalaliDate(currentEntry.date, 2);
-        const norm = (d: string) => d.split('/').map(p => p.padStart(2, '0')).join('/');
-        const targetNorm = norm(targetDate);
+    let newSched = prev;
+    if (field === 'nightShiftPerson' && value && value !== 'نامشخص' && currentEntry.date) {
+      const targetDate = getNextJalaliDate(currentEntry.date, 2);
+      const norm = (d: string) => d.split('/').map(p => p.padStart(2, '0')).join('/');
+      const targetNorm = norm(targetDate);
 
-        newSched = prev.map(item => {
-          if (item.id === id) {
-            return { ...item, nightShiftPerson: value };
-          }
-          if (norm(item.date) === targetNorm) {
-            const cleanedExtras = item.extraDayPersons ? item.extraDayPersons.filter(p => p !== value) : undefined;
-            return {
-              ...item,
-              dayShiftPerson: value,
-              ...(cleanedExtras ? { extraDayPersons: cleanedExtras } : {})
-            };
-          }
-          return item;
-        });
-      } else {
-        newSched = prev.map(item => 
-          item.id === id ? { ...item, [field]: value } : item
-        );
-      }
+      newSched = prev.map(item => {
+        if (item.id === id) {
+          return { ...item, nightShiftPerson: value };
+        }
+        if (norm(item.date) === targetNorm) {
+          const cleanedExtras = item.extraDayPersons ? item.extraDayPersons.filter(p => p !== value) : undefined;
+          return {
+            ...item,
+            dayShiftPerson: value,
+            ...(cleanedExtras ? { extraDayPersons: cleanedExtras } : {})
+          };
+        }
+        return item;
+      });
+    } else {
+      newSched = prev.map(item => 
+        item.id === id ? { ...item, [field]: value } : item
+      );
+    }
 
-      dispatchScheduleChangeNotifications(prev, newSched);
-      syncUpdatedSchedule(newSched);
-      return newSched;
-    });
+    dispatchScheduleChangeNotifications(prev, newSched);
+    syncUpdatedSchedule(newSched);
+    setSchedule(newSched);
   };
 
   const handleAddExtraPerson = (id: number, shiftType: 'Day' | 'Night', personName: string) => {
     if (!personName) return;
-    setSchedule(prev => {
-      const currentEntry = prev.find(item => item.id === id);
-      const targetDate = currentEntry?.date ? getNextJalaliDate(currentEntry.date, 2) : null;
-      const norm = (d: string) => d.split('/').map(p => p.padStart(2, '0')).join('/');
-      const targetNorm = targetDate ? norm(targetDate) : null;
+    const prev = scheduleRef.current;
+    const currentEntry = prev.find(item => item.id === id);
+    const targetDate = currentEntry?.date ? getNextJalaliDate(currentEntry.date, 2) : null;
+    const norm = (d: string) => d.split('/').map(p => p.padStart(2, '0')).join('/');
+    const targetNorm = targetDate ? norm(targetDate) : null;
 
-      const newSched = prev.map(item => {
-        if (item.id === id) {
-          if (shiftType === 'Day') {
-            const currentExtras = item.extraDayPersons || [];
-            if (currentExtras.includes(personName) || item.dayShiftPerson === personName) {
-              return item;
-            }
-            return { ...item, extraDayPersons: [...currentExtras, personName] };
-          } else {
-            const currentExtras = item.extraNightPersons || [];
-            if (currentExtras.includes(personName) || item.nightShiftPerson === personName) {
-              return item;
-            }
-            return { ...item, extraNightPersons: [...currentExtras, personName] };
-          }
-        }
-        if (shiftType === 'Night' && targetNorm && norm(item.date) === targetNorm) {
-          const currentDayExtras = item.extraDayPersons || [];
-          if (item.dayShiftPerson === personName || currentDayExtras.includes(personName)) {
+    const newSched = prev.map(item => {
+      if (item.id === id) {
+        if (shiftType === 'Day') {
+          const currentExtras = item.extraDayPersons || [];
+          if (currentExtras.includes(personName) || item.dayShiftPerson === personName) {
             return item;
           }
-          if (!item.dayShiftPerson || item.dayShiftPerson === 'نامشخص') {
-            return { ...item, dayShiftPerson: personName };
+          return { ...item, extraDayPersons: [...currentExtras, personName] };
+        } else {
+          const currentExtras = item.extraNightPersons || [];
+          if (currentExtras.includes(personName) || item.nightShiftPerson === personName) {
+            return item;
           }
-          return { ...item, extraDayPersons: [...currentDayExtras, personName] };
+          return { ...item, extraNightPersons: [...currentExtras, personName] };
         }
-        return item;
-      });
-
-      dispatchScheduleChangeNotifications(prev, newSched);
-      syncUpdatedSchedule(newSched);
-      return newSched;
+      }
+      if (shiftType === 'Night' && targetNorm && norm(item.date) === targetNorm) {
+        const currentDayExtras = item.extraDayPersons || [];
+        if (item.dayShiftPerson === personName || currentDayExtras.includes(personName)) {
+          return item;
+        }
+        if (!item.dayShiftPerson || item.dayShiftPerson === 'نامشخص') {
+          return { ...item, dayShiftPerson: personName };
+        }
+        return { ...item, extraDayPersons: [...currentDayExtras, personName] };
+      }
+      return item;
     });
+
+    dispatchScheduleChangeNotifications(prev, newSched);
+    syncUpdatedSchedule(newSched);
+    setSchedule(newSched);
   };
 
   const handleRemoveExtraPerson = (id: number, shiftType: 'Day' | 'Night', personName: string) => {
-    setSchedule(prev => {
-      const newSched = prev.map(item => {
-        if (item.id === id) {
-          if (shiftType === 'Day') {
-            const currentExtras = item.extraDayPersons || [];
-            return { ...item, extraDayPersons: currentExtras.filter(p => p !== personName) };
-          } else {
-            const currentExtras = item.extraNightPersons || [];
-            return { ...item, extraNightPersons: currentExtras.filter(p => p !== personName) };
-          }
+    const prev = scheduleRef.current;
+    const newSched = prev.map(item => {
+      if (item.id === id) {
+        if (shiftType === 'Day') {
+          const currentExtras = item.extraDayPersons || [];
+          return { ...item, extraDayPersons: currentExtras.filter(p => p !== personName) };
+        } else {
+          const currentExtras = item.extraNightPersons || [];
+          return { ...item, extraNightPersons: currentExtras.filter(p => p !== personName) };
         }
-        return item;
-      });
-      dispatchScheduleChangeNotifications(prev, newSched);
-      syncUpdatedSchedule(newSched);
-      return newSched;
+      }
+      return item;
     });
+    dispatchScheduleChangeNotifications(prev, newSched);
+    syncUpdatedSchedule(newSched);
+    setSchedule(newSched);
   };
 
   const handleReplaceExtraPerson = (id: number, shiftType: 'Day' | 'Night', oldPerson: string, newPerson: string) => {
     if (!newPerson) return;
-    setSchedule(prev => {
-      const currentEntry = prev.find(item => item.id === id);
-      const targetDate = currentEntry?.date ? getNextJalaliDate(currentEntry.date, 2) : null;
-      const norm = (d: string) => d.split('/').map(p => p.padStart(2, '0')).join('/');
-      const targetNorm = targetDate ? norm(targetDate) : null;
+    const prev = scheduleRef.current;
+    const currentEntry = prev.find(item => item.id === id);
+    const targetDate = currentEntry?.date ? getNextJalaliDate(currentEntry.date, 2) : null;
+    const norm = (d: string) => d.split('/').map(p => p.padStart(2, '0')).join('/');
+    const targetNorm = targetDate ? norm(targetDate) : null;
 
-      const newSched = prev.map(item => {
-        if (item.id === id) {
-          if (shiftType === 'Day') {
-            const currentExtras = item.extraDayPersons || [];
-            const updated = currentExtras.map(p => p === oldPerson ? newPerson : p);
-            return { ...item, extraDayPersons: updated };
-          } else {
-            const currentExtras = item.extraNightPersons || [];
-            const updated = currentExtras.map(p => p === oldPerson ? newPerson : p);
-            return { ...item, extraNightPersons: updated };
-          }
+    const newSched = prev.map(item => {
+      if (item.id === id) {
+        if (shiftType === 'Day') {
+          const currentExtras = item.extraDayPersons || [];
+          const updated = currentExtras.map(p => p === oldPerson ? newPerson : p);
+          return { ...item, extraDayPersons: updated };
+        } else {
+          const currentExtras = item.extraNightPersons || [];
+          const updated = currentExtras.map(p => p === oldPerson ? newPerson : p);
+          return { ...item, extraNightPersons: updated };
         }
-        if (shiftType === 'Night' && targetNorm && norm(item.date) === targetNorm) {
-          if (item.dayShiftPerson === oldPerson) {
-            return { ...item, dayShiftPerson: newPerson };
-          }
-          if (item.extraDayPersons && item.extraDayPersons.includes(oldPerson)) {
-            return {
-              ...item,
-              extraDayPersons: item.extraDayPersons.map(p => p === oldPerson ? newPerson : p)
-            };
-          }
+      }
+      if (shiftType === 'Night' && targetNorm && norm(item.date) === targetNorm) {
+        if (item.dayShiftPerson === oldPerson) {
+          return { ...item, dayShiftPerson: newPerson };
         }
-        return item;
-      });
-
-      dispatchScheduleChangeNotifications(prev, newSched);
-      syncUpdatedSchedule(newSched);
-      return newSched;
+        if (item.extraDayPersons && item.extraDayPersons.includes(oldPerson)) {
+          return {
+            ...item,
+            extraDayPersons: item.extraDayPersons.map(p => p === oldPerson ? newPerson : p)
+          };
+        }
+      }
+      return item;
     });
+
+    dispatchScheduleChangeNotifications(prev, newSched);
+    syncUpdatedSchedule(newSched);
+    setSchedule(newSched);
   };
 
   const handleToggleHoliday = (id: number) => {
-    setSchedule(prev => {
-      const newSched = prev.map(item => 
-        item.id === id ? { ...item, isHoliday: !item.isHoliday } : item
-      );
-      syncUpdatedSchedule(newSched);
-      return newSched;
-    });
+    const prev = scheduleRef.current;
+    const newSched = prev.map(item => 
+      item.id === id ? { ...item, isHoliday: !item.isHoliday } : item
+    );
+    syncUpdatedSchedule(newSched);
+    setSchedule(newSched);
   };
   
   const handleToggleLock = () => {
@@ -1400,20 +1452,23 @@ const App: React.FC = () => {
       } else {
           newLocked = [...unlockedMonths, key];
       }
+      unlockedMonthsRef.current = newLocked;
       setUnlockedMonths(newLocked);
       try {
         localStorage.setItem(STORAGE_KEYS.LOCKED, JSON.stringify(newLocked));
       } catch (e) {
         console.error(e);
       }
-      saveCloudRoster({ unlockedMonths: newLocked }).catch(console.error);
+      if (!isStagingPreviewRef.current) {
+        saveCloudRoster(buildCloudRosterSnapshot({ unlockedMonths: newLocked })).catch(console.error);
+      }
   };
 
   const handleRegenerate = () => {
       if (confirm('آیا از چیدمان مجدد این ماه اطمینان دارید؟ تمام تغییرات دستی این ماه حذف خواهد شد.')) {
           const monthCode = currentMonth.code;
           const yearStr = String(currentYear);
-          const filteredSchedule = schedule.filter(s => !s.date.startsWith(`${yearStr}/${monthCode}`));
+          const filteredSchedule = scheduleRef.current.filter(s => !s.date.startsWith(`${yearStr}/${monthCode}`));
           
           let startDayIndex = 6; 
           if (filteredSchedule.length > 0) {
@@ -1428,11 +1483,13 @@ const App: React.FC = () => {
               currentYear,
               monthCode,
               startDayIndex,
-              personnelList,
+              personnelListRef.current,
               daysInMonth
           );
 
-          setSchedule([...filteredSchedule, ...newData]);
+          const updatedSchedule = [...filteredSchedule, ...newData];
+          setSchedule(updatedSchedule);
+          syncUpdatedSchedule(updatedSchedule);
       }
   };
 
@@ -1443,7 +1500,7 @@ const App: React.FC = () => {
     mode: 'apply' | 'preview' = 'apply'
   ) => {
     const prefix = `${targetYear}/${targetMonthCode}`;
-    const otherMonths = schedule.filter(s => !s.date.startsWith(prefix));
+    const otherMonths = scheduleRef.current.filter(s => !s.date.startsWith(prefix));
     const mergedSchedule = [...otherMonths, ...newMonthEntries].sort((a, b) => a.date.localeCompare(b.date));
 
     // Switch calendar to target month & year so manager immediately sees the arranged schedule
@@ -1455,12 +1512,21 @@ const App: React.FC = () => {
     const mName = MONTHS.find(m => m.code === targetMonthCode)?.name || targetMonthCode;
 
     if (mode === 'preview') {
+      const nextPreviewRange: PublishedRange = {
+        isActive: true,
+        from: { year: String(targetYear), month: targetMonthCode, day: '01' },
+        to: {
+          year: String(targetYear),
+          month: targetMonthCode,
+          day: String(newMonthEntries.length).padStart(2, '0')
+        }
+      };
       handleStagePreview(
         {
           schedule: mergedSchedule,
-          personnel: personnelList,
-          lockedMonths: unlockedMonths,
-          publishedRange
+          personnel: personnelListRef.current,
+          lockedMonths: unlockedMonthsRef.current,
+          publishedRange: nextPreviewRange
         },
         {
           source: `چیدمان هوشمند AI (${mName} ${toPersianDigits(targetYear)})`,
@@ -1470,15 +1536,8 @@ const App: React.FC = () => {
       // Keep calendar focused on the AI-generated target month instead of first date in schedule
       if (targetYear) setCurrentYear(targetYear);
       if (mIdx !== -1) setMonthIndex(mIdx);
-      setPublishedRange({
-        isActive: true,
-        from: { year: String(targetYear), month: targetMonthCode, day: '01' },
-        to: {
-          year: String(targetYear),
-          month: targetMonthCode,
-          day: String(newMonthEntries.length).padStart(2, '0')
-        }
-      });
+      publishedRangeRef.current = nextPreviewRange;
+      setPublishedRange(nextPreviewRange);
     } else {
       setSchedule(mergedSchedule);
       syncUpdatedSchedule(mergedSchedule);
@@ -1493,32 +1552,65 @@ const App: React.FC = () => {
   };
   
   const handleImport = (data: AppData) => {
-      const rawSched = data.schedule || schedule;
+      const rawSched = data.schedule || scheduleRef.current;
       const non1404 = rawSched.filter(s => !s.date.startsWith('1404'));
       const incomingStaff = data.personnel || [];
-      const { unifiedShifts, unifiedPersonnel } = unifyPersonnelAndShifts(non1404, incomingStaff, personnelList);
+      const { unifiedShifts, unifiedPersonnel } = unifyPersonnelAndShifts(non1404, incomingStaff, personnelListRef.current);
 
-      const targetSchedule = data.schedule ? unifiedShifts : schedule;
-      const targetPersonnel = incomingStaff.length > 0 ? unifiedPersonnel : personnelList;
-      const targetLocked = data.lockedMonths || unlockedMonths;
-      const targetDailyProcesses = data.dailyProcesses || dailyProcesses;
-      const targetProcessDefs = data.processDefinitions || processDefinitions;
+      const targetSchedule = data.schedule ? unifiedShifts : scheduleRef.current;
+      const targetPersonnel = incomingStaff.length > 0 ? unifiedPersonnel : personnelListRef.current;
+      const targetLocked = data.lockedMonths || unlockedMonthsRef.current;
+      const targetDailyProcesses = data.dailyProcesses || dailyProcessesRef.current;
+      const targetProcessDefs = data.processDefinitions || processDefinitionsRef.current;
+      const targetPublishedRange = data.publishedRange !== undefined ? data.publishedRange : publishedRangeRef.current;
+      const targetShowProcess = data.showProcessSchedule !== undefined ? data.showProcessSchedule : showProcessScheduleRef.current;
 
-      if (data.schedule) setSchedule(unifiedShifts);
-      if (incomingStaff.length > 0) setPersonnelList(unifiedPersonnel);
-      if (data.lockedMonths) setUnlockedMonths(data.lockedMonths);
+      if (data.schedule) {
+        scheduleRef.current = unifiedShifts;
+        setLocalScheduleFingerprint(unifiedShifts);
+        setSchedule(unifiedShifts);
+      }
+      if (incomingStaff.length > 0) {
+        personnelListRef.current = unifiedPersonnel;
+        setPersonnelList(unifiedPersonnel);
+      }
+      if (data.lockedMonths) {
+        unlockedMonthsRef.current = data.lockedMonths;
+        setUnlockedMonths(data.lockedMonths);
+      }
       if (data.publishedRange !== undefined) {
-        handleSavePublishedRange(data.publishedRange);
+        publishedRangeRef.current = data.publishedRange;
+        setPublishedRange(data.publishedRange);
+        try {
+          if (data.publishedRange && data.publishedRange.isActive) {
+            localStorage.setItem(STORAGE_KEYS.PUBLISHED_RANGE, JSON.stringify(data.publishedRange));
+          } else {
+            localStorage.removeItem(STORAGE_KEYS.PUBLISHED_RANGE);
+          }
+        } catch (e) {
+          console.error('LocalStorage error', e);
+        }
         if (data.publishedRange && data.publishedRange.isActive) {
-          const yNum = parseInt(data.publishedRange.from.year, 10);
-          const mIdx = MONTHS.findIndex(mObj => mObj.code === data.publishedRange!.from.month);
+          const useEndMonth =
+            data.publishedRange.from.month !== data.publishedRange.to.month &&
+            parseInt(data.publishedRange.from.day, 10) >= 20;
+          const focusDate = useEndMonth ? data.publishedRange.to : data.publishedRange.from;
+          const yNum = parseInt(focusDate.year, 10);
+          const mIdx = MONTHS.findIndex(mObj => mObj.code === focusDate.month);
           if (yNum) setCurrentYear(yNum);
           if (mIdx !== -1) setMonthIndex(mIdx);
         }
       }
-      if (data.dailyProcesses) setDailyProcesses(data.dailyProcesses);
-      if (data.processDefinitions) setProcessDefinitions(data.processDefinitions);
+      if (data.dailyProcesses) {
+        dailyProcessesRef.current = data.dailyProcesses;
+        setDailyProcesses(data.dailyProcesses);
+      }
+      if (data.processDefinitions) {
+        processDefinitionsRef.current = data.processDefinitions;
+        setProcessDefinitions(data.processDefinitions);
+      }
       if (data.showProcessSchedule !== undefined) {
+        showProcessScheduleRef.current = data.showProcessSchedule;
         setShowProcessSchedule(data.showProcessSchedule);
         try {
           localStorage.setItem(STORAGE_KEYS.SHOW_PROCESS_SCHEDULE, String(data.showProcessSchedule));
@@ -1527,16 +1619,16 @@ const App: React.FC = () => {
         }
       }
 
-      // Immediately persist imported data to cloud
-      saveCloudRoster({
+      // Immediately persist imported data to cloud as a single atomic snapshot
+      saveCloudRoster(buildCloudRosterSnapshot({
         schedule: targetSchedule,
         personnelList: targetPersonnel,
         unlockedMonths: targetLocked,
-        publishedRange: data.publishedRange !== undefined ? data.publishedRange : publishedRange,
+        publishedRange: targetPublishedRange,
         dailyProcesses: targetDailyProcesses,
         processDefinitions: targetProcessDefs,
-        showProcessSchedule: data.showProcessSchedule !== undefined ? data.showProcessSchedule : showProcessSchedule,
-      }).catch(console.error);
+        showProcessSchedule: targetShowProcess,
+      })).catch(console.error);
 
       setActiveTab('dashboard');
   };
@@ -1589,40 +1681,39 @@ const App: React.FC = () => {
 
   // Step 2: Execute
   const handleApplySwap = () => {
-      const entry = schedule.find(s => s.date === swapTool.date);
+      const prev = scheduleRef.current;
+      const entry = prev.find(s => s.date === swapTool.date);
       if (entry) {
           const isDay = swapTool.shiftType === 'Day';
           const targetDate = getNextJalaliDate(entry.date, 2);
           const norm = (d: string) => d.split('/').map(p => p.padStart(2, '0')).join('/');
           const targetNorm = norm(targetDate);
 
-          setSchedule(prev => {
-              const newSched = prev.map(item => {
-                  if (item.id === entry.id) {
-                      const updates: Partial<ShiftEntry> = {};
-                      if (isDay) {
-                          updates.dayShiftPerson = swapTool.targetPerson;
-                          if (!item.originalDayShiftPerson && item.dayShiftPerson !== swapTool.targetPerson) {
-                              updates.originalDayShiftPerson = item.dayShiftPerson;
-                          }
-                      } else {
-                          updates.nightShiftPerson = swapTool.targetPerson;
-                          if (!item.originalNightShiftPerson && item.nightShiftPerson !== swapTool.targetPerson) {
-                              updates.originalNightShiftPerson = item.nightShiftPerson;
-                          }
+          const newSched = prev.map(item => {
+              if (item.id === entry.id) {
+                  const updates: Partial<ShiftEntry> = {};
+                  if (isDay) {
+                      updates.dayShiftPerson = swapTool.targetPerson;
+                      if (!item.originalDayShiftPerson && item.dayShiftPerson !== swapTool.targetPerson) {
+                          updates.originalDayShiftPerson = item.dayShiftPerson;
                       }
-                      return { ...item, ...updates };
+                  } else {
+                      updates.nightShiftPerson = swapTool.targetPerson;
+                      if (!item.originalNightShiftPerson && item.nightShiftPerson !== swapTool.targetPerson) {
+                          updates.originalNightShiftPerson = item.nightShiftPerson;
+                      }
                   }
-                  // If Night shift was swapped, automatically update day shift 2 days later
-                  if (!isDay && swapTool.targetPerson && norm(item.date) === targetNorm) {
-                      return { ...item, dayShiftPerson: swapTool.targetPerson };
-                  }
-                  return item;
-              });
-              dispatchScheduleChangeNotifications(prev, newSched);
-              syncUpdatedSchedule(newSched);
-              return newSched;
+                  return { ...item, ...updates };
+              }
+              // If Night shift was swapped, automatically update day shift 2 days later
+              if (!isDay && swapTool.targetPerson && norm(item.date) === targetNorm) {
+                  return { ...item, dayShiftPerson: swapTool.targetPerson };
+              }
+              return item;
           });
+          dispatchScheduleChangeNotifications(prev, newSched);
+          syncUpdatedSchedule(newSched);
+          setSchedule(newSched);
           setSwapMessage({ type: 'success', text: isDay ? 'جابجایی با موفقیت انجام شد.' : 'جابجایی انجام شد و شیفت روز ۲ روز بعد نیز به‌روزرسانی گردید.' });
           setIsSwapReady(false);
           setTimeout(() => setSwapMessage(null), 3000);

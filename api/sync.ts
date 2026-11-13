@@ -243,16 +243,30 @@ async function handleEdge(req: Request): Promise<Response> {
 
     const incoming = bodyData?.data || bodyData || {};
     const now = new Date().toISOString();
-    const payload = {
-      ...(isReset ? {} : (memoryCache || {})),
+
+    let baseState = memoryCache;
+    if (!isReset && (!baseState || !Array.isArray(baseState.schedule))) {
+      try {
+        const fresh = await fetchFromFirestore();
+        if (fresh) baseState = fresh;
+      } catch {}
+    }
+
+    const firestorePatch = {
       ...incoming,
       updatedAt: now
     };
+    const payload = {
+      ...(isReset ? {} : (baseState || {})),
+      ...firestorePatch
+    };
 
-    memoryCache = payload;
-    lastFirestoreReadTime = Date.now();
+    if (isReset || Array.isArray(payload.schedule)) {
+      memoryCache = payload;
+      lastFirestoreReadTime = Date.now();
+    }
 
-    writeToFirestore(payload, !isReset).catch((err) => {
+    writeToFirestore(isReset ? payload : firestorePatch, !isReset).catch((err) => {
       console.warn('[VercelSync] Edge async Firestore write error:', err);
     });
 
@@ -345,16 +359,30 @@ async function handleNode(req: any, res: any): Promise<void> {
 
     const incoming = bodyData?.data || bodyData || {};
     const now = new Date().toISOString();
-    const payload = {
-      ...(isReset ? {} : (memoryCache || {})),
+
+    let baseState = memoryCache;
+    if (!isReset && (!baseState || !Array.isArray(baseState.schedule))) {
+      try {
+        const fresh = await fetchFromFirestore();
+        if (fresh) baseState = fresh;
+      } catch {}
+    }
+
+    const firestorePatch = {
       ...incoming,
       updatedAt: now
     };
+    const payload = {
+      ...(isReset ? {} : (baseState || {})),
+      ...firestorePatch
+    };
 
-    memoryCache = payload;
-    lastFirestoreReadTime = Date.now();
+    if (isReset || Array.isArray(payload.schedule)) {
+      memoryCache = payload;
+      lastFirestoreReadTime = Date.now();
+    }
 
-    writeToFirestore(payload, !isReset).catch((err) => {
+    writeToFirestore(isReset ? payload : firestorePatch, !isReset).catch((err) => {
       console.warn('[VercelSync] Node async Firestore write error:', err);
     });
 
