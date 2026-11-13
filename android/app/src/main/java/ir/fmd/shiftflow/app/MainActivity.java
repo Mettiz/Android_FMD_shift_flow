@@ -209,9 +209,11 @@ public class MainActivity extends Activity {
             conn.setRequestProperty("Cache-Control", "no-store, no-cache");
 
             int code = conn.getResponseCode();
-            InputStream stream = (code >= 200 && code < 400) ? conn.getInputStream() : conn.getErrorStream();
-            if (stream != null) {
-                return buildCorsResponse("application/json", stream);
+            if (code >= 200 && code < 400) {
+                InputStream stream = conn.getInputStream();
+                if (stream != null) {
+                    return buildCorsResponse("application/json", stream);
+                }
             }
         } catch (Exception ignored) {
         }

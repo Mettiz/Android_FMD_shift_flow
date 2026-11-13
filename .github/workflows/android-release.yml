@@ -420,14 +420,16 @@ jobs:
                       conn.setRequestProperty("Accept", "application/json");
                       conn.setRequestProperty("Cache-Control", "no-store, no-cache");
                       int code = conn.getResponseCode();
-                      InputStream stream = (code >= 200 && code < 400) ? conn.getInputStream() : conn.getErrorStream();
-                      if (stream != null) {
-                          WebResourceResponse res = new WebResourceResponse("application/json", "UTF-8", stream);
-                          Map<String, String> h = new HashMap<>();
-                          h.put("Access-Control-Allow-Origin", "*");
-                          h.put("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
-                          res.setResponseHeaders(h);
-                          return res;
+                      if (code >= 200 && code < 400) {
+                          InputStream stream = conn.getInputStream();
+                          if (stream != null) {
+                              WebResourceResponse res = new WebResourceResponse("application/json", "UTF-8", stream);
+                              Map<String, String> h = new HashMap<>();
+                              h.put("Access-Control-Allow-Origin", "*");
+                              h.put("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+                              res.setResponseHeaders(h);
+                              return res;
+                          }
                       }
                   } catch (Exception ignored) {}
                   return null;

@@ -2,7 +2,6 @@
  * Firebase Firestore & Direct Server Real-Time Sync Module - v2.0.0
  */
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth, Auth } from 'firebase/auth';
 import {
   getFirestore,
   doc,
@@ -45,16 +44,12 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
-      userId: auth?.currentUser?.uid ?? null,
-      email: auth?.currentUser?.email ?? null,
-      emailVerified: auth?.currentUser?.emailVerified ?? null,
-      isAnonymous: auth?.currentUser?.isAnonymous ?? null,
-      tenantId: auth?.currentUser?.tenantId ?? null,
-      providerInfo:
-        auth?.currentUser?.providerData?.map((provider) => ({
-          providerId: provider.providerId,
-          email: provider.email,
-        })) || [],
+      userId: null,
+      email: null,
+      emailVerified: null,
+      isAnonymous: null,
+      tenantId: null,
+      providerInfo: [],
     },
     operationType,
     path,
@@ -78,7 +73,6 @@ export interface CloudRosterState {
 }
 
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-export const auth: Auth = getAuth(app);
 
 // Initialize Firestore with explicit database ID from config
 export const db: Firestore = getFirestore(app, firebaseConfig.firestoreDatabaseId);
@@ -225,20 +219,163 @@ export const isStandaloneAndroidRuntime = (): boolean => {
 };
 
 export const CUSTOM_SYNC_URL_STORAGE_KEY = 'shiftflow_custom_sync_url';
-export const DEFAULT_VERCEL_SYNC_URL = 'https://android-fmd-shift-flow.vercel.app';
+export const DEFAULT_VERCEL_SYNC_URL = '';
 
-export const REMOTE_SERVER_URLS = [
-  DEFAULT_VERCEL_SYNC_URL,
-  'https://ais-pre-fekwj6ooulu4tv6actzru2-10710985351.us-west2.run.app',
-  'https://ais-dev-fekwj6ooulu4tv6actzru2-10710985351.us-west2.run.app',
-];
+export const REMOTE_SERVER_URLS: string[] = [];
+
+// Remember endpoints that returned permanent failures (e.g. 402 DEPLOYMENT_DISABLED or 404 on static hosts)
+const deadEndpointUrls = new Set<string>();
+
+function getFirestoreRestDocUrl(): string {
+  const projectId = firebaseConfig.projectId || 'beaming-source-hcbh2';
+  const databaseId = firebaseConfig.firestoreDatabaseId || '(default)';
+  const apiKey = firebaseConfig.apiKey ? `?key=${encodeURIComponent(firebaseConfig.apiKey)}` : '';
+  return `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/databases/${encodeURIComponent(databaseId)}/documents/${ROSTER_DOC_PATH}/${ROSTER_DOC_ID}${apiKey}`;
+}
+
+function decodeFirestoreRestValue(val: any): any {
+  if (!val || typeof val !== 'object') return val;
+  if ('stringValue' in val) return val.stringValue;
+  if ('booleanValue' in val) return val.booleanValue;
+  if ('integerValue' in val) return parseInt(val.integerValue, 10);
+  if ('doubleValue' in val) return Number(val.doubleValue);
+  if ('nullValue' in val) return null;
+  if ('timestampValue' in val) return val.timestampValue;
+  if ('arrayValue' in val) {
+    const list = val.arrayValue?.values || [];
+    return list.map(decodeFirestoreRestValue);
+  }
+  if ('mapValue' in val) {
+    const res: any = {};
+    const fields = val.mapValue?.fields || {};
+    for (const [k, v] of Object.entries(fields)) {
+      res[k] = decodeFirestoreRestValue(v);
+    }
+    return res;
+  }
+  return val;
+}
+
+function encodeFirestoreRestValue(val: any): any {
+  if (val === null || val === undefined) return { nullValue: null };
+  if (typeof val === 'string') return { stringValue: val };
+  if (typeof val === 'boolean') return { booleanValue: val };
+  if (typeof val === 'number') {
+    if (Number.isInteger(val)) return { integerValue: String(val) };
+    return { doubleValue: val };
+  }
+  if (Array.isArray(val)) {
+    return { arrayValue: { values: val.map(encodeFirestoreRestValue) } };
+  }
+  if (typeof val === 'object') {
+    const fields: any = {};
+    for (const [k, v] of Object.entries(val)) {
+      if (v !== undefined) {
+        fields[k] = encodeFirestoreRestValue(v);
+      }
+    }
+    return { mapValue: { fields } };
+  }
+  return { stringValue: String(val) };
+}
+
+async function fetchFirestoreDocREST(timeoutMs = 7000): Promise<CloudRosterState | null> {
+  if (isFirestoreQuotaExhausted) return null;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const url = getFirestoreRestDocUrl();
+    const res = await fetch(url, {
+      headers: { Accept: 'application/json' },
+      cache: 'no-store',
+      signal: controller.signal,
+    });
+    if (res.status === 429) {
+      isFirestoreQuotaExhausted = true;
+      updateSyncDetails({ isQuotaExhausted: true, firestoreConnected: false });
+      return null;
+    }
+    if (res.status === 404) {
+      return null;
+    }
+    if (!res.ok) {
+      throw new Error(`Firestore REST GET failed with ${res.status}`);
+    }
+    const docJson = await res.json();
+    if (!docJson || !docJson.fields) return null;
+    const decoded: any = {};
+    for (const [k, v] of Object.entries(docJson.fields)) {
+      decoded[k] = decodeFirestoreRestValue(v);
+    }
+    isDirectFirestoreUsable = true;
+    updateSyncDetails({ firestoreConnected: true });
+    return decoded as CloudRosterState;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function writeFirestoreDocREST(data: Record<string, any>, merge = true): Promise<boolean> {
+  if (isFirestoreQuotaExhausted) return false;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+  try {
+    const fields: Record<string, any> = {};
+    for (const [k, v] of Object.entries(data)) {
+      if (v !== undefined) {
+        fields[k] = encodeFirestoreRestValue(v);
+      }
+    }
+    let url = getFirestoreRestDocUrl();
+    if (merge) {
+      const sep = url.includes('?') ? '&' : '?';
+      const mask = Object.keys(fields)
+        .map((k) => `updateMask.fieldPaths=${encodeURIComponent(k)}`)
+        .join('&');
+      if (mask) url += `${sep}${mask}`;
+    }
+    const res = await fetch(url, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields }),
+      signal: controller.signal,
+    });
+    if (res.status === 429) {
+      isFirestoreQuotaExhausted = true;
+      updateSyncDetails({ isQuotaExhausted: true, firestoreConnected: false });
+      return false;
+    }
+    if (!res.ok) {
+      throw new Error(`Firestore REST PATCH failed with ${res.status}`);
+    }
+    isDirectFirestoreUsable = true;
+    updateSyncDetails({
+      firestoreConnected: true,
+      lastSyncTime: new Date().toLocaleTimeString('fa-IR'),
+    });
+    return true;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function isStaticHostingOrigin(): boolean {
+  if (typeof window === 'undefined') return false;
+  const h = window.location.hostname.toLowerCase();
+  return h.endsWith('github.io') || h.endsWith('pages.dev') || h.endsWith('netlify.app');
+}
 
 export function getCustomServerUrl(): string {
   if (typeof window === 'undefined') return DEFAULT_VERCEL_SYNC_URL;
   try {
     const custom = localStorage.getItem(CUSTOM_SYNC_URL_STORAGE_KEY);
     if (custom !== null) {
-      return custom.trim().replace(/\/+$/, '');
+      const cleaned = custom.trim().replace(/\/+$/, '');
+      // Ignore previously auto-saved dead Vercel URL if user didn't explicitly configure a working relay
+      if (cleaned === 'https://android-fmd-shift-flow.vercel.app' && deadEndpointUrls.has(cleaned)) {
+        return '';
+      }
+      return cleaned;
     }
     // Check Vite environment variable if configured during build
     const envUrl = (import.meta as any).env?.VITE_VERCEL_SYNC_URL;
@@ -253,6 +390,7 @@ export function setCustomServerUrl(url: string): void {
   if (typeof window === 'undefined') return;
   try {
     const cleaned = url ? url.trim().replace(/\/+$/, '') : '';
+    deadEndpointUrls.clear();
     localStorage.setItem(CUSTOM_SYNC_URL_STORAGE_KEY, cleaned);
   } catch {}
 }
@@ -260,11 +398,11 @@ export function setCustomServerUrl(url: string): void {
 export function getActiveServerUrls(): string[] {
   const urls: string[] = [];
   const custom = getCustomServerUrl();
-  if (custom) {
+  if (custom && !deadEndpointUrls.has(custom)) {
     urls.push(custom);
   }
   for (const url of REMOTE_SERVER_URLS) {
-    if (!urls.includes(url)) {
+    if (url && !urls.includes(url) && !deadEndpointUrls.has(url)) {
       urls.push(url);
     }
   }
@@ -287,10 +425,17 @@ export async function testServerUrlConnection(rawUrl: string): Promise<{ success
     clearTimeout(timeout);
     const latency = Date.now() - startTime;
     if (res.ok) {
+      deadEndpointUrls.delete(cleanUrl);
       return {
         success: true,
-        message: `اتصال به ورسل موفقیت‌آمیز بود (${latency}ms) - آماده و بدون فیلتر در ایران`,
+        message: `اتصال به سرور واسط موفقیت‌آمیز بود (${latency}ms) - آماده و بدون فیلتر`,
         latency
+      };
+    }
+    if (res.status === 402) {
+      return {
+        success: false,
+        message: 'این سرور ورسل غیرفعال شده است (خطای 402 Payment Required). می‌توانید از اتصال مستقیم فایربیس استفاده کنید یا آدرس یک سرور جدید (مثلاً Cloudflare Worker رایگان) وارد نمایید.'
       };
     }
     return {
@@ -307,18 +452,18 @@ export async function testServerUrlConnection(rawUrl: string): Promise<{ success
 
 export function getSyncApiBase(): string {
   const custom = getCustomServerUrl();
-  if (custom) return custom;
-  if (isStandaloneAndroidRuntime()) {
-    return REMOTE_SERVER_URLS[0];
+  if (custom && !deadEndpointUrls.has(custom)) return custom;
+  if (isStandaloneAndroidRuntime() && getActiveServerUrls().length > 0) {
+    return getActiveServerUrls()[0];
   }
   return '';
 }
 
 /**
  * Subscribes to real-time changes of the roster using Dual Sync:
- * 1. Direct Server SSE (/api/sync/stream) + Fast 2.5s Polling (/api/sync)
+ * 1. Direct Server SSE (/api/sync/stream) + Polling when an active relay server exists
  * 2. Same-Browser Multi-Tab BroadcastChannel + window storage event
- * 3. Firestore Real-Time onSnapshot
+ * 3. Firestore Real-Time onSnapshot + Firestore REST API fallback (works cleanly on GitHub Pages)
  */
 export function subscribeToCloudRoster(
   onUpdate: (data: CloudRosterState) => void,
@@ -330,7 +475,14 @@ export function subscribeToCloudRoster(
   let lastAppliedVersion = 0;
   let lastAppliedMetaHash = '';
   const isNativeAndroid = isStandaloneAndroidRuntime();
-  const syncApiBase = getSyncApiBase();
+  const isStaticHost = isStaticHostingOrigin();
+
+  // Initialize syncDetails cleanly (don't falsely claim serverConnected on static GitHub Pages)
+  updateSyncDetails({
+    serverConnected: false,
+    firestoreConnected: false,
+    channel: 'offline',
+  });
 
   const getMetaHash = (d: CloudRosterState): string => {
     return JSON.stringify({
@@ -349,7 +501,6 @@ export function subscribeToCloudRoster(
     if (isCancelled || !data) return;
 
     const effectiveOrigin = originClientId || data._originClientId;
-    // Ignore echoes of our own client's outgoing save within the last 4 seconds
     if (effectiveOrigin && effectiveOrigin === CLIENT_ID) {
       return;
     }
@@ -358,14 +509,29 @@ export function subscribeToCloudRoster(
     const incomingMeta = getMetaHash(data);
     const incomingVersion = typeof data._version === 'number' ? data._version : 0;
 
-    // If this client just mutated locally within the last 1.5s, don't let an older in-flight poll overwrite it
     if (Date.now() - lastLocalMutationTimeMs < 1500 && hasReceivedAnyData) {
       if (incomingFp === currentInstanceScheduleFingerprint) {
         return;
       }
     }
 
-    // Check if anything actually changed compared to this tab's in-memory state
+    const nextServerConnected =
+      source === 'server' || source === 'broadcast' ? true : currentSyncDetails.serverConnected;
+    const nextFirestoreConnected =
+      source === 'firestore' ? true : currentSyncDetails.firestoreConnected;
+
+    updateSyncDetails({
+      serverConnected: nextServerConnected,
+      firestoreConnected: nextFirestoreConnected,
+      lastSyncTime: new Date().toLocaleTimeString('fa-IR'),
+      channel:
+        nextServerConnected && nextFirestoreConnected
+          ? 'both'
+          : nextFirestoreConnected
+          ? 'firestore'
+          : 'server',
+    });
+
     const isScheduleChanged =
       Boolean(incomingFp) && incomingFp !== currentInstanceScheduleFingerprint;
     const isMetaChanged = incomingMeta !== lastAppliedMetaHash;
@@ -388,13 +554,6 @@ export function subscribeToCloudRoster(
       } catch {}
     }
     hasReceivedAnyData = true;
-
-    updateSyncDetails({
-      serverConnected: source === 'server' || source === 'broadcast' ? true : currentSyncDetails.serverConnected,
-      firestoreConnected: source === 'firestore' ? true : currentSyncDetails.firestoreConnected,
-      lastSyncTime: new Date().toLocaleTimeString('fa-IR'),
-      channel: currentSyncDetails.firestoreConnected ? 'both' : 'server',
-    });
 
     onUpdate(data);
   };
@@ -437,65 +596,122 @@ export function subscribeToCloudRoster(
     window.addEventListener('storage', handleStorageEvent);
   }
 
-  // 1. Immediate Direct Server API + Firestore fallback fetch
-  const fetchFromEndpoints = async (): Promise<any> => {
-    const customUrl = getCustomServerUrl();
+  // Helper to fetch from custom/local server `/api/sync` without retrying dead 402/404 endpoints
+  const tryServerSyncGet = async (base: string): Promise<any | null> => {
+    const key = base || '__local__';
+    if (deadEndpointUrls.has(key)) return null;
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 5000);
+      const url = base ? `${base}/api/sync?_t=${Date.now()}` : `/api/sync?_t=${Date.now()}`;
+      const res = await fetch(url, { cache: 'no-store', signal: controller.signal });
+      clearTimeout(timer);
+
+      if (res.status === 402 || res.status === 404 || res.status === 410) {
+        deadEndpointUrls.add(key);
+        return null;
+      }
+      const ct = res.headers.get('content-type') || '';
+      if (res.ok && ct.includes('application/json')) {
+        return await res.json();
+      }
+      if (res.ok && !ct.includes('application/json')) {
+        deadEndpointUrls.add(key);
+      }
+    } catch {}
+    return null;
+  };
+
+  // 1. Direct Server API + Firestore SDK + Firestore REST fallback fetch
+  const fetchFromEndpoints = async (): Promise<{ result: any; source: 'server' | 'firestore' }> => {
     if (!isNativeAndroid) {
+      if (!isStaticHost) {
+        const localJson = await tryServerSyncGet('');
+        if (localJson) return { result: localJson, source: 'server' };
+      }
+      const customUrl = getCustomServerUrl();
+      if (customUrl) {
+        const customJson = await tryServerSyncGet(customUrl);
+        if (customJson) return { result: customJson, source: 'server' };
+      }
+    } else {
+      for (const base of getActiveServerUrls()) {
+        const remoteJson = await tryServerSyncGet(base);
+        if (remoteJson) return { result: remoteJson, source: 'server' };
+      }
+    }
+
+    // Firestore REST API (lightweight HTTPS fetch — works even when gRPC WebChannel lags)
+    if (!isFirestoreQuotaExhausted) {
       try {
-        const res = await fetch(`/api/sync?_t=${Date.now()}`, { cache: 'no-store' });
-        const ct = res.headers.get('content-type') || '';
-        if (res.ok && ct.includes('application/json')) {
-          return await res.json();
+        const restData = await fetchFirestoreDocREST(6000);
+        if (restData) {
+          return {
+            result: {
+              exists: true,
+              modified: true,
+              updatedAt: restData.updatedAt,
+              data: restData,
+            },
+            source: 'firestore',
+          };
         }
       } catch {}
 
-      if (customUrl) {
-        try {
-          const res = await fetch(`${customUrl}/api/sync?_t=${Date.now()}`, { cache: 'no-store' });
-          const ct = res.headers.get('content-type') || '';
-          if (res.ok && ct.includes('application/json')) {
-            return await res.json();
-          }
-        } catch {}
-      }
-    } else {
-      // For Standalone Android APK: try custom server (e.g. Vercel) and remote server endpoints
-      for (const base of getActiveServerUrls()) {
-        try {
-          const res = await fetch(`${base}/api/sync?_t=${Date.now()}`, { cache: 'no-store' });
-          const ct = res.headers.get('content-type') || '';
-          if (res.ok && ct.includes('application/json')) {
-            return await res.json();
-          }
-        } catch {}
+      // Firestore SDK getDocFromServer fallback
+      try {
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Firestore fetch timeout')), 6000)
+        );
+        const snap = await Promise.race([
+          getDocFromServer(doc(db, ROSTER_DOC_PATH, ROSTER_DOC_ID)),
+          timeoutPromise,
+        ]);
+        isDirectFirestoreUsable = true;
+        updateSyncDetails({ firestoreConnected: true });
+        if (snap.exists()) {
+          const cloudData = snap.data() as CloudRosterState;
+          return {
+            result: {
+              exists: true,
+              modified: true,
+              updatedAt: cloudData.updatedAt,
+              data: cloudData,
+            },
+            source: 'firestore',
+          };
+        }
+        return {
+          result: { exists: false, data: null },
+          source: 'firestore',
+        };
+      } catch (err: any) {
+        const msg = String(err?.message || err);
+        if (msg.includes('Missing or insufficient permissions') || err?.code === 'permission-denied') {
+          handleFirestoreError(err, OperationType.GET, `${ROSTER_DOC_PATH}/${ROSTER_DOC_ID}`);
+        }
+        if (
+          msg.includes('RESOURCE_EXHAUSTED') ||
+          msg.includes('resource-exhausted') ||
+          err?.code === 'resource-exhausted' ||
+          err?.code === 8
+        ) {
+          isFirestoreQuotaExhausted = true;
+          updateSyncDetails({ isQuotaExhausted: true, firestoreConnected: false });
+        }
       }
     }
 
-    // Direct Firestore fallback (always works from Android APK https://localhost without cookie redirects)
-    if (!isFirestoreQuotaExhausted) {
-      const snap = await getDocFromServer(doc(db, ROSTER_DOC_PATH, ROSTER_DOC_ID));
-      if (snap.exists()) {
-        const cloudData = snap.data() as CloudRosterState;
-        isDirectFirestoreUsable = true;
-        updateSyncDetails({ firestoreConnected: true });
-        return {
-          exists: true,
-          modified: true,
-          updatedAt: cloudData.updatedAt,
-          data: cloudData,
-        };
-      }
-    }
     throw new Error('All remote endpoints unreachable');
   };
 
   const doFetchInitial = (attempt = 1) => {
     if (isCancelled) return;
     fetchFromEndpoints()
-      .then((resData) => {
+      .then(({ result: resData, source }) => {
         if (isCancelled) return;
         if (resData && resData.exists && resData.data) {
-          handleIncomingData(resData.data, 'server');
+          handleIncomingData(resData.data, source);
         } else if (resData && !resData.exists) {
           if (!hasReceivedAnyData && onInitialEmpty) {
             onInitialEmpty();
@@ -503,16 +719,13 @@ export function subscribeToCloudRoster(
         }
       })
       .catch((err) => {
-        if (isNativeAndroid) {
-          updateSyncDetails({
-            serverConnected: true,
-            lastSyncTime: new Date().toLocaleTimeString('fa-IR'),
-            channel: 'server',
-          });
+        if (isCancelled) return;
+        // If onSnapshot already connected in the meantime, do NOT mark offline
+        if (currentSyncDetails.firestoreConnected || currentSyncDetails.serverConnected) {
           return;
         }
         if (!hasReceivedAnyData) {
-          if (attempt < 3) {
+          if (attempt < 2) {
             setTimeout(() => doFetchInitial(attempt + 1), 1500);
           } else if (onError) {
             onError(err);
@@ -523,22 +736,34 @@ export function subscribeToCloudRoster(
 
   doFetchInitial(1);
 
-  // 2. Direct Server-Sent Events (SSE) Stream for instant live push (enabled on both Web & Android)
+  // 2. Direct Server-Sent Events (SSE) Stream — ONLY connect when an active backend server exists
   let eventSource: EventSource | null = null;
   let sseReconnectTimer: any = null;
+  const syncApiBase = getSyncApiBase();
+  const hasServerEndpoint =
+    (Boolean(syncApiBase) && !deadEndpointUrls.has(syncApiBase)) ||
+    (!isNativeAndroid && !isStaticHost && !deadEndpointUrls.has('__local__'));
 
   const connectSSE = () => {
     if (isCancelled || typeof window === 'undefined' || !('EventSource' in window)) return;
+    const currentBase = getSyncApiBase();
+    const activeKey = currentBase || '__local__';
+    if ((!currentBase && (isNativeAndroid || isStaticHost)) || deadEndpointUrls.has(activeKey)) {
+      return;
+    }
     try {
       if (eventSource) {
         try {
           eventSource.close();
         } catch {}
       }
-      const streamUrl = `${syncApiBase}/api/sync/stream`;
+      const streamUrl = `${currentBase}/api/sync/stream`;
       eventSource = new EventSource(streamUrl);
       eventSource.onopen = () => {
-        updateSyncDetails({ serverConnected: true });
+        updateSyncDetails({
+          serverConnected: true,
+          channel: currentSyncDetails.firestoreConnected ? 'both' : 'server',
+        });
       };
       eventSource.onmessage = (event) => {
         if (isCancelled) return;
@@ -555,40 +780,52 @@ export function subscribeToCloudRoster(
         try {
           eventSource?.close();
         } catch {}
-        if (!isCancelled) {
+        if (!isCancelled && !deadEndpointUrls.has(activeKey)) {
           if (sseReconnectTimer) clearTimeout(sseReconnectTimer);
-          sseReconnectTimer = setTimeout(connectSSE, 4000);
+          sseReconnectTimer = setTimeout(connectSSE, 6000);
         }
       };
     } catch {}
   };
 
-  connectSSE();
+  if (hasServerEndpoint) {
+    connectSSE();
+  }
 
-  // 3. Continuous Active Background Polling every 2.0 seconds (runs even when tab/app is minimized)
+  // 3. Smart Background Polling:
+  // - If an active custom/local `/api/sync` server exists: poll server every 4s.
+  // - If ONLY Firestore exists (e.g. GitHub Pages): rely on onSnapshot and only poll REST every 20s if Firestore isn't connected yet (saves quota!).
   const fetchLatestFromServer = () => {
     if (isCancelled) return;
+    const activeServers = getActiveServerUrls();
+    const canUseLocalServer = !isNativeAndroid && !isStaticHost && !deadEndpointUrls.has('__local__');
+    if (currentSyncDetails.firestoreConnected && activeServers.length === 0 && !canUseLocalServer) {
+      return;
+    }
     fetchFromEndpoints()
-      .then((resData) => {
+      .then(({ result: resData, source }) => {
         if (isCancelled || !resData) return;
         updateSyncDetails({
-          serverConnected: true,
+          serverConnected: source === 'server' ? true : currentSyncDetails.serverConnected,
+          firestoreConnected: source === 'firestore' ? true : currentSyncDetails.firestoreConnected,
           lastSyncTime: new Date().toLocaleTimeString('fa-IR'),
         });
         if (resData.exists && resData.data) {
-          handleIncomingData(resData.data, 'server', resData.data._originClientId);
+          handleIncomingData(resData.data, source, resData.data._originClientId);
         }
       })
       .catch(() => {});
   };
 
-  const pollTimer = setInterval(fetchLatestFromServer, 2000);
+  const pollIntervalMs = hasServerEndpoint ? 4000 : 20000;
+  const pollTimer = setInterval(fetchLatestFromServer, pollIntervalMs);
 
-  // Dedicated Web Worker timer so browsers do NOT throttle background polling when minimized
+  // Dedicated Web Worker timer so browsers do NOT throttle background sync when minimized
   let bgWorker: Worker | null = null;
   if (typeof window !== 'undefined' && 'Worker' in window && 'Blob' in window) {
     try {
-      const workerCode = `setInterval(function(){ postMessage('BG_SYNC_TICK'); }, 2500);`;
+      const workerInterval = hasServerEndpoint ? 4000 : 20000;
+      const workerCode = `setInterval(function(){ postMessage('BG_SYNC_TICK'); }, ${workerInterval});`;
       const blob = new Blob([workerCode], { type: 'application/javascript' });
       const workerUrl = URL.createObjectURL(blob);
       bgWorker = new Worker(workerUrl);
@@ -625,14 +862,26 @@ export function subscribeToCloudRoster(
         (snapshot) => {
           if (isCancelled) return;
           isDirectFirestoreUsable = true;
-          updateSyncDetails({ firestoreConnected: true });
+          updateSyncDetails({
+            firestoreConnected: true,
+            lastSyncTime: new Date().toLocaleTimeString('fa-IR'),
+            channel: currentSyncDetails.serverConnected ? 'both' : 'firestore',
+          });
           if (snapshot.exists()) {
             const data = snapshot.data() as CloudRosterState;
             handleIncomingData(data, 'firestore', data._originClientId);
+          } else if (!hasReceivedAnyData && onInitialEmpty) {
+            onInitialEmpty();
           }
         },
         (err) => {
           const msg = String(err?.message || err);
+          if (
+            msg.includes('Missing or insufficient permissions') ||
+            (err as any)?.code === 'permission-denied'
+          ) {
+            handleFirestoreError(err, OperationType.GET, `${ROSTER_DOC_PATH}/${ROSTER_DOC_ID}`);
+          }
           if (
             msg.includes('RESOURCE_EXHAUSTED') ||
             msg.includes('resource-exhausted') ||
@@ -681,30 +930,42 @@ export function subscribeToCloudRoster(
 }
 
 /**
- * Fetches latest roster state on-demand from either Server API or Firestore (used by Force Sync button on Web & Android)
+ * Fetches latest roster state on-demand from Server API, Firestore REST, or Firestore SDK
  */
 export async function fetchLatestCloudRosterNow(): Promise<CloudRosterState | null> {
   const isAndroid = isStandaloneAndroidRuntime();
+  const isStaticHost = isStaticHostingOrigin();
   const customUrl = getCustomServerUrl();
-  if (!isAndroid) {
-    try {
-      const res = await fetch(`/api/sync?_t=${Date.now()}`, { cache: 'no-store' });
-      if (res.ok) {
-        const json = await res.json();
-        if (json?.exists && json?.data) {
-          return json.data as CloudRosterState;
-        }
-      }
-    } catch {}
 
-    if (customUrl) {
+  if (!isAndroid) {
+    if (!isStaticHost && !deadEndpointUrls.has('__local__')) {
       try {
-        const res = await fetch(`${customUrl}/api/sync?_t=${Date.now()}`, { cache: 'no-store' });
-        if (res.ok) {
+        const res = await fetch(`/api/sync?_t=${Date.now()}`, { cache: 'no-store' });
+        const ct = res.headers.get('content-type') || '';
+        if (res.ok && ct.includes('application/json')) {
           const json = await res.json();
           if (json?.exists && json?.data) {
+            updateSyncDetails({ serverConnected: true, lastSyncTime: new Date().toLocaleTimeString('fa-IR') });
             return json.data as CloudRosterState;
           }
+        } else if (res.status === 404 || res.status === 402) {
+          deadEndpointUrls.add('__local__');
+        }
+      } catch {}
+    }
+
+    if (customUrl && !deadEndpointUrls.has(customUrl)) {
+      try {
+        const res = await fetch(`${customUrl}/api/sync?_t=${Date.now()}`, { cache: 'no-store' });
+        const ct = res.headers.get('content-type') || '';
+        if (res.ok && ct.includes('application/json')) {
+          const json = await res.json();
+          if (json?.exists && json?.data) {
+            updateSyncDetails({ serverConnected: true, lastSyncTime: new Date().toLocaleTimeString('fa-IR') });
+            return json.data as CloudRosterState;
+          }
+        } else if (res.status === 402 || res.status === 404 || res.status === 410) {
+          deadEndpointUrls.add(customUrl);
         }
       } catch {}
     }
@@ -716,8 +977,11 @@ export async function fetchLatestCloudRosterNow(): Promise<CloudRosterState | nu
         if (res.ok && ct.includes('application/json')) {
           const json = await res.json();
           if (json?.exists && json?.data) {
+            updateSyncDetails({ serverConnected: true, lastSyncTime: new Date().toLocaleTimeString('fa-IR') });
             return json.data as CloudRosterState;
           }
+        } else if (res.status === 402 || res.status === 404 || res.status === 410) {
+          deadEndpointUrls.add(base);
         }
       } catch {}
     }
@@ -725,8 +989,25 @@ export async function fetchLatestCloudRosterNow(): Promise<CloudRosterState | nu
 
   if (!isFirestoreQuotaExhausted) {
     try {
+      const restData = await fetchFirestoreDocREST(7000);
+      if (restData) {
+        updateSyncDetails({
+          firestoreConnected: true,
+          lastSyncTime: new Date().toLocaleTimeString('fa-IR'),
+          channel: currentSyncDetails.serverConnected ? 'both' : 'firestore',
+        });
+        return restData;
+      }
+    } catch {}
+
+    try {
       const snap = await getDocFromServer(doc(db, ROSTER_DOC_PATH, ROSTER_DOC_ID));
       if (snap.exists()) {
+        updateSyncDetails({
+          firestoreConnected: true,
+          lastSyncTime: new Date().toLocaleTimeString('fa-IR'),
+          channel: currentSyncDetails.serverConnected ? 'both' : 'firestore',
+        });
         return snap.data() as CloudRosterState;
       }
     } catch {}
@@ -751,8 +1032,8 @@ function cleanFirestoreData<T>(obj: T): T {
 /**
  * Saves or updates roster data with Dual Sync across BOTH Web Browser and Native Android App:
  * 1. Updates in-memory schedule fingerprint & broadcasts to same-browser tabs immediately.
- * 2. Writes directly to Firestore (works 100% on Android APK https://localhost & Web).
- * 3. POSTs to Direct Server API (/api/sync on Web, and remote Cloud Run / Vercel endpoints on Android APK).
+ * 2. Writes directly to Firestore SDK + Firestore REST API fallback.
+ * 3. POSTs to Direct Server API (/api/sync) if an active server is configured.
  */
 export async function saveCloudRoster(data: Partial<CloudRosterState>): Promise<void> {
   const now = new Date().toISOString();
@@ -777,29 +1058,43 @@ export async function saveCloudRoster(data: Partial<CloudRosterState>): Promise<
   // 1. Broadcast to other tabs in the same browser immediately (0ms latency)
   broadcastLocalStateChange(payload);
 
-  // 2. Direct Firestore write (crucial for Android APK https://localhost <-> Browser sync)
+  // 2. Direct Firestore write (SDK + REST fallback)
   const writePromises: Promise<any>[] = [];
   if (!isFirestoreQuotaExhausted) {
     writePromises.push(
-      setDoc(doc(db, ROSTER_DOC_PATH, ROSTER_DOC_ID), payload, { merge: true }).then(() => {
-        isDirectFirestoreUsable = true;
-        updateSyncDetails({
-          firestoreConnected: true,
-          lastSyncTime: new Date().toLocaleTimeString('fa-IR'),
-        });
-      })
+      setDoc(doc(db, ROSTER_DOC_PATH, ROSTER_DOC_ID), payload, { merge: true })
+        .then(() => {
+          isDirectFirestoreUsable = true;
+          updateSyncDetails({
+            firestoreConnected: true,
+            lastSyncTime: new Date().toLocaleTimeString('fa-IR'),
+            channel: currentSyncDetails.serverConnected ? 'both' : 'firestore',
+          });
+        })
+        .catch(async (err) => {
+          const msg = String(err?.message || err);
+          if (msg.includes('Missing or insufficient permissions') || err?.code === 'permission-denied') {
+            handleFirestoreError(err, OperationType.WRITE, `${ROSTER_DOC_PATH}/${ROSTER_DOC_ID}`);
+          }
+          // Try lightweight REST write if SDK fails
+          const ok = await writeFirestoreDocREST(payload, true);
+          if (!ok) throw err;
+        })
     );
   }
 
-  // 3. Direct Server Sync POST
+  // 3. Direct Server Sync POST (only to active non-dead server endpoints)
   const isAndroid = isStandaloneAndroidRuntime();
+  const isStaticHost = isStaticHostingOrigin();
   const customUrl = getCustomServerUrl();
   const targetUrls: string[] = [];
   if (isAndroid) {
     targetUrls.push(...getActiveServerUrls().map((base) => `${base}/api/sync`));
   } else {
-    targetUrls.push('/api/sync');
-    if (customUrl) {
+    if (!isStaticHost && !deadEndpointUrls.has('__local__')) {
+      targetUrls.push('/api/sync');
+    }
+    if (customUrl && !deadEndpointUrls.has(customUrl)) {
       targetUrls.push(`${customUrl}/api/sync`);
     }
   }
@@ -811,23 +1106,31 @@ export async function saveCloudRoster(data: Partial<CloudRosterState>): Promise<
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ data: payload, clientId: CLIENT_ID }),
       }).then(async (r) => {
+        if (r.status === 402 || r.status === 404 || r.status === 410) {
+          const base = url.replace(/\/api\/sync$/, '') || '__local__';
+          deadEndpointUrls.add(base);
+          throw new Error(`Server unavailable (${r.status})`);
+        }
         if (!r.ok) throw new Error(`Server returned ${r.status}`);
         const json = await r.json();
         updateSyncDetails({
           serverConnected: true,
           lastSyncTime: new Date().toLocaleTimeString('fa-IR'),
+          channel: currentSyncDetails.firestoreConnected ? 'both' : 'server',
         });
         return json;
       })
     );
   }
 
-  await Promise.race([
-    Promise.any(writePromises).catch((err) => {
-      console.warn('[DirectServerSync] Save notice:', err);
-    }),
-    new Promise((resolve) => setTimeout(resolve, 1500)),
-  ]);
+  if (writePromises.length > 0) {
+    await Promise.race([
+      Promise.any(writePromises),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Cloud sync save timeout')), 6000)
+      ),
+    ]);
+  }
 }
 
 /**
@@ -851,17 +1154,22 @@ export async function resetCloudRoster(data: CloudRosterState): Promise<void> {
   if (isDirectFirestoreUsable && !isFirestoreQuotaExhausted) {
     try {
       await setDoc(doc(db, ROSTER_DOC_PATH, ROSTER_DOC_ID), payload);
-    } catch {}
+    } catch {
+      await writeFirestoreDocREST(payload, false).catch(() => {});
+    }
   }
 
   const isAndroid = isStandaloneAndroidRuntime();
+  const isStaticHost = isStaticHostingOrigin();
   const customUrl = getCustomServerUrl();
   const targetUrls: string[] = [];
   if (isAndroid) {
     targetUrls.push(...getActiveServerUrls().map((base) => `${base}/api/sync/reset`));
   } else {
-    targetUrls.push('/api/sync/reset');
-    if (customUrl) {
+    if (!isStaticHost && !deadEndpointUrls.has('__local__')) {
+      targetUrls.push('/api/sync/reset');
+    }
+    if (customUrl && !deadEndpointUrls.has(customUrl)) {
       targetUrls.push(`${customUrl}/api/sync/reset`);
     }
   }

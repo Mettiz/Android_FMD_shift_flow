@@ -1853,7 +1853,7 @@ export const UserSettingsButton: React.FC<UserSettingsButtonProps> = ({
                       </button>
                     </div>
 
-                    {/* 7. Vercel Anti-Filter Server Relay */}
+                    {/* 7. Optional Anti-Filter Relay Server (Cloudflare Worker / Custom Server) */}
                     <div className="border border-emerald-300/80 bg-linear-to-b from-emerald-50/70 to-teal-50/30 rounded-2xl p-4 space-y-3">
                       <div className="flex items-start gap-3">
                         <div className="p-2.5 rounded-xl bg-emerald-600 text-white shrink-0 shadow-2xs">
@@ -1862,15 +1862,15 @@ export const UserSettingsButton: React.FC<UserSettingsButtonProps> = ({
                         <div className="flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
                             <h4 className="text-xs sm:text-sm font-black text-emerald-950">
-                              ۷. اتصال به سرور Vercel (بدون نیاز به فیلترشکن در ایران)
+                              ۷. اتصال مستقیم به دیتابیس ابری یا سرور واسط (Cloudflare / Vercel)
                             </h4>
                             <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-100/90 px-2 py-0.5 rounded-full">
                               <Radio className="w-3 h-3 animate-pulse text-emerald-600" />
-                              ضد تحریم و فیلتر
+                              همگام‌سازی ابری
                             </span>
                           </div>
                           <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-                            سرور Vercel در داخل ایران فیلتر نیست و به عنوان واسط پرسرعت به دیتابیس متصل می‌شود تا تمام تغییرات شیفت و نوتیفیکیشن‌ها برای مدیر و تمام پرسنل بدون وصل بودن فیلترشکن همگام‌سازی شوند.
+                            در حالت پیش‌فرض، سامانه روی GitHub Pages و اپلیکیشن اندروید مستقیماً به دیتابیس فایربیس متصل می‌شود. اگر در شبکه شما بدون فیلترشکن فایربیس مسدود است، می‌توانید آدرس یک سرور واسط رایگان (مانند Cloudflare Worker) را اینجا وارد کنید.
                           </p>
                         </div>
                       </div>
@@ -1883,7 +1883,7 @@ export const UserSettingsButton: React.FC<UserSettingsButtonProps> = ({
                               type="url"
                               value={vercelServerUrl}
                               onChange={(e) => setVercelServerUrl(e.target.value)}
-                              placeholder="https://android-fmd-shift-flow.vercel.app"
+                              placeholder="اختیاری: آدرس سرور واسط (مثلاً https://my-relay.workers.dev)"
                               className="w-full text-xs font-mono px-3 py-2.5 rounded-lg border border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none dir-ltr text-slate-800 placeholder:text-slate-400"
                             />
                           </div>
@@ -1909,20 +1909,19 @@ export const UserSettingsButton: React.FC<UserSettingsButtonProps> = ({
                               <span>ذخیره</span>
                             </button>
 
-                            {vercelServerUrl !== 'https://android-fmd-shift-flow.vercel.app' && (
+                            {vercelServerUrl && (
                               <button
                                 type="button"
                                 onClick={() => {
-                                  const defUrl = 'https://android-fmd-shift-flow.vercel.app';
-                                  setVercelServerUrl(defUrl);
-                                  setCustomServerUrl(defUrl);
+                                  setVercelServerUrl('');
+                                  setCustomServerUrl('');
                                   setServerTestResult(null);
-                                  showToast('آدرس سرور به سرور رسمی ورسل بازگردانده شد.');
+                                  showToast('حالت اتصال مستقیم فایربیس فعال شد.');
                                 }}
-                                className="p-2.5 rounded-lg text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 transition cursor-pointer"
-                                title="بازگشت به سرور پیش‌فرض ورسل"
+                                className="p-2.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                                title="پاک کردن آدرس واسط و استفاده مستقیم از فایربیس"
                               >
-                                <RefreshCw className="w-3.5 h-3.5" />
+                                <X className="w-3.5 h-3.5" />
                               </button>
                             )}
                           </div>
@@ -1946,7 +1945,7 @@ export const UserSettingsButton: React.FC<UserSettingsButtonProps> = ({
                               <span>{serverTestResult.message}</span>
                               {serverTestResult.latency && (
                                 <span className="block text-[11px] font-mono mt-0.5 text-emerald-700">
-                                  پینگ سرور ورسل: {serverTestResult.latency} میلی‌ثانیه
+                                  پینگ سرور واسط: {serverTestResult.latency} میلی‌ثانیه
                                 </span>
                               )}
                             </div>
@@ -1956,19 +1955,15 @@ export const UserSettingsButton: React.FC<UserSettingsButtonProps> = ({
                         {/* Active Server Info */}
                         <div className="text-[11px] text-slate-600 bg-emerald-50/60 border border-emerald-200/80 rounded-lg p-2.5 leading-relaxed flex items-center justify-between gap-2 flex-wrap">
                           <div>
-                            <strong className="text-emerald-900">سرور پیش‌فرض فعال:</strong>{' '}
-                            <a
-                              href="https://android-fmd-shift-flow.vercel.app"
-                              target="_blank"
-                              rel="noreferrer"
-                              className="font-mono text-emerald-700 font-bold underline dir-ltr inline-flex items-center gap-0.5"
-                            >
-                              https://android-fmd-shift-flow.vercel.app
-                              <ExternalLink className="w-2.5 h-2.5 inline" />
-                            </a>
+                            <strong className="text-emerald-900">وضعیت اتصال:</strong>{' '}
+                            <span>
+                              {vercelServerUrl
+                                ? `استفاده از سرور واسط (${vercelServerUrl}) + فایربیس`
+                                : 'اتصال مستقیم به فایربیس ابری (GitHub Pages / Android)'}
+                            </span>
                           </div>
                           <span className="text-[10px] font-bold text-emerald-800 bg-white px-2 py-0.5 rounded border border-emerald-200">
-                            متصل به دیتابیس ابری بدون نیاز به فیلترشکن
+                            REST + Realtime Sync
                           </span>
                         </div>
                       </div>

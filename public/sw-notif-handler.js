@@ -57,29 +57,75 @@ if (typeof caches !== 'undefined') {
     .catch(() => {});
 }
 
-const VERCEL_RELAY_URL = 'https://android-fmd-shift-flow.vercel.app';
+const FIRESTORE_REST_URL =
+  'https://firestore.googleapis.com/v1/projects/beaming-source-hcbh2/databases/ai-studio-fmdproductionshi-3f0608ec-b995-44d1-a9c8-f98c589f0e16/documents/roster_state/current';
+
+function decodeSwFirestoreVal(val) {
+  if (!val || typeof val !== 'object') return val;
+  if ('stringValue' in val) return val.stringValue;
+  if ('booleanValue' in val) return val.booleanValue;
+  if ('integerValue' in val) return parseInt(val.integerValue, 10);
+  if ('doubleValue' in val) return Number(val.doubleValue);
+  if ('nullValue' in val) return null;
+  if ('arrayValue' in val) return (val.arrayValue && val.arrayValue.values ? val.arrayValue.values : []).map(decodeSwFirestoreVal);
+  if ('mapValue' in val) {
+    const out = {};
+    const fields = (val.mapValue && val.mapValue.fields) || {};
+    for (const k of Object.keys(fields)) out[k] = decodeSwFirestoreVal(fields[k]);
+    return out;
+  }
+  return val;
+}
+
+let isLocalApiDead = false;
 
 async function fetchSyncPayload() {
-  const endpoints = ['/api/sync?_t=' + Date.now(), VERCEL_RELAY_URL + '/api/sync?_t=' + Date.now()];
-  for (const url of endpoints) {
+  const isStaticHost =
+    typeof self !== 'undefined' &&
+    self.location &&
+    /(github\.io|pages\.dev|netlify\.app)$/i.test(self.location.hostname || '');
+
+  if (!isStaticHost && !isLocalApiDead) {
     try {
-      const res = await fetch(url, { cache: 'no-store' });
-      if (res && res.ok) {
+      const res = await fetch('./api/sync?_t=' + Date.now(), { cache: 'no-store' });
+      if (res && res.ok && (res.headers.get('content-type') || '').includes('application/json')) {
         const json = await res.json();
         if (json && json.exists && json.data && Array.isArray(json.data.schedule)) {
           return json;
         }
+      } else if (res && (res.status === 404 || res.status === 402)) {
+        isLocalApiDead = true;
       }
-    } catch (e) {
-      // Try next endpoint
-    }
+    } catch {}
   }
+
+  try {
+    const res = await fetch(FIRESTORE_REST_URL, { cache: 'no-store' });
+    if (res && res.ok) {
+      const doc = await res.json();
+      if (doc && doc.fields) {
+        const data = {};
+        for (const k of Object.keys(doc.fields)) {
+          data[k] = decodeSwFirestoreVal(doc.fields[k]);
+        }
+        if (Array.isArray(data.schedule)) {
+          return { exists: true, data };
+        }
+      }
+    }
+  } catch {}
+
   return null;
 }
 
-async function checkServerScheduleInBackground() {
+async function checkServerScheduleInBackground(forceCheck = false) {
   if (!BG_STATE.notifyOnShiftChange) return;
   try {
+    const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const hasVisibleClient = clientList.some((c) => c.visibilityState === 'visible');
+    // Skip background SW polling when a visible window is open (main app handles realtime sync)
+    if (hasVisibleClient && !forceCheck) return;
+
     const json = await fetchSyncPayload();
     if (!json || !json.exists || !json.data || !Array.isArray(json.data.schedule)) return;
 
@@ -99,9 +145,6 @@ async function checkServerScheduleInBackground() {
     BG_STATE.lastScheduleJson = newScheduleJson;
     BG_STATE.lastUpdatedAt = newUpdatedAt;
 
-    // Only dispatch from Service Worker if no visible window is already handling it
-    const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-    const hasVisibleClient = clientList.some((c) => c.visibilityState === 'visible');
     if (hasVisibleClient) return;
 
     const oldMap = new Map();
@@ -134,8 +177,8 @@ async function checkServerScheduleInBackground() {
             `جابجایی/حذف از شیفت روز (${newEntry.dayName} ${newEntry.date})`,
             {
               body: `${person} عزیز، شما از شیفت روز ${newEntry.dayName} (${newEntry.date}) برداشته شدید (جایگزین: ${newDay.join(' و ') || 'نامشخص'}).`,
-              icon: '/pwa-192x192.png',
-              badge: '/pwa-192x192.png',
+              icon: './pwa-192x192.png',
+              badge: './pwa-192x192.png',
               dir: 'rtl',
               lang: 'fa',
               vibrate: [200, 100, 250, 100, 300],
@@ -150,8 +193,8 @@ async function checkServerScheduleInBackground() {
             `ثبت شیفت روز جدید (${newEntry.dayName} ${newEntry.date})`,
             {
               body: `${person} عزیز، شما برای شیفت روز ${newEntry.dayName} (${newEntry.date}) ثبت شدید.`,
-              icon: '/pwa-192x192.png',
-              badge: '/pwa-192x192.png',
+              icon: './pwa-192x192.png',
+              badge: './pwa-192x192.png',
               dir: 'rtl',
               lang: 'fa',
               vibrate: [200, 100, 250, 100, 300],
@@ -168,8 +211,8 @@ async function checkServerScheduleInBackground() {
             `جابجایی/حذف از شیفت شب (${newEntry.dayName} ${newEntry.date})`,
             {
               body: `${person} عزیز، شما از شیفت شب ${newEntry.dayName} (${newEntry.date}) برداشته شدید (جایگزین: ${newNight.join(' و ') || 'نامشخص'}).`,
-              icon: '/pwa-192x192.png',
-              badge: '/pwa-192x192.png',
+              icon: './pwa-192x192.png',
+              badge: './pwa-192x192.png',
               dir: 'rtl',
               lang: 'fa',
               vibrate: [200, 100, 250, 100, 300],
@@ -184,8 +227,8 @@ async function checkServerScheduleInBackground() {
             `ثبت شیفت شب جدید (${newEntry.dayName} ${newEntry.date})`,
             {
               body: `${person} عزیز، شما برای شیفت شب ${newEntry.dayName} (${newEntry.date}) ثبت شدید.`,
-              icon: '/pwa-192x192.png',
-              badge: '/pwa-192x192.png',
+              icon: './pwa-192x192.png',
+              badge: './pwa-192x192.png',
               dir: 'rtl',
               lang: 'fa',
               vibrate: [200, 100, 250, 100, 300],
@@ -203,8 +246,8 @@ async function checkServerScheduleInBackground() {
           `جابجایی شیفت روز (${newEntry.dayName} ${newEntry.date})`,
           {
             body: `تغییر در شیفت روز ${newEntry.dayName} (${newEntry.date}) — افراد درگیر: ${removedDay.join(' و ') || '---'} ⇄ ${addedDay.join(' و ') || '---'}`,
-            icon: '/pwa-192x192.png',
-            badge: '/pwa-192x192.png',
+            icon: './pwa-192x192.png',
+            badge: './pwa-192x192.png',
             dir: 'rtl',
             lang: 'fa',
             vibrate: [200, 100, 250, 100, 300],
@@ -219,8 +262,8 @@ async function checkServerScheduleInBackground() {
           `جابجایی شیفت شب (${newEntry.dayName} ${newEntry.date})`,
           {
             body: `تغییر در شیفت شب ${newEntry.dayName} (${newEntry.date}) — افراد درگیر: ${removedNight.join(' و ') || '---'} ⇄ ${addedNight.join(' و ') || '---'}`,
-            icon: '/pwa-192x192.png',
-            badge: '/pwa-192x192.png',
+            icon: './pwa-192x192.png',
+            badge: './pwa-192x192.png',
             dir: 'rtl',
             lang: 'fa',
             vibrate: [200, 100, 250, 100, 300],
@@ -243,15 +286,15 @@ self.addEventListener('message', (event) => {
     const title = data.title || 'ShiftFlow FMD';
     const options = {
       body: data.body || '',
-      icon: '/pwa-192x192.png',
-      badge: '/pwa-192x192.png',
+      icon: './pwa-192x192.png',
+      badge: './pwa-192x192.png',
       dir: 'rtl',
       lang: 'fa',
       vibrate: [200, 100, 250, 100, 300],
       tag: data.tag || 'shiftflow-os-notif-' + Date.now(),
       renotify: true,
       requireInteraction: false,
-      data: { url: '/' },
+      data: { url: './' },
     };
     event.waitUntil(self.registration.showNotification(title, options));
   } else if (data.type === 'CONFIGURE_BG_WATCHER') {
@@ -265,7 +308,11 @@ self.addEventListener('message', (event) => {
       BG_STATE.pollingTimer = null;
     }
     if (data.backgroundActiveEnabled !== false) {
-      BG_STATE.pollingTimer = setInterval(checkServerScheduleInBackground, 4000);
+      const isStaticHost =
+        typeof self !== 'undefined' &&
+        self.location &&
+        /(github\.io|pages\.dev|netlify\.app)$/i.test(self.location.hostname || '');
+      BG_STATE.pollingTimer = setInterval(checkServerScheduleInBackground, isStaticHost ? 20000 : 8000);
     }
   } else if (data.type === 'BG_HEARTBEAT_PING') {
     event.waitUntil(checkServerScheduleInBackground());
@@ -282,7 +329,7 @@ self.addEventListener('notificationclick', (event) => {
         }
       }
       if (self.clients.openWindow) {
-        return self.clients.openWindow('/');
+        return self.clients.openWindow('./');
       }
     })
   );

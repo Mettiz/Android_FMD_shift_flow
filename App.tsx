@@ -381,6 +381,11 @@ const App: React.FC = () => {
   useEffect(() => {
     const unsub = subscribeSyncStatus((details) => {
       setSyncDetails(details);
+      if (details.firestoreConnected || details.serverConnected) {
+        setSyncStatus((prev) => (prev === 'offline' ? 'synced' : prev));
+      } else if (details.isQuotaExhausted) {
+        setSyncStatus('offline');
+      }
     });
     return unsub;
   }, []);
@@ -1701,11 +1706,19 @@ const App: React.FC = () => {
                   {syncStatus === 'synced' ? (
                     <span 
                       className="inline-flex items-center gap-1 sm:gap-1.5 text-[9px] sm:text-[10px] font-bold text-emerald-800 bg-emerald-50 px-1.5 sm:px-2.5 py-0.5 rounded-full border border-emerald-200/90 whitespace-nowrap shrink-0 shadow-2xs" 
-                      title={`همگام‌سازی مستقیم سرور: فعال (بدون نیاز به فیلترشکن)${syncDetails.firestoreConnected ? ' | فضای ابری فایربیس: متصل' : ' | فایربیس: محدودیت شبکه (سرور مستقیم فعال است)'}${syncDetails.lastSyncTime ? ' | آخرین سینک: ' + syncDetails.lastSyncTime : ''}`}
+                      title={`${syncDetails.serverConnected ? 'سرور واسط: متصل' : 'حالت مستقیم ابری'}${syncDetails.firestoreConnected ? ' | دیتابیس ابری فایربیس: متصل' : ''}${syncDetails.lastSyncTime ? ' | آخرین همگام‌سازی: ' + syncDetails.lastSyncTime : ''}`}
                     >
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
                       <Server size={10} className="text-emerald-600 shrink-0 hidden xs:inline" />
-                      <span className="hidden md:inline">همگام مستقیم (بدون فیلتر)</span>
+                      <span className="hidden md:inline">
+                        {syncDetails.serverConnected && syncDetails.firestoreConnected
+                          ? 'همگام (سرور + فایربیس)'
+                          : syncDetails.serverConnected
+                          ? 'همگام مستقیم (بدون فیلتر)'
+                          : syncDetails.firestoreConnected
+                          ? 'همگام (فایربیس آنلاین)'
+                          : 'همگام'}
+                      </span>
                       <span className="md:hidden">همگام</span>
                     </span>
                   ) : syncStatus === 'syncing' ? (
@@ -1715,10 +1728,20 @@ const App: React.FC = () => {
                       <span className="sm:hidden">ذخیره...</span>
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 sm:px-2 py-0.5 rounded-full border border-slate-200 whitespace-nowrap shrink-0" title="داده‌های محلی در دسترس هستند">
-                      <Cloud size={10} className="text-slate-400 shrink-0" />
-                      <span>آفلاین</span>
-                    </span>
+                    <button
+                      type="button"
+                      onClick={handleForceSync}
+                      disabled={isForceSyncing}
+                      className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 px-1.5 sm:px-2 py-0.5 rounded-full border border-rose-200 whitespace-nowrap shrink-0 cursor-pointer transition"
+                      title={
+                        syncDetails.isQuotaExhausted
+                          ? 'سهمیه رایگان روزانه دیتابیس تمام شده است؛ برای تلاش مجدد کلیک کنید'
+                          : 'عدم دسترسی به دیتابیس ابری (در ایران ممکن است بدون سرور واسط به فیلترشکن نیاز باشد) — برای تلاش مجدد کلیک کنید'
+                      }
+                    >
+                      <Cloud size={10} className="text-rose-500 shrink-0" />
+                      <span>{isForceSyncing ? 'در حال بررسی...' : 'آفلاین (تلاش مجدد)'}</span>
+                    </button>
                   )}
                 </div>
               </div>
