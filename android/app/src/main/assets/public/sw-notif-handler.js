@@ -57,6 +57,7 @@ if (typeof caches !== 'undefined') {
     .catch(() => {});
 }
 
+const CLOUDFLARE_RELAY_URL = 'https://shiftflow-sync.rzcegpj.workers.dev';
 const FIRESTORE_REST_URL =
   'https://firestore.googleapis.com/v1/projects/beaming-source-hcbh2/databases/ai-studio-fmdproductionshi-3f0608ec-b995-44d1-a9c8-f98c589f0e16/documents/roster_state/current';
 
@@ -98,6 +99,16 @@ async function fetchSyncPayload() {
       }
     } catch {}
   }
+
+  try {
+    const res = await fetch(CLOUDFLARE_RELAY_URL + '/api/sync?_t=' + Date.now(), { cache: 'no-store' });
+    if (res && res.ok && (res.headers.get('content-type') || '').includes('application/json')) {
+      const json = await res.json();
+      if (json && json.exists && json.data && Array.isArray(json.data.schedule)) {
+        return json;
+      }
+    }
+  } catch {}
 
   try {
     const res = await fetch(FIRESTORE_REST_URL, { cache: 'no-store' });

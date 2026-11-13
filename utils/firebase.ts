@@ -219,9 +219,9 @@ export const isStandaloneAndroidRuntime = (): boolean => {
 };
 
 export const CUSTOM_SYNC_URL_STORAGE_KEY = 'shiftflow_custom_sync_url';
-export const DEFAULT_VERCEL_SYNC_URL = '';
+export const DEFAULT_VERCEL_SYNC_URL = 'https://shiftflow-sync.rzcegpj.workers.dev';
 
-export const REMOTE_SERVER_URLS: string[] = [];
+export const REMOTE_SERVER_URLS: string[] = ['https://shiftflow-sync.rzcegpj.workers.dev'];
 
 // Remember endpoints that returned permanent failures (e.g. 402 DEPLOYMENT_DISABLED or 404 on static hosts)
 const deadEndpointUrls = new Set<string>();
@@ -371,9 +371,9 @@ export function getCustomServerUrl(): string {
     const custom = localStorage.getItem(CUSTOM_SYNC_URL_STORAGE_KEY);
     if (custom !== null) {
       const cleaned = custom.trim().replace(/\/+$/, '');
-      // Ignore previously auto-saved dead Vercel URL if user didn't explicitly configure a working relay
-      if (cleaned === 'https://android-fmd-shift-flow.vercel.app' && deadEndpointUrls.has(cleaned)) {
-        return '';
+      // Auto-migrate away from dead Vercel URL to the active Cloudflare Worker relay
+      if (cleaned === 'https://android-fmd-shift-flow.vercel.app') {
+        return DEFAULT_VERCEL_SYNC_URL;
       }
       return cleaned;
     }
@@ -748,7 +748,11 @@ export function subscribeToCloudRoster(
     if (isCancelled || typeof window === 'undefined' || !('EventSource' in window)) return;
     const currentBase = getSyncApiBase();
     const activeKey = currentBase || '__local__';
-    if ((!currentBase && (isNativeAndroid || isStaticHost)) || deadEndpointUrls.has(activeKey)) {
+    if (
+      (!currentBase && (isNativeAndroid || isStaticHost)) ||
+      deadEndpointUrls.has(activeKey) ||
+      currentBase.includes('.workers.dev')
+    ) {
       return;
     }
     try {

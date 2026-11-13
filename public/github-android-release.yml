@@ -404,7 +404,7 @@ jobs:
                   }
               }
 
-              static final String VERCEL_SYNC_BASE = "https://android-fmd-shift-flow.vercel.app";
+              static final String VERCEL_SYNC_BASE = "https://shiftflow-sync.rzcegpj.workers.dev";
 
               WebResourceResponse proxyVercelSyncGet(Uri uri) {
                   try {
@@ -726,7 +726,7 @@ jobs:
 
           ### ✨ امکانات و ویژگی‌های این نسخه:
           - **نام برنامه همراه با شماره نسخه (\`ShiftFlow FMD ${RELEASE_TAG}\`)**: درج خودکار شماره نسخه در نام اپلیکیشن روی گوشی و فایل نصبی در هر بیلد جدید.
-          - **اتصال مستقیم و بدون فیلترشکن از طریق سرور Vercel (\`https://android-fmd-shift-flow.vercel.app\`)**: همگام‌سازی آنی جدول شیفت‌ها و دریافت نوتیفیکیشن‌ها در شبکه‌های داخلی بدون نیاز به VPN.
+          - **اتصال مستقیم و بدون فیلترشکن از طریق رله ابری Cloudflare (\`https://shiftflow-sync.rzcegpj.workers.dev\`)**: همگام‌سازی آنی جدول شیفت‌ها و دریافت نوتیفیکیشن‌ها در شبکه‌های داخلی بدون نیاز به VPN.
           - **ارسال فوری نوتیفیکیشن اصلی گوشی (OS Notification)**: اطلاع‌رسانی لحظه‌ای جابجایی، افزودن یا حذف شیفت برای تمام نفرات درگیر + یادآور روزانه شیفت فردا.
           - **حفظ آرشیو کامل نسخه‌ها**: تمامی نسخه‌های قبلی در بخش [Releases](https://github.com/${GITHUB_REPOSITORY}/releases) برای دانلود و دسترسی همیشگی نگهداری می‌شوند.
           EOF

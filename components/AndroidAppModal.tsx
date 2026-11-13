@@ -456,7 +456,7 @@ export const UserSettingsButton: React.FC<UserSettingsButtonProps> = ({
 
   const handleSaveServerUrl = () => {
     setCustomServerUrl(vercelServerUrl);
-    showToast(vercelServerUrl.trim() ? 'آدرس سرور ورسل ذخیره شد.' : 'سرور به حالت پیش‌فرض بازگشت.');
+    showToast(vercelServerUrl.trim() ? 'آدرس سرور رله ذخیره شد.' : 'سرور به پیش‌فرض کلودفلر بازگشت.');
   };
 
   const updateSettings = (patch: Partial<UserAndroidSettings>) => {
@@ -1862,7 +1862,7 @@ export const UserSettingsButton: React.FC<UserSettingsButtonProps> = ({
                         <div className="flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
                             <h4 className="text-xs sm:text-sm font-black text-emerald-950">
-                              ۷. اتصال مستقیم به دیتابیس ابری یا سرور واسط (Cloudflare / Vercel)
+                              ۷. اتصال مستقیم به رله ابری بدون فیلترشکن (Cloudflare Worker)
                             </h4>
                             <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-100/90 px-2 py-0.5 rounded-full">
                               <Radio className="w-3 h-3 animate-pulse text-emerald-600" />
@@ -1870,7 +1870,7 @@ export const UserSettingsButton: React.FC<UserSettingsButtonProps> = ({
                             </span>
                           </div>
                           <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-                            در حالت پیش‌فرض، سامانه روی GitHub Pages و اپلیکیشن اندروید مستقیماً به دیتابیس فایربیس متصل می‌شود. اگر در شبکه شما بدون فیلترشکن فایربیس مسدود است، می‌توانید آدرس یک سرور واسط رایگان (مانند Cloudflare Worker) را اینجا وارد کنید.
+                            به طور پیش‌فرض، سامانه روی GitHub Pages و اپلیکیشن اندروید از طریق رله ابری Cloudflare Worker (<span className="font-mono dir-ltr">shiftflow-sync.rzcegpj.workers.dev</span>) بدون نیاز به فیلترشکن با دیتابیس همگام می‌شود. در صورت نیاز می‌توانید آدرس رله سفارشی دیگری وارد و تست کنید.
                           </p>
                         </div>
                       </div>
@@ -1909,17 +1909,17 @@ export const UserSettingsButton: React.FC<UserSettingsButtonProps> = ({
                               <span>ذخیره</span>
                             </button>
 
-                            {vercelServerUrl && (
+                            {vercelServerUrl && vercelServerUrl !== 'https://shiftflow-sync.rzcegpj.workers.dev' && (
                               <button
                                 type="button"
                                 onClick={() => {
-                                  setVercelServerUrl('');
-                                  setCustomServerUrl('');
+                                  setVercelServerUrl('https://shiftflow-sync.rzcegpj.workers.dev');
+                                  setCustomServerUrl('https://shiftflow-sync.rzcegpj.workers.dev');
                                   setServerTestResult(null);
-                                  showToast('حالت اتصال مستقیم فایربیس فعال شد.');
+                                  showToast('آدرس رله به سرور پیش‌فرض کلودفلر بازگشت.');
                                 }}
                                 className="p-2.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
-                                title="پاک کردن آدرس واسط و استفاده مستقیم از فایربیس"
+                                title="بازگشت به رله پیش‌فرض کلودفلر"
                               >
                                 <X className="w-3.5 h-3.5" />
                               </button>
