@@ -728,55 +728,48 @@ export const Dashboard: React.FC<DashboardProps> = ({
       />
 
       {/* Header & Controls */}
-      <div className="flex flex-col gap-4 no-print">
+      <div className="flex flex-col gap-3 no-print">
          
-         {/* Top Bar: Title & Month Nav */}
-         <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/90 shadow-xs">
-            <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 sm:gap-4">
+         {/* Unified Top Control Card: Title, Month Nav, Actions & Inline Filters */}
+         <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden divide-y divide-slate-100">
+            
+            {/* 1. Header Row: Period Title + Today & Month Navigation */}
+            <div className="p-3 sm:p-4 flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3">
                
-               {/* Information Section */}
-               <div className="flex items-start sm:items-center gap-3 min-w-0">
-                  <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center shrink-0 shadow-2xs mt-0.5 sm:mt-0 ${
+               {/* Period Info */}
+               <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                  <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 ${
                      viewMode === 'RANGE' && appliedFilter
                        ? 'bg-blue-600 text-white'
                        : 'bg-emerald-600 text-white'
                   }`}>
-                     <CalendarRange size={21} />
+                     <CalendarRange size={19} />
                   </div>
                   <div className="min-w-0 flex-1">
                      {viewMode === 'RANGE' && appliedFilter ? (
-                        <div className="space-y-1.5">
-                           <div className="flex items-center gap-2 flex-wrap">
+                        <div className="space-y-1">
+                           <div className="flex items-center gap-1.5 flex-wrap">
                               <h2 className="text-sm sm:text-base font-black text-slate-900 tracking-tight leading-snug">
                                  برنامه شیفت
                               </h2>
-                              <span className="inline-flex items-center gap-1 bg-blue-100 text-blue-800 text-[10px] sm:text-[11px] font-black px-2 py-0.5 rounded-full border border-blue-200/80 shadow-2xs whitespace-nowrap">
-                                 <Lock size={11} />
-                                 <span>بازه محدود شده</span>
+                              <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-800 text-[10px] font-black px-2 py-0.5 rounded-full border border-blue-200 whitespace-nowrap">
+                                 <Lock size={10} />
+                                 <span>بازه محدود</span>
                               </span>
                               {filterPerson !== 'All' && (
-                                 <span className="bg-emerald-100 text-emerald-800 text-[10px] sm:text-[11px] font-bold px-2 py-0.5 rounded-full border border-emerald-200 whitespace-nowrap">
-                                    فیلتر: {filterPerson.replace('مهندس', '')}
+                                 <span className="bg-emerald-50 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-200 whitespace-nowrap">
+                                    {filterPerson.replace('مهندس', '')}
                                  </span>
                               )}
                            </div>
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <div className="inline-flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-xl border border-slate-200 text-xs font-black text-slate-800 shadow-2xs">
-                                 <span className="text-[11px] text-slate-500 font-medium">نمایش بازه:</span>
-                                 <span className="tabular-nums text-[11px] sm:text-xs text-blue-950 font-black">
-                                    {toPersianDigits(appliedFilter.from.year)}/{toPersianDigits(appliedFilter.from.month)}/{toPersianDigits(appliedFilter.from.day)}
-                                 </span>
-                                 <span className="text-slate-400 font-medium text-[10px]">تا</span>
-                                 <span className="tabular-nums text-[11px] sm:text-xs text-blue-950 font-black">
-                                    {toPersianDigits(appliedFilter.to.year)}/{toPersianDigits(appliedFilter.to.month)}/{toPersianDigits(appliedFilter.to.day)}
-                                 </span>
-                              </div>
-                              <div className="w-full sm:w-auto flex justify-center sm:inline-flex">
-                                 <span className="inline-flex items-center justify-center gap-1 bg-slate-100 text-slate-700 text-[11px] font-bold px-2.5 py-0.5 rounded-lg border border-slate-200/80 whitespace-nowrap">
-                                    <span className="tabular-nums font-extrabold">{toPersianDigits(filteredSchedule.length)}</span>
-                                    <span className="text-[10px] text-slate-500">روز شیفت نمایش داده شده</span>
-                                 </span>
-                              </div>
+                           <div className="flex items-center gap-2 flex-wrap text-[11px] font-bold text-slate-600">
+                              <span className="tabular-nums text-blue-950 font-black">
+                                 {toPersianDigits(appliedFilter.from.year)}/{toPersianDigits(appliedFilter.from.month)}/{toPersianDigits(appliedFilter.from.day)}
+                                 <span className="text-slate-400 mx-1 font-medium">تا</span>
+                                 {toPersianDigits(appliedFilter.to.year)}/{toPersianDigits(appliedFilter.to.month)}/{toPersianDigits(appliedFilter.to.day)}
+                              </span>
+                              <span className="text-slate-300">•</span>
+                              <span className="tabular-nums">{toPersianDigits(filteredSchedule.length)} روز</span>
                            </div>
                         </div>
                      ) : (
@@ -786,138 +779,121 @@ export const Dashboard: React.FC<DashboardProps> = ({
                                  برنامه شیفت {monthName} {toPersianDigits(year)}
                               </h2>
                               {filterPerson !== 'All' && (
-                                 <span className="bg-emerald-100 text-emerald-800 text-[10px] sm:text-[11px] font-bold px-2 py-0.5 rounded-full border border-emerald-200 whitespace-nowrap">
+                                 <span className="bg-emerald-50 text-emerald-800 text-[10px] sm:text-[11px] font-bold px-2 py-0.5 rounded-full border border-emerald-200 whitespace-nowrap">
                                     فیلتر: {filterPerson.replace('مهندس', '')}
                                  </span>
                               )}
                            </div>
-                           <p className="text-[11px] sm:text-xs text-slate-500 font-medium mt-1 text-center sm:text-right">
-                              {toPersianDigits(filteredSchedule.length)} روز شیفت نمایش داده شده
+                           <p className="text-[11px] sm:text-xs text-slate-500 font-medium mt-0.5 tabular-nums">
+                              {toPersianDigits(filteredSchedule.length)} روز شیفت در جدول
                            </p>
                         </div>
                      )}
                   </div>
                </div>
 
-               {/* Right/Controls: Today Button + Month Nav */}
-               <div className="flex items-center gap-2 justify-between sm:justify-end w-full sm:w-auto shrink-0 pt-3 md:pt-0 border-t md:border-t-0 border-slate-100">
+               {/* Today Button + Month Navigator */}
+               <div className="flex items-center gap-2 justify-between sm:justify-end w-full md:w-auto shrink-0 pt-2.5 md:pt-0 border-t md:border-t-0 border-slate-100">
                   {onNavigateToToday && (
                      <button 
                        onClick={handleNavigateAndScrollToToday}
-                       className="h-9 sm:h-10 flex items-center justify-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300/80 hover:border-emerald-400 px-2.5 sm:px-3.5 rounded-xl text-xs font-black transition shadow-2xs active:scale-95 cursor-pointer whitespace-nowrap shrink-0 group"
+                       className="h-9 sm:h-10 flex items-center justify-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300/80 hover:border-emerald-400 px-3 rounded-xl text-xs font-black transition active:scale-95 cursor-pointer whitespace-nowrap shrink-0 group"
                        title="پرش و اسکرول مستقیم به برنامه شیفت امروز"
                      >
-                       <span className="relative flex h-2 w-2">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                       </span>
-                       <CalendarCheck size={16} className="text-emerald-600 group-hover:scale-110 transition-transform shrink-0" />
+                       <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                       <CalendarCheck size={15} className="text-emerald-600 shrink-0" />
                        <span>امروز</span>
-                       <span className="hidden sm:inline text-[10px] sm:text-[11px] font-black text-emerald-700 bg-emerald-100/90 px-1.5 py-0.5 rounded-md tabular-nums">
-                          ({toPersianDigits(todayPersianDate)})
+                       <span className="hidden sm:inline text-[10.5px] font-black text-emerald-700 bg-white/80 px-1.5 py-0.5 rounded-md tabular-nums">
+                          {toPersianDigits(todayPersianDate)}
                        </span>
                      </button>
                   )}
-                  <div className="h-9 sm:h-10 flex items-center bg-slate-50 px-1 rounded-xl border border-slate-200/90 shadow-2xs shrink-0">
-                     <button onClick={onPrevMonth} className="p-1 sm:p-1.5 hover:bg-white hover:shadow-xs rounded-lg text-slate-600 transition disabled:opacity-50 cursor-pointer" title="ماه قبل">
+                  <div className="h-9 sm:h-10 flex items-center bg-slate-50/90 px-1 rounded-xl border border-slate-200/90 shrink-0">
+                     <button onClick={onPrevMonth} className="p-1.5 hover:bg-white rounded-lg text-slate-600 transition cursor-pointer" title="ماه قبل">
                         <ChevronRight size={17} />
                      </button>
                      <span className="font-extrabold text-slate-800 text-xs sm:text-sm px-2 sm:px-2.5 text-center min-w-[82px] sm:min-w-[94px] whitespace-nowrap">
                         {monthName} {toPersianDigits(year)}
                      </span>
-                     <button onClick={onNextMonth} className="p-1 sm:p-1.5 hover:bg-white hover:shadow-xs rounded-lg text-slate-600 transition disabled:opacity-50 cursor-pointer" title="ماه بعد">
+                     <button onClick={onNextMonth} className="p-1.5 hover:bg-white rounded-lg text-slate-600 transition cursor-pointer" title="ماه بعد">
                         <ChevronLeft size={17} />
                      </button>
                   </div>
                </div>
             </div>
-         </div>
 
-         {/* Toolbar: Actions & Filters */}
-         <div className="bg-white p-2.5 sm:p-3 rounded-2xl border border-slate-200 shadow-2xs">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2.5 md:gap-2">
+            {/* 2. Unified Action Toolbar Row */}
+            <div className="px-3 py-2.5 sm:px-4 bg-slate-50/45 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
                {/* Owner Tools Group */}
                {isOwner ? (
-                 <div className="flex items-center gap-1.5 sm:gap-2 w-full md:w-auto">
-                    {/* Owner Label on desktop */}
-                    <div className="hidden lg:flex items-center gap-1 text-[11px] font-black text-amber-800 bg-amber-50 border border-amber-200 px-2 py-1 rounded-lg shrink-0">
+                 <div className="flex items-center gap-1.5 w-full md:w-auto flex-wrap">
+                    <span className="hidden lg:inline-flex items-center gap-1 text-[11px] font-black text-amber-800 bg-amber-50 border border-amber-200/90 px-2 py-1 rounded-lg shrink-0">
                        <Crown size={12} className="text-amber-600 shrink-0" />
-                       <span>مدیریت:</span>
-                    </div>
+                       <span>مدیریت</span>
+                    </span>
 
-                    {/* Owner buttons with natural comfortable width and generous touch padding */}
-                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 w-full md:w-auto">
-                       {/* 1. Update (Regenerate) */}
-                       <button 
-                         onClick={onRegenerate}
-                         className="h-9 flex items-center justify-center gap-1.5 bg-white border border-slate-200 text-slate-700 hover:border-amber-400 hover:text-amber-700 hover:bg-amber-50/50 px-3 sm:px-3.5 rounded-xl text-xs font-bold transition shadow-2xs whitespace-nowrap cursor-pointer"
-                         title="چیدمان مجدد هوشمند"
-                       >
-                          <RefreshCw size={14} className="shrink-0 text-amber-600" />
-                          <span>آپدیت</span>
-                       </button>
+                    <button 
+                      onClick={onRegenerate}
+                      className="h-9 flex items-center justify-center gap-1.5 bg-white border border-slate-200 text-slate-700 hover:border-amber-400 hover:text-amber-700 hover:bg-amber-50/50 px-2.5 sm:px-3 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer"
+                      title="چیدمان مجدد هوشمند"
+                    >
+                       <RefreshCw size={14} className="shrink-0 text-amber-600" />
+                       <span>آپدیت</span>
+                    </button>
 
-                       {/* 2. Lock / Unlock */}
-                       <button 
-                         onClick={onToggleLock}
-                         className={`h-9 flex items-center justify-center gap-1.5 border px-3 sm:px-3.5 rounded-xl text-xs font-bold transition shadow-2xs whitespace-nowrap cursor-pointer ${
-                           isLocked 
-                             ? 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100' 
-                             : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                         }`}
-                         title={isLocked ? 'قفل شده' : 'باز (قابل ویرایش)'}
-                       >
-                          {isLocked ? <Lock size={14} className="shrink-0 text-red-500" /> : <Unlock size={14} className="shrink-0 text-slate-500" />}
-                          <span>{isLocked ? 'قفل' : 'باز'}</span>
-                       </button>
+                    <button 
+                      onClick={onToggleLock}
+                      className={`h-9 flex items-center justify-center gap-1.5 border px-2.5 sm:px-3 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+                        isLocked 
+                          ? 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100' 
+                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}
+                      title={isLocked ? 'قفل شده' : 'باز (قابل ویرایش)'}
+                    >
+                       {isLocked ? <Lock size={14} className="shrink-0 text-red-500" /> : <Unlock size={14} className="shrink-0 text-slate-500" />}
+                       <span>{isLocked ? 'قفل' : 'باز'}</span>
+                    </button>
 
-                       {/* 3. Range & Filter Toggle Button */}
-                       <button 
-                          onClick={() => setIsFiltersOpen(!isFiltersOpen)}
-                          className={`h-9 flex items-center justify-center gap-1.5 px-3 sm:px-3.5 rounded-xl text-xs font-bold transition shadow-2xs border whitespace-nowrap cursor-pointer ${
-                             publishedRange?.isActive 
-                                ? 'bg-amber-500 text-white border-amber-600 shadow-xs ring-2 ring-amber-200' 
-                                : appliedFilter 
-                                   ? 'bg-blue-600 text-white border-blue-700 shadow-xs ring-2 ring-blue-200' 
-                                   : isFiltersOpen 
-                                      ? 'bg-amber-50 border-amber-300 text-amber-900 ring-1 ring-amber-200' 
-                                      : 'bg-white border-slate-200 text-slate-700 hover:bg-amber-50/40 hover:border-amber-200'
-                          }`}
-                          title="محدودسازی روزها و تعیین بازه برای نمایش به سایر کاربران"
-                       >
-                          <Crown size={14} className={`shrink-0 ${publishedRange?.isActive || appliedFilter ? 'text-white' : 'text-amber-600'}`} />
-                          <span>محدودسازی بازه</span>
-                          {publishedRange?.isActive ? (
-                             <span className="hidden sm:inline bg-black/20 text-white px-1.5 py-0.5 rounded-full text-[9px] font-black">
-                                منتشر
-                             </span>
-                          ) : appliedFilter ? (
-                             <span className="hidden sm:inline bg-white/25 text-white px-1.5 py-0.5 rounded-full text-[9px] font-black">
-                                فیلتر
-                             </span>
-                          ) : null}
-                          {isFiltersOpen ? <ChevronUp size={13} className="shrink-0" /> : <ChevronDown size={13} className="shrink-0" />}
-                       </button>
-
-                     </div>
+                    <button 
+                       onClick={() => setIsFiltersOpen(!isFiltersOpen)}
+                       className={`h-9 flex items-center justify-center gap-1.5 px-2.5 sm:px-3 rounded-xl text-xs font-bold transition border whitespace-nowrap cursor-pointer ${
+                          publishedRange?.isActive 
+                             ? 'bg-amber-500 text-white border-amber-600' 
+                             : appliedFilter 
+                                ? 'bg-blue-600 text-white border-blue-700' 
+                                : isFiltersOpen 
+                                   ? 'bg-amber-50 border-amber-300 text-amber-900' 
+                                   : 'bg-white border-slate-200 text-slate-700 hover:bg-amber-50/40 hover:border-amber-200'
+                       }`}
+                       title="محدودسازی روزها و تعیین بازه برای نمایش به سایر کاربران"
+                    >
+                       <Crown size={14} className={`shrink-0 ${publishedRange?.isActive || appliedFilter ? 'text-white' : 'text-amber-600'}`} />
+                       <span>محدودسازی بازه</span>
+                       {publishedRange?.isActive ? (
+                          <span className="hidden sm:inline bg-black/20 text-white px-1.5 py-0.5 rounded-full text-[9px] font-black">
+                             منتشر
+                          </span>
+                       ) : appliedFilter ? (
+                          <span className="hidden sm:inline bg-white/25 text-white px-1.5 py-0.5 rounded-full text-[9px] font-black">
+                             فیلتر
+                          </span>
+                       ) : null}
+                       {isFiltersOpen ? <ChevronUp size={13} className="shrink-0" /> : <ChevronDown size={13} className="shrink-0" />}
+                    </button>
                  </div>
                ) : null}
 
-               {/* Mobile divider between owner tools and general actions */}
-               {isOwner ? <div className="md:hidden border-t border-slate-100 my-0.5" /> : null}
-
                {/* General Actions Group */}
-               <div className={`flex flex-wrap items-center gap-1.5 sm:gap-2 w-full md:flex md:w-auto ${isOwner ? 'md:mr-auto' : 'md:mr-auto md:justify-end'}`}>
-                  {/* Shift & Personnel Filter Button - Beside Report & Print */}
+               <div className={`flex flex-wrap items-center gap-1.5 w-full md:w-auto ${isOwner ? 'pt-2 md:pt-0 border-t md:border-t-0 border-slate-200/70 md:mr-auto' : 'md:mr-auto md:justify-end'}`}>
                   <button 
                     id="btn-toggle-shift-filter"
                     type="button"
                     onClick={() => setIsShiftFilterOpen(prev => !prev)}
-                    className={`h-9 flex items-center justify-center gap-1.5 px-3 sm:px-3.5 rounded-xl text-xs font-bold transition shadow-2xs whitespace-nowrap cursor-pointer ${
+                    className={`h-9 flex items-center justify-center gap-1.5 px-2.5 sm:px-3 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
                       filterPerson !== 'All' || filterShiftType !== 'ALL'
-                        ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-xs ring-2 ring-blue-300'
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
                         : isShiftFilterOpen
-                          ? 'bg-blue-50 text-blue-800 border border-blue-300 ring-1 ring-blue-200'
+                          ? 'bg-blue-50 text-blue-800 border border-blue-300'
                           : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300'
                     }`}
                     title="فیلتر هوشمند پرسنل و نوع شیفت"
@@ -925,14 +901,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
                      <Filter size={14} className={filterPerson !== 'All' || filterShiftType !== 'ALL' ? 'text-white' : 'text-blue-600'} />
                      <span>فیلتر شیفت</span>
                      {(filterPerson !== 'All' || filterShiftType !== 'ALL') && (
-                       <span className="bg-amber-400 text-slate-950 text-[10px] font-black px-1.5 py-0.2 rounded-full shadow-2xs">
+                       <span className="bg-amber-400 text-slate-950 text-[10px] font-black px-1.5 py-0.2 rounded-full">
                          {filterPerson !== 'All' && filterShiftType !== 'ALL' ? '۲' : '۱'}
                        </span>
                      )}
                      {isShiftFilterOpen ? <ChevronUp size={13} className="shrink-0 opacity-70" /> : <ChevronDown size={13} className="shrink-0 opacity-70" />}
                   </button>
 
-                  {/* Fairness Analysis Quick Jump Button (Manager Only) */}
                   {isOwner && (
                     <button 
                       type="button"
@@ -940,7 +915,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         const el = document.getElementById('fairness-analysis-section');
                         el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                       }}
-                      className="h-9 flex items-center justify-center gap-1.5 bg-white border border-slate-200 hover:border-indigo-400 text-slate-700 hover:text-indigo-700 hover:bg-indigo-50/50 px-3 sm:px-3.5 rounded-xl text-xs font-bold transition shadow-2xs whitespace-nowrap cursor-pointer"
+                      className="h-9 flex items-center justify-center gap-1.5 bg-white border border-slate-200 hover:border-indigo-400 text-slate-700 hover:text-indigo-700 hover:bg-indigo-50/50 px-2.5 sm:px-3 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer"
                       title="تحلیل عدالت، سختی کار و ساعت وزنی پرسنل"
                     >
                        <Scale size={14} className="shrink-0 text-indigo-600" />
@@ -948,20 +923,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     </button>
                   )}
 
-                  {/* 4. Personal Report */}
                   <button 
                     onClick={onOpenReport}
-                    className="h-9 flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-3 sm:px-3.5 rounded-xl text-xs font-bold transition shadow-2xs whitespace-nowrap cursor-pointer"
+                    className="h-9 flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 sm:px-3 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer"
                     title="گزارش فردی"
                   >
                      <FileText size={14} className="shrink-0" />
                      <span>کارکرد پرسنل</span>
                   </button>
 
-                  {/* 5. Print */}
                   <button 
                     onClick={handlePrint}
-                    className="h-9 flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-black text-white px-3 sm:px-3 rounded-xl text-xs font-bold transition shadow-2xs whitespace-nowrap cursor-pointer"
+                    className="h-9 flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-black text-white px-2.5 sm:px-3 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer"
                     title="چاپ برنامه"
                   >
                      <Printer size={14} className="shrink-0" />
@@ -969,595 +942,525 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   </button>
                </div>
             </div>
-         </div>
 
-         {/* --- Collapsible Shift & Personnel Filter Menu Panel --- */}
-         {isShiftFilterOpen && (
-           <div className="bg-white rounded-2xl border border-blue-200/90 shadow-sm p-3.5 sm:p-4.5 space-y-3.5 animate-in slide-in-from-top-2 duration-150 print:hidden ring-1 ring-blue-100">
-             
-             {/* Header row */}
-             <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
-               <div className="flex items-center gap-2">
-                 <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-                   <Filter size={15} />
-                 </div>
-                 <span className="font-extrabold text-slate-900 text-xs sm:text-sm">
-                   فیلتر هوشمند شیفت و پرسنل
-                 </span>
-                 {(filterPerson !== 'All' || filterShiftType !== 'ALL') && (
-                   <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-full border border-blue-200">
-                     فیلتر فعال
-                   </span>
-                 )}
-               </div>
-
-               <div className="flex items-center gap-1.5">
-                 {(filterPerson !== 'All' || filterShiftType !== 'ALL') && (
-                   <button
-                     type="button"
-                     onClick={() => {
-                       setFilterPerson('All');
-                       setFilterShiftType('ALL');
-                     }}
-                     className="text-[11px] font-bold text-red-600 hover:bg-red-50 px-2 py-1 rounded-lg transition cursor-pointer flex items-center gap-1"
-                   >
-                     <X size={13} />
-                     <span>حذف فیلترها</span>
-                   </button>
-                 )}
-                 <button
-                   type="button"
-                   onClick={() => setIsShiftFilterOpen(false)}
-                   className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
-                   title="بستن منوی فیلتر"
-                 >
-                   <X size={17} />
-                 </button>
-               </div>
-             </div>
-
-             {/* Form Controls: Responsive grid */}
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 items-start">
-               
-               {/* 1. Personnel Select */}
-               <div className="space-y-1.5">
-                 <label htmlFor="modal-person-filter" className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
-                   <Users size={14} className="text-emerald-600 shrink-0" />
-                   <span>انتخاب پرسنل:</span>
-                   {filterPerson !== 'All' && (
-                     <span className="text-emerald-700 font-black mr-auto text-[11px]">
-                       (انتخاب شده)
-                     </span>
-                   )}
-                 </label>
-                 <div className="relative">
-                   <select
-                     id="modal-person-filter"
-                     value={filterPerson}
-                     onChange={(e) => setFilterPerson(e.target.value)}
-                     className="w-full h-10 bg-slate-50 hover:bg-slate-100/80 focus:bg-white text-slate-900 text-xs font-black rounded-xl px-3 pl-8 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition cursor-pointer appearance-none shadow-2xs"
-                   >
-                     <option value="All">👥 همه پرسنل (نمایش عمومی تقویم)</option>
-                     {shiftWorkers.map((person) => (
-                       <option key={person} value={person}>
-                         👤 {person}
-                       </option>
-                     ))}
-                   </select>
-                   <ChevronDown size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                 </div>
-               </div>
-
-               {/* 2. Shift Type Toggle */}
-               <div className="space-y-1.5">
-                 <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
-                   <Layers size={14} className="text-blue-600 shrink-0" />
-                   <span>تفکیک شیفت کاری:</span>
-                 </label>
-                 <div className="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/80">
-                   
-                   {/* All */}
-                   <button
-                     type="button"
-                     onClick={() => setFilterShiftType('ALL')}
-                     className={`h-8 sm:h-8.5 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap ${
-                       filterShiftType === 'ALL'
-                         ? 'bg-white text-slate-900 shadow-2xs font-black border border-slate-200/90 ring-1 ring-slate-200'
-                         : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
-                     }`}
-                   >
-                     <Layers size={13} className={filterShiftType === 'ALL' ? 'text-blue-600' : 'text-slate-500'} />
-                     <span>هر دو شیفت</span>
-                   </button>
-
-                   {/* Day */}
-                   <button
-                     type="button"
-                     onClick={() => setFilterShiftType('DAY')}
-                     className={`h-8 sm:h-8.5 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap ${
-                       filterShiftType === 'DAY'
-                         ? 'bg-amber-500 text-white shadow-2xs font-black border border-amber-600 ring-1 ring-amber-300'
-                         : 'text-slate-600 hover:text-amber-700 hover:bg-amber-50'
-                     }`}
-                   >
-                     <Sun size={13} className={filterShiftType === 'DAY' ? 'text-white' : 'text-amber-500'} />
-                     <span>روز (۰۸-۱۹)</span>
-                   </button>
-
-                   {/* Night */}
-                   <button
-                     type="button"
-                     onClick={() => setFilterShiftType('NIGHT')}
-                     className={`h-8 sm:h-8.5 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap ${
-                       filterShiftType === 'NIGHT'
-                         ? 'bg-indigo-600 text-white shadow-2xs font-black border border-indigo-700 ring-1 ring-indigo-300'
-                         : 'text-slate-600 hover:text-indigo-700 hover:bg-indigo-50'
-                     }`}
-                   >
-                     <Moon size={13} className={filterShiftType === 'NIGHT' ? 'text-white' : 'text-indigo-500'} />
-                     <span>شب (۱۹-۰۸)</span>
-                   </button>
-                 </div>
-               </div>
-
-             </div>
-
-             {/* Individual Shift Stats Banner (when a person is selected) */}
-             {selectedPersonStats && (
-               <div className="pt-2.5 border-t border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 bg-gradient-to-r from-emerald-50/70 via-blue-50/60 to-indigo-50/60 p-2.5 sm:px-3.5 rounded-xl border border-emerald-100/80 text-xs">
-                 <div className="flex items-center gap-2 flex-wrap">
-                   <span 
-                     className="w-2.5 h-2.5 rounded-full ring-2 ring-white shadow-2xs shrink-0" 
-                     style={{ backgroundColor: GET_PERSON_COLOR(selectedPersonStats.name, personnelList) }}
-                   />
-                   <span className="font-black text-slate-900">
-                     کارکرد: <span className="text-emerald-700">{selectedPersonStats.name}</span>
-                   </span>
-                   <span className="text-slate-300 hidden xs:inline">|</span>
-                   <span className="font-bold text-slate-600">
-                     مجموع: <strong className="text-slate-900">{toPersianDigits(selectedPersonStats.totalCount)}</strong> شیفت ({toPersianDigits(selectedPersonStats.totalHours)} ساعت)
-                   </span>
-                   <div className="flex items-center gap-1.5 font-black text-[11px]">
-                     <span className="bg-amber-100 text-amber-900 border border-amber-200 px-2 py-0.5 rounded-md flex items-center gap-1">
-                       <Sun size={11} className="text-amber-600" />
-                       روز: {toPersianDigits(selectedPersonStats.dayCount)}
-                     </span>
-                     <span className="bg-indigo-100 text-indigo-900 border border-indigo-200 px-2 py-0.5 rounded-md flex items-center gap-1">
-                       <Moon size={11} className="text-indigo-600" />
-                       شب: {toPersianDigits(selectedPersonStats.nightCount)}
-                     </span>
-                   </div>
-                 </div>
-
-                 <div className="flex items-center gap-2 self-end sm:self-auto text-[11px] font-bold text-slate-600">
-                   <span className="bg-emerald-600 text-white px-2 py-0.5 rounded-full font-black text-[10px]">
-                     {toPersianDigits(filteredSchedule.length)} روز در جدول
-                   </span>
-                 </div>
-               </div>
-             )}
-
-             {/* Panel Footer / Dismiss */}
-             <div className="flex items-center justify-between pt-1 border-t border-slate-100">
-               <span className="text-[11px] text-slate-500 font-medium">
-                 {filteredSchedule.length === 0
-                   ? '⚠️ هیچ شیفتی با فیلتر فعلی یافت نشد'
-                   : `نمایش ${toPersianDigits(filteredSchedule.length)} روز بر اساس فیلترهای انتخابی`}
-               </span>
-               <button
-                 type="button"
-                 onClick={() => setIsShiftFilterOpen(false)}
-                 className="bg-slate-800 hover:bg-slate-950 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
-               >
-                 بستن
-               </button>
-             </div>
-
-           </div>
-         )}
-
-         {/* Active Filter Quick Pill (when panel is closed but filter is active) */}
-         {!isShiftFilterOpen && (filterPerson !== 'All' || filterShiftType !== 'ALL') && (
-           <div className="flex items-center justify-between gap-2 bg-blue-50/90 border border-blue-200 text-blue-900 rounded-xl px-3 py-2 text-xs font-bold print:hidden shadow-2xs">
-             <div className="flex items-center gap-2 flex-wrap">
-               <Filter size={13} className="text-blue-600 shrink-0" />
-               <span className="text-slate-600">فیلتر فعال:</span>
-               {filterPerson !== 'All' && (
-                 <span className="bg-white px-2.5 py-0.5 rounded-lg border border-blue-200 text-slate-900 shadow-2xs font-extrabold flex items-center gap-1">
-                   👤 {filterPerson}
-                 </span>
-               )}
-               {filterShiftType !== 'ALL' && (
-                 <span className={`px-2 py-0.5 rounded-lg text-white text-[11px] font-black ${
-                   filterShiftType === 'DAY' ? 'bg-amber-500' : 'bg-indigo-600'
-                 }`}>
-                   {filterShiftType === 'DAY' ? '☀️ شیفت روز' : '🌙 شیفت شب'}
-                 </span>
-               )}
-               <span className="text-slate-500 text-[11px] font-medium">
-                 ({toPersianDigits(filteredSchedule.length)} روز در جدول)
-               </span>
-             </div>
-             
-             <div className="flex items-center gap-1.5 shrink-0">
-               <button
-                 type="button"
-                 onClick={() => setIsShiftFilterOpen(true)}
-                 className="text-blue-700 hover:text-blue-900 hover:underline text-xs cursor-pointer font-bold px-1.5"
-               >
-                 تغییر فیلتر
-               </button>
-               <button
-                 type="button"
-                 onClick={() => {
-                   setFilterPerson('All');
-                   setFilterShiftType('ALL');
-                 }}
-                 className="flex items-center gap-1 bg-white hover:bg-red-50 text-red-600 border border-red-200 px-2 py-1 rounded-lg text-xs font-bold transition shadow-2xs cursor-pointer"
-                 title="حذف فیلترها"
-               >
-                 <X size={12} />
-                 <span>حذف</span>
-               </button>
-             </div>
-           </div>
-         )}
-
-         {/* --- BANNERS SECTION --- */}
-         
-         {/* Case 1: Owner viewing with a Published Range active */}
-         {isOwner && publishedRange?.isActive && !isFiltersOpen && (
-            <div className="bg-gradient-to-r from-amber-50/95 via-orange-50/85 to-amber-50/95 border border-amber-300/90 rounded-2xl p-3 sm:px-4 sm:py-3.5 text-xs text-amber-950 shadow-xs">
-               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
-                  {/* Info Group */}
-                  <div className="flex items-start sm:items-center gap-2.5 min-w-0">
-                     <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-2xs mt-0.5 sm:mt-0">
-                        <Crown size={17} />
-                     </div>
-                     <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                           <span className="font-black text-amber-950 text-xs sm:text-sm">
-                              بازه عمومی محدودشده
-                           </span>
-                           <span className="text-[10px] sm:text-[11px] font-bold text-amber-800 bg-amber-100/90 px-1.5 py-0.5 rounded-md">
-                              فعال برای همه کاربران
-                           </span>
-                           <span className="inline-flex items-center gap-1 bg-amber-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-2xs whitespace-nowrap">
-                              <Lock size={10} />
-                              <span>قفل شده</span>
-                           </span>
-                           <span className="inline-flex items-center gap-1 bg-amber-100/90 text-amber-900 text-[10px] sm:text-[11px] font-extrabold px-2 py-0.5 rounded-full border border-amber-200/80 whitespace-nowrap">
-                              <span>{toPersianDigits(filteredSchedule.length)}</span>
-                              <span className="text-[10px] font-medium text-amber-800">روز شیفت</span>
-                           </span>
-                        </div>
-                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                           <div className="inline-flex items-center gap-1.5 bg-white px-2.5 py-0.5 rounded-xl border border-amber-300 shadow-2xs text-xs font-black text-amber-950">
-                              <CalendarRange size={13} className="text-amber-600 shrink-0" />
-                              <span className="tabular-nums font-black text-[11px] sm:text-xs">
-                                 {toPersianDigits(publishedRange.from.year)}/{toPersianDigits(publishedRange.from.month)}/{toPersianDigits(publishedRange.from.day)}
-                              </span>
-                              <span className="text-slate-400 font-medium text-[10px] sm:text-[11px]">تا</span>
-                              <span className="tabular-nums font-black text-[11px] sm:text-xs">
-                                 {toPersianDigits(publishedRange.to.year)}/{toPersianDigits(publishedRange.to.month)}/{toPersianDigits(publishedRange.to.day)}
-                              </span>
-                           </div>
-                        </div>
-                     </div>
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="flex items-center gap-2 self-stretch sm:self-auto justify-end pt-2 sm:pt-0 border-t sm:border-t-0 border-amber-200/80">
-                     <button 
-                        onClick={() => setIsFiltersOpen(true)}
-                        className="flex-1 sm:flex-initial bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-2xs cursor-pointer text-center"
-                     >
-                        تغییر بازه
-                     </button>
-                     <button 
-                        onClick={handleClearPublishedRange}
-                        className="flex-1 sm:flex-initial flex items-center justify-center gap-1 bg-white hover:bg-red-50 text-red-600 border border-red-200 px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-2xs cursor-pointer"
-                        title="لغو انتشار بازه برای کاربران و بازگشت به نمایش تقویم عادی برای همه"
-                     >
-                        <X size={14} />
-                        <span>لغو انتشار</span>
-                     </button>
-                  </div>
-               </div>
-            </div>
-         )}
-
-         {/* Case 2: Owner with a temporary local filter applied (not yet published) */}
-         {isOwner && !publishedRange?.isActive && appliedFilter && !isFiltersOpen && (
-            <div className="bg-gradient-to-r from-blue-50/95 via-sky-50/85 to-blue-50/95 border border-blue-200 rounded-2xl p-3 sm:px-4 sm:py-3.5 text-xs text-blue-900 shadow-xs">
-               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
-                  {/* Info Group */}
-                  <div className="flex items-start sm:items-center gap-2.5 min-w-0">
-                     <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-2xs mt-0.5 sm:mt-0">
-                        <Filter size={17} />
-                     </div>
-                     <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                           <span className="font-black text-blue-950 text-xs sm:text-sm">
-                              بازه موقت
-                           </span>
-                           <span className="text-[10px] sm:text-[11px] font-bold text-blue-700 bg-blue-100/80 px-1.5 py-0.5 rounded-md">
-                              پیش‌نمایش شخصی شما
-                           </span>
-                           <span className="inline-flex items-center gap-1 bg-slate-200 text-slate-700 text-[10px] font-black px-2 py-0.5 rounded-full shadow-2xs whitespace-nowrap">
-                              <span>ذخیره نشده برای دیگران</span>
-                           </span>
-                        </div>
-                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                           <div className="inline-flex items-center gap-1.5 bg-white px-2.5 py-0.5 rounded-xl border border-blue-200 shadow-2xs text-xs font-black text-blue-950">
-                              <CalendarRange size={13} className="text-blue-600 shrink-0" />
-                              <span className="tabular-nums font-black text-[11px] sm:text-xs">
-                                 {toPersianDigits(appliedFilter.from.year)}/{toPersianDigits(appliedFilter.from.month)}/{toPersianDigits(appliedFilter.from.day)}
-                              </span>
-                              <span className="text-slate-400 font-medium text-[10px] sm:text-[11px]">تا</span>
-                              <span className="tabular-nums font-black text-[11px] sm:text-xs">
-                                 {toPersianDigits(appliedFilter.to.year)}/{toPersianDigits(appliedFilter.to.month)}/{toPersianDigits(appliedFilter.to.day)}
-                              </span>
-                           </div>
-                           <span className="inline-flex items-center gap-1 bg-blue-100/90 text-blue-900 text-[11px] font-extrabold px-2 py-0.5 rounded-lg border border-blue-200/80 whitespace-nowrap">
-                              <span>{toPersianDigits(filteredSchedule.length)}</span>
-                              <span className="text-[10px] font-medium text-blue-700">روز</span>
-                           </span>
-                        </div>
-                     </div>
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="flex items-center gap-2 self-stretch sm:self-auto justify-end pt-2 sm:pt-0 border-t sm:border-t-0 border-blue-200/80 flex-wrap">
-                     <button 
-                        onClick={handlePublishRangeForEveryone}
-                        className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-xl text-xs font-black transition shadow-2xs cursor-pointer"
-                        title="انتشار این بازه برای همه کاربران تا سایرین فقط این روزها را ببینند"
-                     >
-                        <Crown size={14} />
-                        <span>انتشار برای همه</span>
-                     </button>
-                     <button 
-                        onClick={() => setIsFiltersOpen(true)}
-                        className="bg-white hover:bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1.5 rounded-xl text-xs font-bold transition shadow-2xs cursor-pointer"
-                     >
-                        تغییر بازه
-                     </button>
-                     <button 
-                        onClick={handleClearFilter}
-                        className="flex items-center justify-center gap-1 bg-white hover:bg-red-50 text-red-600 border border-red-200 px-2.5 py-1.5 rounded-xl text-xs font-bold transition shadow-2xs cursor-pointer"
-                     >
-                        <X size={14} />
-                        <span>لغو</span>
-                     </button>
-                  </div>
-               </div>
-            </div>
-         )}
-
-         {/* Case 3: Non-Owner viewing when a Published Range is active */}
-         {!isOwner && publishedRange?.isActive && (
-            <div className="bg-gradient-to-r from-blue-50/95 via-sky-50/90 to-indigo-50/95 border border-blue-200/90 rounded-2xl p-3 sm:px-4 sm:py-3.5 shadow-xs">
-               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
-                  {/* Info Group: Icon + Title + Status */}
-                  <div className="flex items-start sm:items-center gap-2.5 min-w-0">
-                     <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-2xs mt-0.5 sm:mt-0">
-                        <ShieldCheck size={18} />
-                     </div>
-                     <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                           <span className="font-black text-blue-950 text-xs sm:text-sm">
-                              بازه زمانی مجاز
-                           </span>
-                           <span className="text-[10px] sm:text-[11px] font-bold text-blue-700 bg-blue-100/80 px-1.5 py-0.5 rounded-md">
-                              تعیین‌شده توسط مدیریت
-                           </span>
-                           <span className="inline-flex items-center gap-1 bg-emerald-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-2xs whitespace-nowrap">
-                              <Check size={10} strokeWidth={3} />
-                              <span>تأیید شده</span>
-                           </span>
-                        </div>
-                        <p className="text-[10px] sm:text-[11px] text-slate-500 font-medium mt-0.5 hidden sm:block">
-                           سامانه صرفاً شیفت‌های این محدوده زمانی را برای کاربران نمایش می‌دهد.
-                        </p>
-                     </div>
-                  </div>
-
-                  {/* Date Capsule + Shift Count Pill */}
-                  <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap mr-10 sm:mr-0">
-                     <div className="inline-flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-xl border border-blue-200/90 shadow-2xs text-xs font-black text-blue-950">
-                        <CalendarRange size={13} className="text-blue-600 shrink-0" />
-                        <span className="tabular-nums font-black text-[11px] sm:text-xs">
-                           {toPersianDigits(publishedRange.from.year)}/{toPersianDigits(publishedRange.from.month)}/{toPersianDigits(publishedRange.from.day)}
-                        </span>
-                        <span className="text-slate-400 font-medium text-[10px] sm:text-[11px]">تا</span>
-                        <span className="tabular-nums font-black text-[11px] sm:text-xs">
-                           {toPersianDigits(publishedRange.to.year)}/{toPersianDigits(publishedRange.to.month)}/{toPersianDigits(publishedRange.to.day)}
-                        </span>
-                     </div>
-
-                     <span className="inline-flex items-center gap-1 bg-blue-100/90 text-blue-900 text-[11px] font-extrabold px-2.5 py-1 rounded-xl border border-blue-200/80 shadow-2xs whitespace-nowrap">
-                        <span>{toPersianDigits(filteredSchedule.length)}</span>
-                        <span className="text-[10px] font-medium text-blue-700">روز شیفت</span>
-                     </span>
-                  </div>
-               </div>
-            </div>
-         )}
-
-         {/* Advanced Filters Panel - STRICTLY OWNER ONLY */}
-         {isOwner && isFiltersOpen && (
-            <div className="bg-white border border-amber-200/80 rounded-2xl p-4 md:p-5 shadow-sm space-y-5 animate-in slide-in-from-top-2 ring-1 ring-amber-100">
-               
-               {/* Header of Filter Panel */}
-               <div className="flex justify-between items-center pb-3 border-b border-slate-100">
-                  <div className="flex items-center gap-2">
-                     <Crown size={18} className="text-amber-500" />
-                     <span className="font-extrabold text-slate-900 text-sm">مدیریت و محدودسازی بازه نمایش روزها (مخصوص مدیر پنل)</span>
-                  </div>
-                  <button 
-                     onClick={() => setIsFiltersOpen(false)}
-                     className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition cursor-pointer"
+            {/* 3. Inline Active Filter Strip (when panel is closed & filter is active) */}
+            {!isShiftFilterOpen && (filterPerson !== 'All' || filterShiftType !== 'ALL') && (
+              <div className="flex items-center justify-between gap-2 bg-blue-50/70 text-blue-950 px-3 py-2 sm:px-4 text-xs font-bold print:hidden">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Filter size={13} className="text-blue-600 shrink-0" />
+                  <span className="text-slate-600">فیلتر فعال:</span>
+                  {filterPerson !== 'All' && (
+                    <span className="bg-white px-2 py-0.5 rounded-lg border border-blue-200 text-slate-900 font-extrabold">
+                      {filterPerson}
+                    </span>
+                  )}
+                  {filterShiftType !== 'ALL' && (
+                    <span className={`px-2 py-0.5 rounded-lg text-white text-[11px] font-black ${
+                      filterShiftType === 'DAY' ? 'bg-amber-500' : 'bg-indigo-600'
+                    }`}>
+                      {filterShiftType === 'DAY' ? 'شیفت روز' : 'شیفت شب'}
+                    </span>
+                  )}
+                  <span className="text-slate-500 text-[11px] font-medium tabular-nums">
+                    ({toPersianDigits(filteredSchedule.length)} روز)
+                  </span>
+                </div>
+                
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setIsShiftFilterOpen(true)}
+                    className="text-blue-700 hover:text-blue-900 hover:underline text-xs cursor-pointer font-bold"
                   >
-                     <X size={18} />
+                    تغییر
                   </button>
-               </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilterPerson('All');
+                      setFilterShiftType('ALL');
+                    }}
+                    className="flex items-center gap-1 bg-white hover:bg-red-50 text-red-600 border border-red-200 px-2 py-1 rounded-lg text-xs font-bold transition cursor-pointer"
+                    title="حذف فیلترها"
+                  >
+                    <X size={12} />
+                    <span>حذف</span>
+                  </button>
+                </div>
+              </div>
+            )}
 
-               {/* Explanatory Tip */}
-               <div className="bg-amber-50/70 border border-amber-200/70 rounded-xl p-3 text-xs text-amber-900 leading-5">
-                  <p className="font-bold">
-                     💡 برای اینکه دیگر کاربران و پرسنل صرفاً بازه مدنظر شما را ببینند و نتوانند آن را تغییر دهند:
-                  </p>
-                  <p className="text-amber-800 mt-0.5">
-                     بازه روزها را انتخاب کرده و دکمه <strong>«انتشار و قفل برای همه کاربران»</strong> را بزنید. بقیه کاربران بدون امکان تغییر، تنها همین بازه انتخابی شما را مشاهده خواهند کرد.
-                  </p>
-               </div>
-
-               {/* Quick Presets for Days Limitation */}
-               <div>
-                  <div className="flex justify-between items-center mb-2">
-                     <span className="text-xs font-bold text-slate-600 block">انتخاب سریع بازه روزها:</span>
-                     {(appliedFilter || publishedRange?.isActive) && (
-                        <button 
-                           onClick={handleClearFilter}
-                           className="flex items-center gap-1 text-[11px] font-bold text-red-600 hover:bg-red-50 px-2 py-0.5 rounded transition cursor-pointer"
-                        >
-                           <X size={12} />
-                           حذف محدودیت
-                        </button>
-                     )}
+            {/* 4. Inline Collapsible Shift & Personnel Filter Drawer */}
+            {isShiftFilterOpen && (
+              <div className="bg-slate-50/60 p-3.5 sm:p-4 space-y-3.5 animate-in slide-in-from-top-2 duration-150 print:hidden">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Filter size={15} className="text-blue-600" />
+                    <span className="font-extrabold text-slate-900 text-xs sm:text-sm">
+                      فیلتر هوشمند شیفت و پرسنل
+                    </span>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                     <button 
+
+                  <div className="flex items-center gap-1.5">
+                    {(filterPerson !== 'All' || filterShiftType !== 'ALL') && (
+                      <button
                         type="button"
-                        onClick={() => applyQuickRange('firstHalf')}
-                        className="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 border border-slate-200 transition cursor-pointer"
-                     >
-                        ۱ تا ۱۵ ماه (نیمه اول)
-                     </button>
-                     <button 
+                        onClick={() => {
+                          setFilterPerson('All');
+                          setFilterShiftType('ALL');
+                        }}
+                        className="text-[11px] font-bold text-red-600 hover:bg-red-50 px-2 py-1 rounded-lg transition cursor-pointer flex items-center gap-1"
+                      >
+                        <X size={13} />
+                        <span>حذف فیلترها</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setIsShiftFilterOpen(false)}
+                      className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/70 transition cursor-pointer"
+                      title="بستن منوی فیلتر"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 items-start">
+                  <div className="space-y-1.5">
+                    <label htmlFor="modal-person-filter" className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+                      <Users size={14} className="text-emerald-600 shrink-0" />
+                      <span>انتخاب پرسنل:</span>
+                    </label>
+                    <div className="relative">
+                      <select
+                        id="modal-person-filter"
+                        value={filterPerson}
+                        onChange={(e) => setFilterPerson(e.target.value)}
+                        className="w-full h-10 bg-white text-slate-900 text-xs font-black rounded-xl px-3 pl-8 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition cursor-pointer appearance-none"
+                      >
+                        <option value="All">همه پرسنل (نمایش عمومی تقویم)</option>
+                        {shiftWorkers.map((person) => (
+                          <option key={person} value={person}>
+                            {person}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+                      <Layers size={14} className="text-blue-600 shrink-0" />
+                      <span>تفکیک شیفت کاری:</span>
+                    </label>
+                    <div className="grid grid-cols-3 gap-1 bg-slate-200/70 p-1 rounded-xl">
+                      <button
                         type="button"
-                        onClick={() => applyQuickRange('secondHalf')}
-                        className="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 border border-slate-200 transition cursor-pointer"
-                     >
-                        ۱۶ تا پایان ماه (نیمه دوم)
-                     </button>
-                     <button 
-                        type="button"
-                        onClick={() => applyQuickRange('next7Days')}
-                        className="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 border border-slate-200 transition cursor-pointer"
-                     >
-                        ۷ روز از امروز به بعد
-                     </button>
-                     <button 
-                        type="button"
-                        onClick={() => applyQuickRange('fullMonth')}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition cursor-pointer ${
-                           !appliedFilter && !publishedRange?.isActive ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-200'
+                        onClick={() => setFilterShiftType('ALL')}
+                        className={`h-8 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap ${
+                          filterShiftType === 'ALL'
+                            ? 'bg-white text-slate-900 shadow-2xs font-black'
+                            : 'text-slate-600 hover:text-slate-900'
                         }`}
-                     >
-                        کل ماه
-                     </button>
-                  </div>
-               </div>
+                      >
+                        <span>هر دو شیفت</span>
+                      </button>
 
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2 border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={() => setFilterShiftType('DAY')}
+                        className={`h-8 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap ${
+                          filterShiftType === 'DAY'
+                            ? 'bg-amber-500 text-white shadow-2xs font-black'
+                            : 'text-slate-600 hover:text-amber-700 hover:bg-amber-50'
+                        }`}
+                      >
+                        <Sun size={13} className={filterShiftType === 'DAY' ? 'text-white' : 'text-amber-500'} />
+                        <span>روز (۰۸-۱۹)</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setFilterShiftType('NIGHT')}
+                        className={`h-8 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap ${
+                          filterShiftType === 'NIGHT'
+                            ? 'bg-indigo-600 text-white shadow-2xs font-black'
+                            : 'text-slate-600 hover:text-indigo-700 hover:bg-indigo-50'
+                        }`}
+                      >
+                        <Moon size={13} className={filterShiftType === 'NIGHT' ? 'text-white' : 'text-indigo-500'} />
+                        <span>شب (۱۹-۰۸)</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {selectedPersonStats && (
+                  <div className="pt-2.5 border-t border-slate-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span 
+                        className="w-2.5 h-2.5 rounded-full shrink-0" 
+                        style={{ backgroundColor: GET_PERSON_COLOR(selectedPersonStats.name, personnelList) }}
+                      />
+                      <span className="font-black text-slate-900">
+                        {selectedPersonStats.name}
+                      </span>
+                      <span className="text-slate-300">•</span>
+                      <span className="font-bold text-slate-600 tabular-nums">
+                        {toPersianDigits(selectedPersonStats.totalCount)} شیفت ({toPersianDigits(selectedPersonStats.totalHours)} ساعت)
+                      </span>
+                      <span className="bg-amber-100 text-amber-900 px-2 py-0.5 rounded-md font-black text-[11px] tabular-nums">
+                        روز: {toPersianDigits(selectedPersonStats.dayCount)}
+                      </span>
+                      <span className="bg-indigo-100 text-indigo-900 px-2 py-0.5 rounded-md font-black text-[11px] tabular-nums">
+                        شب: {toPersianDigits(selectedPersonStats.nightCount)}
+                      </span>
+                    </div>
+
+                    <span className="bg-emerald-600 text-white px-2.5 py-0.5 rounded-full font-black text-[10.5px] tabular-nums">
+                      {toPersianDigits(filteredSchedule.length)} روز در جدول
+                    </span>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between pt-2 border-t border-slate-200/80">
+                  <span className="text-[11px] text-slate-500 font-medium tabular-nums">
+                    {filteredSchedule.length === 0
+                      ? 'هیچ شیفتی با فیلتر فعلی یافت نشد'
+                      : `نمایش ${toPersianDigits(filteredSchedule.length)} روز بر اساس فیلتر انتخابی`}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsShiftFilterOpen(false)}
+                    className="bg-slate-800 hover:bg-slate-950 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer"
+                  >
+                    بستن
+                  </button>
+                </div>
+              </div>
+            )}
+            {/* 5. Active Range Banner (Unified inside Top Card, flattened pills) */}
+            {/* Case 1: Owner viewing with a Published Range active */}
+            {isOwner && publishedRange?.isActive && !isFiltersOpen && (
+              <div className="bg-amber-50/70 px-3 py-2.5 sm:px-4 text-xs text-amber-950">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0">
+                      <Crown size={16} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-black text-amber-950 text-xs sm:text-[13px]">
+                          بازه عمومی محدودشده
+                        </span>
+                        <span className="inline-flex items-center gap-1 bg-amber-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full whitespace-nowrap">
+                          <Lock size={10} />
+                          <span>قفل و فعال برای همه</span>
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap text-[11px] font-bold text-amber-900">
+                        <span className="inline-flex items-center gap-1 tabular-nums font-black text-amber-950">
+                          <CalendarRange size={12} className="text-amber-600 shrink-0" />
+                          {toPersianDigits(publishedRange.from.year)}/{toPersianDigits(publishedRange.from.month)}/{toPersianDigits(publishedRange.from.day)}
+                          <span className="text-amber-700/70 font-medium mx-0.5">تا</span>
+                          {toPersianDigits(publishedRange.to.year)}/{toPersianDigits(publishedRange.to.month)}/{toPersianDigits(publishedRange.to.day)}
+                        </span>
+                        <span className="text-amber-300">•</span>
+                        <span className="tabular-nums">{toPersianDigits(filteredSchedule.length)} روز شیفت</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 self-stretch sm:self-auto justify-end pt-2 sm:pt-0 border-t sm:border-t-0 border-amber-200/70 shrink-0">
+                    <button
+                      onClick={() => setIsFiltersOpen(true)}
+                      className="flex-1 sm:flex-initial bg-white hover:bg-amber-100/70 text-amber-900 border border-amber-300/90 px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer text-center"
+                    >
+                      تغییر بازه
+                    </button>
+                    <button
+                      onClick={handleClearPublishedRange}
+                      className="flex-1 sm:flex-initial flex items-center justify-center gap-1 bg-white hover:bg-red-50 text-red-600 border border-red-200 px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer"
+                      title="لغو انتشار بازه برای کاربران و بازگشت به نمایش تقویم عادی برای همه"
+                    >
+                      <X size={14} />
+                      <span>لغو انتشار</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Case 2: Owner with a temporary local filter applied (not yet published) */}
+            {isOwner && !publishedRange?.isActive && appliedFilter && !isFiltersOpen && (
+              <div className="bg-blue-50/70 px-3 py-2.5 sm:px-4 text-xs text-blue-950">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0">
+                      <Filter size={16} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-black text-blue-950 text-xs sm:text-[13px]">
+                          بازه موقت (پیش‌نمایش شخصی)
+                        </span>
+                        <span className="bg-slate-200/90 text-slate-700 text-[10px] font-black px-2 py-0.5 rounded-full whitespace-nowrap">
+                          ذخیره نشده برای دیگران
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap text-[11px] font-bold text-blue-900">
+                        <span className="inline-flex items-center gap-1 tabular-nums font-black text-blue-950">
+                          <CalendarRange size={12} className="text-blue-600 shrink-0" />
+                          {toPersianDigits(appliedFilter.from.year)}/{toPersianDigits(appliedFilter.from.month)}/{toPersianDigits(appliedFilter.from.day)}
+                          <span className="text-blue-700/60 font-medium mx-0.5">تا</span>
+                          {toPersianDigits(appliedFilter.to.year)}/{toPersianDigits(appliedFilter.to.month)}/{toPersianDigits(appliedFilter.to.day)}
+                        </span>
+                        <span className="text-blue-300">•</span>
+                        <span className="tabular-nums">{toPersianDigits(filteredSchedule.length)} روز</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 self-stretch sm:self-auto justify-end pt-2 sm:pt-0 border-t sm:border-t-0 border-blue-200/70 flex-wrap shrink-0">
+                    <button
+                      onClick={handlePublishRangeForEveryone}
+                      className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer"
+                      title="انتشار این بازه برای همه کاربران تا سایرین فقط این روزها را ببینند"
+                    >
+                      <Crown size={14} />
+                      <span>انتشار برای همه</span>
+                    </button>
+                    <button
+                      onClick={() => setIsFiltersOpen(true)}
+                      className="bg-white hover:bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer"
+                    >
+                      تغییر بازه
+                    </button>
+                    <button
+                      onClick={handleClearFilter}
+                      className="flex items-center justify-center gap-1 bg-white hover:bg-red-50 text-red-600 border border-red-200 px-2.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer"
+                    >
+                      <X size={14} />
+                      <span>لغو</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Case 3: Non-Owner viewing when a Published Range is active */}
+            {!isOwner && publishedRange?.isActive && (
+              <div className="bg-blue-50/70 px-3 py-2.5 sm:px-4 text-xs text-blue-950">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0">
+                      <ShieldCheck size={16} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-black text-blue-950 text-xs sm:text-[13px]">
+                          بازه زمانی مجاز (تعیین‌شده توسط مدیریت)
+                        </span>
+                        <span className="inline-flex items-center gap-1 bg-emerald-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full whitespace-nowrap">
+                          <Check size={10} strokeWidth={3} />
+                          <span>تأیید شده</span>
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-600 font-medium mt-0.5 hidden sm:block">
+                        سامانه صرفاً شیفت‌های این محدوده زمانی را نمایش می‌دهد.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap mr-10 sm:mr-0 text-[11px] font-bold text-blue-900 shrink-0">
+                    <span className="inline-flex items-center gap-1.5 bg-white/90 px-2.5 py-1 rounded-xl border border-blue-200/80 text-blue-950 font-black tabular-nums">
+                      <CalendarRange size={13} className="text-blue-600 shrink-0" />
+                      {toPersianDigits(publishedRange.from.year)}/{toPersianDigits(publishedRange.from.month)}/{toPersianDigits(publishedRange.from.day)}
+                      <span className="text-slate-400 font-medium">تا</span>
+                      {toPersianDigits(publishedRange.to.year)}/{toPersianDigits(publishedRange.to.month)}/{toPersianDigits(publishedRange.to.day)}
+                    </span>
+                    <span className="text-blue-700 font-extrabold tabular-nums">
+                      {toPersianDigits(filteredSchedule.length)} روز شیفت
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 6. Inline Owner Range Management Drawer - STRICTLY OWNER ONLY */}
+            {isOwner && isFiltersOpen && (
+              <div className="bg-amber-50/25 p-3.5 sm:p-4 md:p-5 space-y-4 animate-in slide-in-from-top-2 duration-150">
+                
+                {/* Drawer Header */}
+                <div className="flex justify-between items-center pb-2.5 border-b border-amber-200/60">
+                  <div className="flex items-center gap-2">
+                    <Crown size={17} className="text-amber-500 shrink-0" />
+                    <span className="font-extrabold text-slate-900 text-xs sm:text-sm">
+                      مدیریت و محدودسازی بازه نمایش روزها (مخصوص مدیر پنل)
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setIsFiltersOpen(false)}
+                    className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-200/60 transition cursor-pointer"
+                  >
+                    <X size={17} />
+                  </button>
+                </div>
+
+                {/* Concise Tip Strip (no extra outer card border) */}
+                <div className="border-r-2 border-amber-400 pr-3 text-xs text-amber-900 leading-5">
+                  <p className="font-bold">
+                    بازه روزها را انتخاب کرده و دکمه <strong>«انتشار و قفل برای همه کاربران»</strong> را بزنید تا سایر کاربران صرفاً همین بازه را مشاهده کنند.
+                  </p>
+                </div>
+
+                {/* Quick Presets */}
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-xs font-bold text-slate-600 block">انتخاب سریع بازه روزها:</span>
+                    {(appliedFilter || publishedRange?.isActive) && (
+                      <button
+                        onClick={handleClearFilter}
+                        className="flex items-center gap-1 text-[11px] font-bold text-red-600 hover:bg-red-50 px-2 py-0.5 rounded transition cursor-pointer"
+                      >
+                        <X size={12} />
+                        حذف محدودیت
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                    <button
+                      type="button"
+                      onClick={() => applyQuickRange('firstHalf')}
+                      className="px-3 py-1.5 rounded-xl text-xs font-bold bg-white text-slate-700 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 border border-slate-200 transition cursor-pointer"
+                    >
+                      ۱ تا ۱۵ ماه (نیمه اول)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => applyQuickRange('secondHalf')}
+                      className="px-3 py-1.5 rounded-xl text-xs font-bold bg-white text-slate-700 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 border border-slate-200 transition cursor-pointer"
+                    >
+                      ۱۶ تا پایان ماه (نیمه دوم)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => applyQuickRange('next7Days')}
+                      className="px-3 py-1.5 rounded-xl text-xs font-bold bg-white text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 border border-slate-200 transition cursor-pointer"
+                    >
+                      ۷ روز از امروز به بعد
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => applyQuickRange('fullMonth')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                        !appliedFilter && !publishedRange?.isActive ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'
+                      }`}
+                    >
+                      کل ماه
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-200/70">
                   {/* Date Range Selector */}
                   <div>
-                      <label className="text-xs font-bold text-slate-600 block mb-2">محدود کردن دقیق روزها (از تاریخ ... تا تاریخ ...):</label>
-                      
-                      <div className="flex flex-col gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
-                          <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
-                              {/* From Group */}
-                              <div className="flex items-center gap-1.5 w-full sm:w-auto justify-start">
-                                  <span className="text-xs font-bold text-slate-500 min-w-[20px]">از:</span>
-                                  <div className="flex items-center gap-1 flex-1 sm:flex-initial">
-                                      <DashboardDateSelect value={fromDate.day} onChange={(v) => setFromDate({...fromDate, day: v})} options={PERSIAN_DAYS} width="w-12 sm:w-[50px]" />
-                                      <DashboardDateSelect value={fromDate.month} onChange={(v) => setFromDate({...fromDate, month: v})} options={PERSIAN_MONTHS} width="w-20 sm:w-[82px]" />
-                                      <DashboardDateSelect value={fromDate.year} onChange={(v) => setFromDate({...fromDate, year: v})} options={['1403', '1404', '1405']} width="w-16 sm:w-[62px]" />
-                                  </div>
-                              </div>
-                              
-                              {/* To Group */}
-                              <div className="flex items-center gap-1.5 w-full sm:w-auto justify-start">
-                                  <span className="text-xs font-bold text-slate-500 min-w-[20px]">تا:</span>
-                                  <div className="flex items-center gap-1 flex-1 sm:flex-initial">
-                                      <DashboardDateSelect value={toDate.day} onChange={(v) => setToDate({...toDate, day: v})} options={PERSIAN_DAYS} width="w-12 sm:w-[50px]" />
-                                      <DashboardDateSelect value={toDate.month} onChange={(v) => setToDate({...toDate, month: v})} options={PERSIAN_MONTHS} width="w-20 sm:w-[82px]" />
-                                      <DashboardDateSelect value={toDate.year} onChange={(v) => setToDate({...toDate, year: v})} options={['1403', '1404', '1405']} width="w-16 sm:w-[62px]" />
-                                  </div>
-                              </div>
+                    <label className="text-xs font-bold text-slate-600 block mb-2">محدود کردن دقیق روزها (از تاریخ ... تا تاریخ ...):</label>
+                    <div className="flex flex-col gap-2.5 bg-white p-3 rounded-xl border border-slate-200/90">
+                      <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center justify-between">
+                        {/* From Group */}
+                        <div className="flex items-center gap-1.5 w-full sm:w-auto justify-start">
+                          <span className="text-xs font-bold text-slate-500 min-w-[20px]">از:</span>
+                          <div className="flex items-center gap-1 flex-1 sm:flex-initial">
+                            <DashboardDateSelect value={fromDate.day} onChange={(v) => setFromDate({...fromDate, day: v})} options={PERSIAN_DAYS} width="w-12 sm:w-[50px]" />
+                            <DashboardDateSelect value={fromDate.month} onChange={(v) => setFromDate({...fromDate, month: v})} options={PERSIAN_MONTHS} width="w-20 sm:w-[82px]" />
+                            <DashboardDateSelect value={fromDate.year} onChange={(v) => setFromDate({...fromDate, year: v})} options={['1403', '1404', '1405']} width="w-16 sm:w-[62px]" />
                           </div>
+                        </div>
 
-                          <div className="pt-2 border-t border-slate-200/80">
-                                <span className="text-[11px] text-slate-500 block">
-                                   بازه انتخابی: <strong className="text-slate-800 dir-ltr">{toPersianDigits(fromDate.year)}/{toPersianDigits(fromDate.month)}/{toPersianDigits(fromDate.day)}</strong> تا <strong className="text-slate-800 dir-ltr">{toPersianDigits(toDate.year)}/{toPersianDigits(toDate.month)}/{toPersianDigits(toDate.day)}</strong>
-                                </span>
+                        {/* To Group */}
+                        <div className="flex items-center gap-1.5 w-full sm:w-auto justify-start">
+                          <span className="text-xs font-bold text-slate-500 min-w-[20px]">تا:</span>
+                          <div className="flex items-center gap-1 flex-1 sm:flex-initial">
+                            <DashboardDateSelect value={toDate.day} onChange={(v) => setToDate({...toDate, day: v})} options={PERSIAN_DAYS} width="w-12 sm:w-[50px]" />
+                            <DashboardDateSelect value={toDate.month} onChange={(v) => setToDate({...toDate, month: v})} options={PERSIAN_MONTHS} width="w-20 sm:w-[82px]" />
+                            <DashboardDateSelect value={toDate.year} onChange={(v) => setToDate({...toDate, year: v})} options={['1403', '1404', '1405']} width="w-16 sm:w-[62px]" />
                           </div>
+                        </div>
                       </div>
+
+                      <div className="pt-2 border-t border-slate-100">
+                        <span className="text-[11px] text-slate-500 block tabular-nums">
+                          بازه انتخابی: <strong className="text-slate-800 dir-ltr">{toPersianDigits(fromDate.year)}/{toPersianDigits(fromDate.month)}/{toPersianDigits(fromDate.day)}</strong> تا <strong className="text-slate-800 dir-ltr">{toPersianDigits(toDate.year)}/{toPersianDigits(toDate.month)}/{toPersianDigits(toDate.day)}</strong>
+                        </span>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Person Filter */}
                   <div>
-                     <label className="text-xs font-bold text-slate-600 mb-2 block">فیلتر پرسنل (اختیاری):</label>
-                     <div className="flex flex-wrap gap-2">
-                        <button 
-                           onClick={() => setFilterPerson('All')}
-                           className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${filterPerson === 'All' ? 'bg-slate-800 text-white shadow' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                    <label className="text-xs font-bold text-slate-600 mb-2 block">فیلتر پرسنل (اختیاری):</label>
+                    <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                      <button
+                        onClick={() => setFilterPerson('All')}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer ${filterPerson === 'All' ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                      >
+                        همه
+                      </button>
+                      {shiftWorkers.map(p => (
+                        <button
+                          key={p}
+                          onClick={() => setFilterPerson(p)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer ${filterPerson === p ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
                         >
-                           همه
+                          {p.replace('مهندس', '')}
                         </button>
-                        {shiftWorkers.map(p => (
-                           <button 
-                              key={p}
-                              onClick={() => setFilterPerson(p)}
-                              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${filterPerson === p ? 'bg-emerald-600 text-white shadow' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                           >
-                              {p.replace('مهندس', '')}
-                           </button>
-                        ))}
-                     </div>
+                      ))}
+                    </div>
                   </div>
-               </div>
+                </div>
 
-               {/* Bottom Actions for Owner */}
-               <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-3 border-t border-slate-200">
+                {/* Bottom Actions for Owner */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-3 border-t border-slate-200/80">
                   <div className="flex items-center gap-2">
-                     {publishedRange?.isActive && (
-                        <button 
-                           type="button"
-                           onClick={handleClearPublishedRange}
-                           className="h-9 px-3 flex items-center justify-center bg-white border border-red-200 text-red-600 hover:bg-red-50 rounded-xl text-xs font-bold transition gap-1 cursor-pointer w-full sm:w-auto"
-                           title="لغو انتشار بازه برای کاربران و بازگشت به نمایش تقویم عادی"
-                        >
-                           <X size={14} />
-                           <span>لغو بازه عمومی (نمایش کامل برای همه)</span>
-                        </button>
-                     )}
+                    {publishedRange?.isActive && (
+                      <button
+                        type="button"
+                        onClick={handleClearPublishedRange}
+                        className="h-9 px-3 flex items-center justify-center bg-white border border-red-200 text-red-600 hover:bg-red-50 rounded-xl text-xs font-bold transition gap-1 cursor-pointer w-full sm:w-auto"
+                        title="لغو انتشار بازه برای کاربران و بازگشت به نمایش تقویم عادی"
+                      >
+                        <X size={14} />
+                        <span>لغو بازه عمومی (نمایش کامل برای همه)</span>
+                      </button>
+                    )}
                   </div>
                   <div className="flex flex-col xs:flex-row items-center gap-2 w-full sm:w-auto justify-end">
-                     <button 
-                         type="button"
-                         onClick={handleApplyFilter}
-                         className="h-9 px-3.5 flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition gap-1.5 cursor-pointer w-full xs:w-auto"
-                         title="اعمال موقت فقط در نشست فعلی شما"
-                     >
-                         <CheckCircle2 size={15} className="text-slate-600" />
-                         <span>پیش‌نمایش برای خودم</span>
-                     </button>
-                     <button 
-                         type="button"
-                         onClick={handlePublishRangeForEveryone}
-                         className="h-9 px-4 sm:px-5 flex items-center justify-center bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black transition gap-1.5 sm:gap-2 shadow-xs hover:shadow-md cursor-pointer w-full xs:w-auto"
-                         title="ذخیره و محدودسازی نمایش فقط به این بازه برای تمام کاربران"
-                     >
-                         <Crown size={15} />
-                         <span>انتشار و قفل برای همه کاربران</span>
-                     </button>
+                    <button
+                      type="button"
+                      onClick={handleApplyFilter}
+                      className="h-9 px-3.5 flex items-center justify-center bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition gap-1.5 cursor-pointer w-full xs:w-auto"
+                      title="اعمال موقت فقط در نشست فعلی شما"
+                    >
+                      <CheckCircle2 size={15} className="text-slate-600" />
+                      <span>پیش‌نمایش برای خودم</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handlePublishRangeForEveryone}
+                      className="h-9 px-4 sm:px-5 flex items-center justify-center bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black transition gap-1.5 sm:gap-2 cursor-pointer w-full xs:w-auto"
+                      title="ذخیره و محدودسازی نمایش فقط به این بازه برای تمام کاربران"
+                    >
+                      <Crown size={15} />
+                      <span>انتشار و قفل برای همه کاربران</span>
+                    </button>
                   </div>
-               </div>
-            </div>
-         )}
+                </div>
+              </div>
+            )}
+         </div>
       </div>
 
       {/* Main Content Grid */}
@@ -2613,7 +2516,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         {/* Right: Stats & Charts */}
-        <div className="space-y-6 print:hidden">
+        <div className="space-y-4 print:hidden">
            
            {/* Chart Section */}
            <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
@@ -2785,45 +2688,37 @@ export const Dashboard: React.FC<DashboardProps> = ({
                </div>
            </div>
 
-           {/* Stats Grid (2x2 Mosaic) */}
-           <div className="grid grid-cols-2 gap-3 h-auto">
-              <div className="aspect-square">
-                 <StatsCard 
-                    type="square"
-                    title="تعداد کل شیفت"
-                    value={toPersianDigits(totalShifts)}
-                    icon={Activity}
-                    colorClass="bg-blue-500"
-                 />
-              </div>
-              <div className="aspect-square">
-                 <StatsCard 
-                    type="square"
-                    title="مجموع ساعات"
-                    value={toPersianDigits(totalHoursSum)}
-                    icon={Clock}
-                    colorClass="bg-emerald-500"
-                 />
-              </div>
-              <div className="aspect-square">
-                 <StatsCard 
-                    type="square"
-                    title="نفرات فعال"
-                    value={toPersianDigits(shiftWorkers.length)}
-                    icon={Users}
-                    colorClass="bg-indigo-500"
-                 />
-              </div>
-              <div className="aspect-square">
-                 <StatsCard 
-                    type="square"
-                    title="بیشترین کارکرد"
-                    value={topPerformer ? (topPerformer.isTie ? `${toPersianDigits(topPerformer.count)} نفر` : topPerformer.names[0]) : '---'}
-                    subtitle={topPerformer ? (topPerformer.isTie ? `مشترک (${toPersianDigits(topPerformer.value)} ساعت)` : `${toPersianDigits(topPerformer.value)} ساعت`) : ''}
-                    icon={Trophy}
-                    colorClass="bg-amber-500"
-                 />
-              </div>
+           {/* Compact Stats Grid (2x2 KPI Tiles) */}
+           <div className="grid grid-cols-2 gap-2.5">
+              <StatsCard 
+                 type="compact"
+                 title="تعداد کل شیفت"
+                 value={toPersianDigits(totalShifts)}
+                 icon={Activity}
+                 colorClass="bg-blue-500"
+              />
+              <StatsCard 
+                 type="compact"
+                 title="مجموع ساعات"
+                 value={toPersianDigits(totalHoursSum)}
+                 icon={Clock}
+                 colorClass="bg-emerald-500"
+              />
+              <StatsCard 
+                 type="compact"
+                 title="نفرات فعال"
+                 value={toPersianDigits(shiftWorkers.length)}
+                 icon={Users}
+                 colorClass="bg-indigo-500"
+              />
+              <StatsCard 
+                 type="compact"
+                 title="بیشترین کارکرد"
+                 value={topPerformer ? (topPerformer.isTie ? `${toPersianDigits(topPerformer.count)} نفر` : topPerformer.names[0]) : '---'}
+                 subtitle={topPerformer ? (topPerformer.isTie ? `مشترک (${toPersianDigits(topPerformer.value)} ساعت)` : `${toPersianDigits(topPerformer.value)} ساعت`) : ''}
+                 icon={Trophy}
+                 colorClass="bg-amber-500"
+              />
            </div>
 
         </div>
