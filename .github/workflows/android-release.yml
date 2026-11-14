@@ -78,7 +78,7 @@ jobs:
           ci_pkg = {
               "name": "final-shiftflow-production-roster",
               "private": True,
-              "version": "4.2.5",
+              "version": "4.2.6",
               "type": "module",
               "scripts": {
                   "build": "vite build"
@@ -89,12 +89,13 @@ jobs:
                   "pdfjs-dist": "^4.10.38",
                   "react": "^19.0.0",
                   "react-dom": "^19.0.0",
+                  "react-is": "^19.0.0",
                   "recharts": "latest",
                   "xlsx": "^0.18.5"
               },
               "devDependencies": {
-                  "@vitejs/plugin-react": "latest",
-                  "vite": "latest"
+                  "@vitejs/plugin-react": "4.3.4",
+                  "vite": "6.2.0"
               }
           }
           json.dump(ci_pkg, open("package.json", "w", encoding="utf-8"), indent=2)
@@ -122,6 +123,26 @@ jobs:
           '
               npx vite build --config vite.ci.config.mjs
               rm -f vite.ci.config.mjs
+            fi
+
+            # Validate dist/index.html (ensure tailwind.min.js is present and no bare module specifiers exist)
+            if [ -f "dist/index.html" ]; then
+              python3 -c '
+          import glob, re, shutil
+          html = open("dist/index.html", "r", encoding="utf-8").read()
+          if "tailwind.min.js" not in html:
+              html = html.replace("</head>", "  <script src=\"./tailwind.min.js\"></script>\n</head>")
+              open("dist/index.html", "w", encoding="utf-8").write(html)
+          bad = False
+          for jf in glob.glob("dist/assets/*.js"):
+              content = open(jf, "r", encoding="utf-8", errors="ignore").read()
+              for m in re.findall(r"(?:from|import)\s*[\x22\x27]([^\x22\x27]+)[\x22\x27]", content[:4000]):
+                  if not m.startswith(".") and not m.startswith("/"):
+                      print("Found unresolved bare import in", jf, ":", m)
+                      bad = True
+          if bad:
+              shutil.rmtree("dist", ignore_errors=True)
+          '
             fi
           fi
 
