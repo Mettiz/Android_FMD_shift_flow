@@ -816,7 +816,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                </div>
 
                {/* Today Button (with Date on Mobile & Desktop) + Month Navigator (Balanced 50/50 on Mobile & Desktop) */}
-               <div className={`grid ${onNavigateToToday ? 'grid-cols-2' : 'grid-cols-1'} items-center gap-2 w-full md:w-auto md:min-w-[330px] lg:min-w-[360px] shrink-0 pt-2.5 md:pt-0 border-t md:border-t-0 border-slate-100`}>
+               <div className={`grid ${onNavigateToToday ? 'grid-cols-2' : 'grid-cols-1'} items-center gap-2 w-full md:w-auto md:min-w-[440px] lg:min-w-[500px] shrink-0 pt-2.5 md:pt-0 border-t md:border-t-0 border-slate-100`}>
                   {onNavigateToToday && (
                      <button 
                        onClick={handleNavigateAndScrollToToday}

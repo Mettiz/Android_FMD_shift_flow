@@ -153,37 +153,32 @@ export const TodayHero: React.FC<TodayHeroProps> = ({
         </div>
 
         {/* Left: Balanced 3-Column Strip (Day | Date | Clock) on BOTH Mobile & Desktop */}
-        <div className="grid grid-cols-3 gap-2 w-full md:w-auto md:min-w-[330px] lg:min-w-[360px] bg-slate-50/90 border border-slate-200/90 rounded-xl px-2.5 py-2 text-center items-center shrink-0">
+        <div className="grid grid-cols-3 gap-2 md:gap-4 w-full md:w-auto md:min-w-[440px] lg:min-w-[500px] bg-slate-50/90 border border-slate-200/90 rounded-xl px-2.5 py-2.5 md:px-4 md:py-3 text-center items-center shrink-0">
           {/* Col 1: Weekday */}
-          <div className="flex flex-col items-center justify-center border-l border-slate-200/80 pl-2 min-w-0">
-            <span className="text-[10px] font-bold text-slate-400 mb-0.5">روز هفته</span>
-            <span className="text-xs sm:text-sm font-black text-slate-800 truncate w-full">
+          <div className="flex flex-col items-center justify-center border-l border-slate-200/80 pl-2 md:pl-4 min-w-0 text-center">
+            <span className="text-[10px] md:text-xs font-bold text-slate-400 mb-0.5 md:mb-1">روز هفته</span>
+            <span className="text-sm sm:text-base md:text-xl lg:text-2xl font-black text-slate-800 truncate w-full text-center">
               {currentWeekdayStr || 'سه‌شنبه'}
             </span>
           </div>
 
-          {/* Col 2: Persian & Gregorian Date */}
-          <div className="flex flex-col items-center justify-center border-l border-slate-200/80 px-1.5 min-w-0" dir="ltr">
-            <div className="flex items-center justify-center gap-1">
-              <Calendar size={12} className="text-emerald-500 shrink-0" />
-              <span className="text-xs sm:text-sm font-black text-slate-800 tabular-nums tracking-tight">
-                {toPersianDigits(currentDateStr)}
-              </span>
-            </div>
-            <span className="text-[9.5px] sm:text-[10px] font-bold text-slate-400 tabular-nums tracking-wider mt-0.5">
+          {/* Col 2: Persian & Gregorian Date (Strictly Centered & Equal Size on Mobile & Desktop) */}
+          <div className="flex flex-col items-center justify-center border-l border-slate-200/80 px-1.5 md:px-3 min-w-0 text-center" dir="ltr">
+            <span className="text-xs sm:text-sm md:text-base lg:text-lg font-black text-slate-800 tabular-nums tracking-tight text-center leading-tight w-full">
+              {toPersianDigits(currentDateStr)}
+            </span>
+            <div className="w-10 md:w-16 h-px bg-slate-200/90 my-1"></div>
+            <span className="text-xs sm:text-sm md:text-base lg:text-lg font-black text-slate-600 tabular-nums tracking-tight text-center leading-tight w-full">
               {currentGregorianDateStr}
             </span>
           </div>
 
           {/* Col 3: Live Clock */}
-          <div className="flex flex-col items-center justify-center pr-1.5 min-w-0">
-            <span className="text-[10px] font-bold text-slate-400 mb-0.5">ساعت</span>
-            <div className="flex items-center justify-center gap-1" dir="ltr">
-              <Clock size={12} className="text-blue-500 shrink-0" />
-              <span className="text-xs sm:text-sm font-black text-slate-800 tabular-nums">
-                {toPersianDigits(currentTimeStr)}
-              </span>
-            </div>
+          <div className="flex flex-col items-center justify-center pr-1.5 md:pr-3 min-w-0 text-center">
+            <span className="text-[10px] md:text-xs font-bold text-slate-400 mb-0.5 md:mb-1">ساعت</span>
+            <span className="text-sm sm:text-base md:text-xl lg:text-2xl font-black text-slate-800 tabular-nums text-center w-full" dir="ltr">
+              {toPersianDigits(currentTimeStr)}
+            </span>
           </div>
         </div>
       </div>
