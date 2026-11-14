@@ -307,7 +307,7 @@ export const DailyProcessModal: React.FC<DailyProcessModalProps> = ({
   const handleSubmitForm = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formState.title?.trim()) {
-      alert('لطفاً عنوان پروسه را وارد کنید.');
+      showToast('لطفاً عنوان پروسه را وارد کنید.');
       return;
     }
 

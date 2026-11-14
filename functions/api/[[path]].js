@@ -99,6 +99,32 @@ async function writeToFirestore(data, merge = true) {
   }
 }
 
+function nextMonotonicTimestamp(...existingIsos) {
+  let maxMs = Date.now();
+  for (const iso of existingIsos) {
+    if (iso && typeof iso === 'string') {
+      const parsed = Date.parse(iso);
+      if (Number.isFinite(parsed) && parsed >= maxMs) {
+        maxMs = parsed + 1;
+      }
+    }
+  }
+  return new Date(maxMs).toISOString();
+}
+
+function getSchedHash(sched) {
+  if (!Array.isArray(sched) || sched.length === 0) return 'empty';
+  const str = sched
+    .map((s) => `${s.date}:${s.dayShiftPerson || ''}:${s.nightShiftPerson || ''}:${s.onCallPerson || ''}:${(s.extraDayPersons || []).join(',')}:${(s.extraNightPersons || []).join(',')}`)
+    .join('|');
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0).toString(16).padStart(8, '0');
+}
+
 export async function onRequest(context) {
   const { request } = context;
   const url = new URL(request.url);
@@ -143,7 +169,7 @@ export async function onRequest(context) {
       } catch {}
     }
     return new Response(
-      `data: ${JSON.stringify({ type: 'init', data: memoryCache, version: 1 })}\n\n`,
+      `data: ${JSON.stringify({ type: 'init', data: memoryCache, version: memoryCache?._version || 1 })}\n\n`,
       {
         status: 200,
         headers: {
@@ -171,9 +197,10 @@ export async function onRequest(context) {
 
     if (memoryCache) {
       const updatedAt = memoryCache.updatedAt || '';
+      const ver = typeof memoryCache._version === 'number' ? memoryCache._version : 1;
       if (clientSince && updatedAt && updatedAt === clientSince) {
         return new Response(
-          JSON.stringify({ exists: true, modified: false, version: 1, updatedAt }),
+          JSON.stringify({ exists: true, modified: false, version: ver, updatedAt }),
           { status: 200, headers: cors }
         );
       }
@@ -181,7 +208,7 @@ export async function onRequest(context) {
         JSON.stringify({
           exists: true,
           modified: true,
-          version: 1,
+          version: ver,
           updatedAt,
           data: memoryCache,
         }),
@@ -202,7 +229,7 @@ export async function onRequest(context) {
     } catch {}
 
     const incoming = (body && body.data) || body || {};
-    const now = new Date().toISOString();
+    const clientId = (body && body.clientId) || incoming?._originClientId;
 
     let baseState = memoryCache;
     if (!isReset && (!baseState || !Array.isArray(baseState.schedule))) {
@@ -212,9 +239,51 @@ export async function onRequest(context) {
       } catch {}
     }
 
+    if (
+      !isReset &&
+      !(body && body.forceOverwrite) &&
+      baseState?.updatedAt &&
+      incoming?._baseUpdatedAt &&
+      typeof incoming._baseUpdatedAt === 'string' &&
+      clientId &&
+      baseState._originClientId &&
+      clientId !== baseState._originClientId &&
+      Array.isArray(incoming.schedule) &&
+      getSchedHash(incoming.schedule) !== getSchedHash(baseState.schedule)
+    ) {
+      const currentMs = Date.parse(baseState.updatedAt);
+      const baseMs = Date.parse(incoming._baseUpdatedAt);
+      if (Number.isFinite(currentMs) && Number.isFinite(baseMs) && currentMs - baseMs > 30000) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'stale_conflict',
+            updatedAt: baseState.updatedAt,
+            data: baseState,
+          }),
+          { status: 409, headers: cors }
+        );
+      }
+    }
+
+    const now = nextMonotonicTimestamp(baseState?.updatedAt, incoming?.updatedAt);
+    const nextVersion =
+      Math.max(
+        typeof baseState?._version === 'number' ? baseState._version : 0,
+        typeof incoming?._version === 'number' ? incoming._version : 0
+      ) + 1;
+    const nextRevision =
+      Math.max(
+        typeof baseState?._revision === 'number' ? baseState._revision : 0,
+        typeof incoming?._revision === 'number' ? incoming._revision : 0
+      ) + 1;
+
     const firestorePatch = {
       ...incoming,
       updatedAt: now,
+      _version: nextVersion,
+      _revision: nextRevision,
+      ...(clientId ? { _originClientId: clientId } : {}),
     };
     const payload = {
       ...(isReset ? {} : baseState || {}),
@@ -236,7 +305,13 @@ export async function onRequest(context) {
     }
 
     return new Response(
-      JSON.stringify({ success: true, version: 1, updatedAt: now, data: payload }),
+      JSON.stringify({
+        success: true,
+        version: nextVersion,
+        updatedAt: now,
+        firestorePersisted: true,
+        data: payload,
+      }),
       { status: 200, headers: cors }
     );
   }

@@ -130,7 +130,7 @@ export const DataManagement: React.FC<DataManagementProps> = ({
     const trimmed = newTemplateName.trim();
     if (!trimmed || !availableProcessTemplates || !onUpdateProcessTemplates) return;
     if (availableProcessTemplates.includes(trimmed)) {
-      alert('این پروسه قبلاً تعریف شده است.');
+      setStatusMessage({ type: 'error', text: 'این پروسه قبلاً تعریف شده است.' });
       return;
     }
     onUpdateProcessTemplates([...availableProcessTemplates, trimmed]);
@@ -146,7 +146,7 @@ export const DataManagement: React.FC<DataManagementProps> = ({
     const trimmed = newVesselName.trim();
     if (!trimmed || !availableVessels || !onUpdateVessels) return;
     if (availableVessels.includes(trimmed)) {
-      alert('این وسل قبلاً تعریف شده است.');
+      setStatusMessage({ type: 'error', text: 'این وسل قبلاً تعریف شده است.' });
       return;
     }
     onUpdateVessels([...availableVessels, trimmed]);
@@ -162,7 +162,7 @@ export const DataManagement: React.FC<DataManagementProps> = ({
     const trimmed = newStrainName.trim();
     if (!trimmed || !availableStrains || !onUpdateStrains) return;
     if (availableStrains.includes(trimmed)) {
-      alert('این سویه قبلاً تعریف شده است.');
+      setStatusMessage({ type: 'error', text: 'این سویه قبلاً تعریف شده است.' });
       return;
     }
     onUpdateStrains([...availableStrains, trimmed]);
@@ -307,7 +307,7 @@ export const DataManagement: React.FC<DataManagementProps> = ({
   const handleExportExcelFormat = () => {
     try {
       if (exportTargetSchedule.length === 0) {
-        alert('هیچ شیفتی در این بازه برای خروجی اکسل یافت نشد.');
+        setStatusMessage({ type: 'error', text: 'هیچ شیفتی در این بازه برای خروجی اکسل یافت نشد.' });
         return;
       }
 
@@ -450,10 +450,10 @@ export const DataManagement: React.FC<DataManagementProps> = ({
         if (json.schedule && json.personnel) {
           stageData(json.schedule, json.personnel, file.name);
         } else {
-          alert('فرمت فایل نامعتبر است.');
+          setStatusMessage({ type: 'error', text: 'فرمت فایل نامعتبر است.' });
         }
       } catch (err) {
-        alert('خطا در خواندن فایل.');
+        setStatusMessage({ type: 'error', text: 'خطا در خواندن فایل.' });
         console.error(err);
       }
       if (fileInputRef.current) fileInputRef.current.value = '';

@@ -69,8 +69,13 @@ export interface CloudRosterState {
   showProcessSchedule?: boolean;
   updatedAt: string;
   _version?: number;
+  _revision?: number;
+  _baseUpdatedAt?: string;
+  _clientBuild?: string;
   _originClientId?: string;
 }
+
+const CLIENT_BUILD_ID = 'shiftflow-v2.1';
 
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
@@ -78,7 +83,22 @@ const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 export const db: Firestore = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 
 let isDirectFirestoreUsable = true;
+let isDirectFirestoreBlockedUntilMs = 0;
 let isFirestoreQuotaExhausted = false;
+
+function isDirectFirestoreTemporarilyBlocked(): boolean {
+  return Date.now() < isDirectFirestoreBlockedUntilMs;
+}
+
+function markDirectFirestoreBlocked() {
+  isDirectFirestoreUsable = false;
+  isDirectFirestoreBlockedUntilMs = Date.now() + 90000; // Re-probe direct Firestore after 90s
+}
+
+function markDirectFirestoreHealthy() {
+  isDirectFirestoreUsable = true;
+  isDirectFirestoreBlockedUntilMs = 0;
+}
 
 export function isQuotaLimitReached(): boolean {
   return isFirestoreQuotaExhausted;
@@ -157,11 +177,12 @@ export function getScheduleFingerprint(schedule?: ShiftEntry[]): string {
     .join('|');
 }
 
-// Per-instance in-memory fingerprint of the currently applied schedule
+// Per-instance in-memory state of the currently applied schedule & revision
 let currentInstanceScheduleFingerprint = '';
 let lastLocalMutationTimeMs = 0;
 let lastLocalMutationUpdatedAt = '';
 let lastKnownCloudUpdatedAt = '';
+let lastKnownRevision = 0;
 let activePendingMutations = 0;
 let lastLocalSaveFailed = false;
 let writeQueuePromise: Promise<void> = Promise.resolve();
@@ -299,7 +320,7 @@ function encodeFirestoreRestValue(val: any): any {
   return { stringValue: String(val) };
 }
 
-async function fetchFirestoreDocREST(timeoutMs = 7000): Promise<CloudRosterState | null> {
+async function fetchFirestoreDocREST(timeoutMs = 4000): Promise<CloudRosterState | null> {
   if (isFirestoreQuotaExhausted) return null;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -316,6 +337,7 @@ async function fetchFirestoreDocREST(timeoutMs = 7000): Promise<CloudRosterState
       return null;
     }
     if (res.status === 404) {
+      markDirectFirestoreHealthy();
       return null;
     }
     if (!res.ok) {
@@ -327,9 +349,12 @@ async function fetchFirestoreDocREST(timeoutMs = 7000): Promise<CloudRosterState
     for (const [k, v] of Object.entries(docJson.fields)) {
       decoded[k] = decodeFirestoreRestValue(v);
     }
-    isDirectFirestoreUsable = true;
+    markDirectFirestoreHealthy();
     updateSyncDetails({ firestoreConnected: true });
     return decoded as CloudRosterState;
+  } catch (err) {
+    markDirectFirestoreBlocked();
+    throw err;
   } finally {
     clearTimeout(timer);
   }
@@ -338,7 +363,7 @@ async function fetchFirestoreDocREST(timeoutMs = 7000): Promise<CloudRosterState
 async function writeFirestoreDocREST(data: Record<string, any>, merge = true): Promise<boolean> {
   if (isFirestoreQuotaExhausted) return false;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 8000);
+  const timer = setTimeout(() => controller.abort(), 4500);
   try {
     const fields: Record<string, any> = {};
     for (const [k, v] of Object.entries(data)) {
@@ -368,12 +393,15 @@ async function writeFirestoreDocREST(data: Record<string, any>, merge = true): P
     if (!res.ok) {
       throw new Error(`Firestore REST PATCH failed with ${res.status}`);
     }
-    isDirectFirestoreUsable = true;
+    markDirectFirestoreHealthy();
     updateSyncDetails({
       firestoreConnected: true,
       lastSyncTime: new Date().toLocaleTimeString('fa-IR'),
     });
     return true;
+  } catch (err) {
+    markDirectFirestoreBlocked();
+    throw err;
   } finally {
     clearTimeout(timer);
   }
@@ -551,6 +579,7 @@ export function subscribeToCloudRoster(
     const incomingFp = getScheduleFingerprint(data.schedule);
     const incomingMeta = getMetaHash(data);
     const incomingVersion = typeof data._version === 'number' ? data._version : 0;
+    const incomingRevision = typeof data._revision === 'number' ? data._revision : 0;
 
     // Never allow an older or equal-to-mutation snapshot to revert newer local/cloud state
     if (
@@ -558,6 +587,17 @@ export function subscribeToCloudRoster(
       data.updatedAt &&
       lastKnownCloudUpdatedAt &&
       data.updatedAt < lastKnownCloudUpdatedAt
+    ) {
+      return;
+    }
+
+    // Never allow a lower revision from an identical-or-older timestamp to overwrite a newer revision
+    if (
+      source !== 'broadcast' &&
+      lastKnownRevision > 0 &&
+      incomingRevision > 0 &&
+      incomingRevision < lastKnownRevision &&
+      (!data.updatedAt || !lastKnownCloudUpdatedAt || data.updatedAt <= lastKnownCloudUpdatedAt)
     ) {
       return;
     }
@@ -573,11 +613,11 @@ export function subscribeToCloudRoster(
       return;
     }
 
-    // Protect recent local mutations for 15s against stale edge-cache reads (e.g. Worker TTL) unless strictly newer from another client
+    // Protect recent local mutations for 20s against stale edge-cache reads (e.g. Worker TTL) unless strictly newer from another client
     if (
       source !== 'broadcast' &&
       lastLocalMutationTimeMs > 0 &&
-      Date.now() - lastLocalMutationTimeMs < 15000 &&
+      Date.now() - lastLocalMutationTimeMs < 20000 &&
       (!data.updatedAt || !lastLocalMutationUpdatedAt || data.updatedAt <= lastLocalMutationUpdatedAt)
     ) {
       return;
@@ -604,8 +644,9 @@ export function subscribeToCloudRoster(
       Boolean(incomingFp) && incomingFp !== currentInstanceScheduleFingerprint;
     const isMetaChanged = incomingMeta !== lastAppliedMetaHash;
     const isNewerVersion = incomingVersion > 0 && incomingVersion > lastAppliedVersion;
+    const isNewerRevision = incomingRevision > 0 && incomingRevision > lastKnownRevision;
 
-    if (hasReceivedAnyData && !isScheduleChanged && !isMetaChanged && !isNewerVersion) {
+    if (hasReceivedAnyData && !isScheduleChanged && !isMetaChanged && !isNewerVersion && !isNewerRevision) {
       return;
     }
 
@@ -615,6 +656,9 @@ export function subscribeToCloudRoster(
     lastAppliedMetaHash = incomingMeta;
     if (incomingVersion > lastAppliedVersion) {
       lastAppliedVersion = incomingVersion;
+    }
+    if (incomingRevision > lastKnownRevision) {
+      lastKnownRevision = incomingRevision;
     }
     if (data.updatedAt && (!lastKnownCloudUpdatedAt || data.updatedAt > lastKnownCloudUpdatedAt)) {
       lastKnownCloudUpdatedAt = data.updatedAt;
@@ -690,11 +734,35 @@ export function subscribeToCloudRoster(
     return null;
   };
 
-  // 1. Parallel Freshness-First Fetch across Local Server, Worker Relay & Firestore REST (picks newest updatedAt)
-  const fetchFromEndpoints = async (checkAllSources = true): Promise<{ result: any; source: 'server' | 'firestore' }> => {
-    type Candidate = { result: any; source: 'server' | 'firestore'; updatedAt: string; version: number };
+  // 1. Progressive Parallel Freshness-First Fetch across Local Server, Worker Relay & Firestore REST
+  // Delivers the first reachable response immediately (so Iran users never wait 6s on blocked Firestore),
+  // then upgrades seamlessly if another endpoint resolves later with a newer updatedAt/_revision.
+  const fetchFromEndpoints = async (
+    checkAllSources = true,
+    onProgressiveCandidate?: (result: any, source: 'server' | 'firestore') => void
+  ): Promise<{ result: any; source: 'server' | 'firestore' }> => {
+    type Candidate = {
+      result: any;
+      source: 'server' | 'firestore';
+      updatedAt: string;
+      revision: number;
+      version: number;
+    };
     const tasks: Promise<Candidate | null>[] = [];
     let sawExplicitEmpty = false;
+    let bestProgressiveUpdatedAt = '';
+
+    const emitCandidate = (cand: Candidate | null) => {
+      if (!cand) return cand;
+      if (
+        onProgressiveCandidate &&
+        (!bestProgressiveUpdatedAt || cand.updatedAt >= bestProgressiveUpdatedAt)
+      ) {
+        bestProgressiveUpdatedAt = cand.updatedAt || bestProgressiveUpdatedAt;
+        onProgressiveCandidate(cand.result, cand.source);
+      }
+      return cand;
+    };
 
     const wrapServerFetch = async (base: string): Promise<Candidate | null> => {
       const json = await tryServerSyncGet(base);
@@ -704,12 +772,13 @@ export function subscribeToCloudRoster(
         return null;
       }
       if (json.exists && json.data) {
-        return {
+        return emitCandidate({
           result: json,
           source: 'server',
           updatedAt: json.updatedAt || json.data?.updatedAt || '',
+          revision: typeof json.data?._revision === 'number' ? json.data._revision : 0,
           version: typeof json.version === 'number' ? json.version : (json.data?._version || 0),
-        };
+        });
       }
       return null;
     };
@@ -728,15 +797,20 @@ export function subscribeToCloudRoster(
       }
     }
 
-    if (!isFirestoreQuotaExhausted && (checkAllSources || !currentSyncDetails.serverConnected)) {
+    const shouldProbeDirectFirestore =
+      !isFirestoreQuotaExhausted &&
+      (!isDirectFirestoreTemporarilyBlocked() || tasks.length === 0) &&
+      (checkAllSources || !currentSyncDetails.serverConnected);
+
+    if (shouldProbeDirectFirestore) {
       tasks.push(
-        fetchFirestoreDocREST(6000)
+        fetchFirestoreDocREST(4000)
           .then((restData): Candidate | null => {
             if (!restData) {
               sawExplicitEmpty = true;
               return null;
             }
-            return {
+            return emitCandidate({
               result: {
                 exists: true,
                 modified: true,
@@ -745,8 +819,9 @@ export function subscribeToCloudRoster(
               },
               source: 'firestore',
               updatedAt: restData.updatedAt || '',
+              revision: typeof restData._revision === 'number' ? restData._revision : 0,
               version: typeof restData._version === 'number' ? restData._version : 0,
-            };
+            });
           })
           .catch(() => null)
       );
@@ -770,6 +845,9 @@ export function subscribeToCloudRoster(
         if (a.updatedAt !== b.updatedAt) {
           return b.updatedAt.localeCompare(a.updatedAt);
         }
+        if (a.revision !== b.revision) {
+          return b.revision - a.revision;
+        }
         return b.version - a.version;
       });
       const best = validCandidates[0];
@@ -781,16 +859,16 @@ export function subscribeToCloudRoster(
     }
 
     // Firestore SDK getDocFromServer fallback if REST & relay failed
-    if (!isFirestoreQuotaExhausted) {
+    if (!isFirestoreQuotaExhausted && !isDirectFirestoreTemporarilyBlocked()) {
       try {
         const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Firestore fetch timeout')), 6000)
+          setTimeout(() => reject(new Error('Firestore fetch timeout')), 4500)
         );
         const snap = await Promise.race([
           getDocFromServer(doc(db, ROSTER_DOC_PATH, ROSTER_DOC_ID)),
           timeoutPromise,
         ]);
-        isDirectFirestoreUsable = true;
+        markDirectFirestoreHealthy();
         updateSyncDetails({ firestoreConnected: true });
         if (snap.exists()) {
           const cloudData = snap.data() as CloudRosterState;
@@ -821,11 +899,13 @@ export function subscribeToCloudRoster(
         ) {
           isFirestoreQuotaExhausted = true;
           updateSyncDetails({ isQuotaExhausted: true, firestoreConnected: false });
+        } else {
+          markDirectFirestoreBlocked();
         }
       }
     }
 
-    if (sawExplicitEmpty) {
+    if (sawExplicitEmpty && !anyServerOk) {
       return { result: { exists: false, data: null }, source: 'firestore' };
     }
 
@@ -835,11 +915,16 @@ export function subscribeToCloudRoster(
   const doFetchInitial = (attempt = 1) => {
     if (isCancelled) return;
     const reqStartedAt = Date.now();
-    fetchFromEndpoints(true)
+    fetchFromEndpoints(true, (resData, source) => {
+      if (isCancelled || lastLocalMutationTimeMs > reqStartedAt) return;
+      if (resData && resData.exists && resData.data) {
+        handleIncomingData(resData.data, source, resData.data._originClientId);
+      }
+    })
       .then(({ result: resData, source }) => {
         if (isCancelled || lastLocalMutationTimeMs > reqStartedAt) return;
         if (resData && resData.exists && resData.data) {
-          handleIncomingData(resData.data, source);
+          handleIncomingData(resData.data, source, resData.data._originClientId);
         } else if (resData && !resData.exists) {
           if (!hasReceivedAnyData && onInitialEmpty) {
             onInitialEmpty();
@@ -1141,6 +1226,9 @@ export async function fetchLatestCloudRosterNow(): Promise<CloudRosterState | nu
     if (best.updatedAt && (!lastKnownCloudUpdatedAt || best.updatedAt > lastKnownCloudUpdatedAt)) {
       lastKnownCloudUpdatedAt = best.updatedAt;
     }
+    if (typeof best._revision === 'number' && best._revision > lastKnownRevision) {
+      lastKnownRevision = best._revision;
+    }
     lastLocalSaveFailed = false;
     updateSyncDetails({ hasUnsavedChanges: false });
     return best;
@@ -1151,6 +1239,7 @@ export async function fetchLatestCloudRosterNow(): Promise<CloudRosterState | nu
       const snap = await getDocFromServer(doc(db, ROSTER_DOC_PATH, ROSTER_DOC_ID));
       if (snap.exists()) {
         const cloudData = snap.data() as CloudRosterState;
+        markDirectFirestoreHealthy();
         updateSyncDetails({
           firestoreConnected: true,
           lastSyncTime: new Date().toLocaleTimeString('fa-IR'),
@@ -1159,6 +1248,9 @@ export async function fetchLatestCloudRosterNow(): Promise<CloudRosterState | nu
         });
         if (cloudData.updatedAt && (!lastKnownCloudUpdatedAt || cloudData.updatedAt > lastKnownCloudUpdatedAt)) {
           lastKnownCloudUpdatedAt = cloudData.updatedAt;
+        }
+        if (typeof cloudData._revision === 'number' && cloudData._revision > lastKnownRevision) {
+          lastKnownRevision = cloudData._revision;
         }
         lastLocalSaveFailed = false;
         return cloudData;
@@ -1185,15 +1277,18 @@ function cleanFirestoreData<T>(obj: T): T {
 /**
  * Saves or updates roster data with serialized Dual Sync across BOTH Web Browser and Native Android App:
  * 1. Serializes writes via writeQueuePromise so rapid edits cannot overwrite each other out of order.
- * 2. Uses monotonic timestamps immune to device clock skew.
- * 3. Awaits ALL active remote channels (Firestore REST/SDK + Server + Relay Worker) via Promise.allSettled
- *    and verifies genuine durable commit before reporting success.
+ * 2. Uses monotonic timestamps & revisions immune to device clock skew and stale-tab overwrites.
+ * 3. Uses local server or relay/Firestore commit confirmation without stalling 14s when direct Firestore is blocked in Iran.
  */
 export async function saveCloudRoster(data: Partial<CloudRosterState>): Promise<void> {
+  const baseUpdatedAt = lastKnownCloudUpdatedAt || undefined;
   const now = nextMonotonicTimestamp(lastKnownCloudUpdatedAt, lastLocalMutationUpdatedAt);
+  const nextRevision = lastKnownRevision + 1;
+
   lastLocalMutationTimeMs = Date.now();
   lastLocalMutationUpdatedAt = now;
   lastKnownCloudUpdatedAt = now;
+  lastKnownRevision = nextRevision;
 
   if (data.schedule && Array.isArray(data.schedule)) {
     setLocalScheduleFingerprint(data.schedule);
@@ -1202,6 +1297,9 @@ export async function saveCloudRoster(data: Partial<CloudRosterState>): Promise<
   const payload = cleanFirestoreData({
     ...data,
     updatedAt: now,
+    _revision: nextRevision,
+    ...(baseUpdatedAt ? { _baseUpdatedAt: baseUpdatedAt } : {}),
+    _clientBuild: CLIENT_BUILD_ID,
     _originClientId: CLIENT_ID,
   });
 
@@ -1219,13 +1317,38 @@ export async function saveCloudRoster(data: Partial<CloudRosterState>): Promise<
     lastLocalMutationTimeMs = Date.now();
 
     try {
-      // 1. Direct Firestore Write (prefer direct HTTP REST PATCH for genuine 200 confirmation, with SDK fallback)
+      const isAndroid = isStandaloneAndroidRuntime();
+      const isStaticHost = isStaticHostingOrigin();
+      const isPagesHost = isCloudflarePagesOrigin();
+      const customUrl = getCustomServerUrl();
+      const hasLocalServer = !isAndroid && !isStaticHost && !deadEndpointUrls.has('__local__');
+      const targetUrls: string[] = [];
+
+      if (isAndroid) {
+        targetUrls.push(...getActiveServerUrls().map((base) => `${base}/api/sync`));
+      } else {
+        if (hasLocalServer) {
+          targetUrls.push('/api/sync');
+        }
+        if (
+          customUrl &&
+          !deadEndpointUrls.has(customUrl) &&
+          (!isPagesHost || deadEndpointUrls.has('__local__') || customUrl !== DEFAULT_VERCEL_SYNC_URL)
+        ) {
+          targetUrls.push(`${customUrl}/api/sync`);
+        }
+      }
+
+      // 1. Direct Firestore Write (fast 4.5s timeout; skipped if blocked recently AND server/relay channels exist)
       const writeToFirestore = async (): Promise<boolean> => {
         if (isFirestoreQuotaExhausted) return false;
+        if (isDirectFirestoreTemporarilyBlocked() && targetUrls.length > 0) {
+          return false;
+        }
         try {
           const restOk = await writeFirestoreDocREST(payload, true);
           if (restOk) {
-            isDirectFirestoreUsable = true;
+            markDirectFirestoreHealthy();
             updateSyncDetails({
               firestoreConnected: true,
               lastSyncTime: new Date().toLocaleTimeString('fa-IR'),
@@ -1233,17 +1356,24 @@ export async function saveCloudRoster(data: Partial<CloudRosterState>): Promise<
             });
             return true;
           }
-        } catch {}
+        } catch {
+          // If direct REST timed out/failed and we have relay/server endpoints, avoid stalling another 6.5s on SDK
+          if (targetUrls.length > 0) {
+            return false;
+          }
+        }
 
-        if (isFirestoreQuotaExhausted) return false;
+        if (isFirestoreQuotaExhausted || (isDirectFirestoreTemporarilyBlocked() && targetUrls.length > 0)) {
+          return false;
+        }
         try {
           await Promise.race([
             setDoc(doc(db, ROSTER_DOC_PATH, ROSTER_DOC_ID), payload, { merge: true }),
             new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error('Firestore SDK write timeout')), 6500)
+              setTimeout(() => reject(new Error('Firestore SDK write timeout')), 4500)
             ),
           ]);
-          isDirectFirestoreUsable = true;
+          markDirectFirestoreHealthy();
           updateSyncDetails({
             firestoreConnected: true,
             lastSyncTime: new Date().toLocaleTimeString('fa-IR'),
@@ -1263,37 +1393,19 @@ export async function saveCloudRoster(data: Partial<CloudRosterState>): Promise<
           ) {
             isFirestoreQuotaExhausted = true;
             updateSyncDetails({ isQuotaExhausted: true, firestoreConnected: false });
+          } else {
+            markDirectFirestoreBlocked();
           }
           return false;
         }
       };
 
-      // 2. Direct Server & Relay POST endpoints
-      const isAndroid = isStandaloneAndroidRuntime();
-      const isStaticHost = isStaticHostingOrigin();
-      const isPagesHost = isCloudflarePagesOrigin();
-      const customUrl = getCustomServerUrl();
-      const targetUrls: string[] = [];
-
-      if (isAndroid) {
-        targetUrls.push(...getActiveServerUrls().map((base) => `${base}/api/sync`));
-      } else {
-        if (!isStaticHost && !deadEndpointUrls.has('__local__')) {
-          targetUrls.push('/api/sync');
-        }
-        if (
-          customUrl &&
-          !deadEndpointUrls.has(customUrl) &&
-          (!isPagesHost || deadEndpointUrls.has('__local__') || customUrl !== DEFAULT_VERCEL_SYNC_URL)
-        ) {
-          targetUrls.push(`${customUrl}/api/sync`);
-        }
-      }
-
-      const postToServer = async (url: string): Promise<{ isLocal: boolean; ok: boolean; firestorePersisted?: boolean }> => {
+      const postToServer = async (
+        url: string
+      ): Promise<{ isLocal: boolean; ok: boolean; conflict?: boolean; firestorePersisted?: boolean }> => {
         const isLocal = url === '/api/sync';
         const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 9000);
+        const timer = setTimeout(() => controller.abort(), 8000);
         try {
           const r = await fetch(url, {
             method: 'POST',
@@ -1305,6 +1417,18 @@ export async function saveCloudRoster(data: Partial<CloudRosterState>): Promise<
             const base = url.replace(/\/api\/sync$/, '') || '__local__';
             deadEndpointUrls.add(base);
             return { isLocal, ok: false };
+          }
+          if (r.status === 409) {
+            try {
+              const conflictJson = await r.json();
+              if (conflictJson?.updatedAt && (!lastKnownCloudUpdatedAt || conflictJson.updatedAt > lastKnownCloudUpdatedAt)) {
+                lastKnownCloudUpdatedAt = conflictJson.updatedAt;
+              }
+              if (typeof conflictJson?.data?._revision === 'number' && conflictJson.data._revision > lastKnownRevision) {
+                lastKnownRevision = conflictJson.data._revision;
+              }
+            } catch {}
+            return { isLocal, ok: false, conflict: true };
           }
           if (!r.ok) {
             return { isLocal, ok: false };
@@ -1323,6 +1447,9 @@ export async function saveCloudRoster(data: Partial<CloudRosterState>): Promise<
               } catch {}
             }
           }
+          if (typeof json?.data?._revision === 'number' && json.data._revision > lastKnownRevision) {
+            lastKnownRevision = json.data._revision;
+          }
           updateSyncDetails({
             serverConnected: true,
             lastSyncTime: new Date().toLocaleTimeString('fa-IR'),
@@ -1340,26 +1467,91 @@ export async function saveCloudRoster(data: Partial<CloudRosterState>): Promise<
         }
       };
 
-      const [firestoreOk, ...serverResults] = await Promise.all([
-        writeToFirestore(),
-        ...targetUrls.map(postToServer),
-      ]);
+      // Launch direct Firestore + server/relay writes; resolve promptly once durable cloud persistence is confirmed
+      const firestorePromise = writeToFirestore();
+      const serverPromises = targetUrls.map(postToServer);
 
+      const durableConfirmation = new Promise<{
+        firestoreOk: boolean;
+        serverResults: Array<{ isLocal: boolean; ok: boolean; conflict?: boolean; firestorePersisted?: boolean }>;
+      }>((resolve) => {
+        let settledCount = 0;
+        const total = 1 + serverPromises.length;
+        let resolved = false;
+        let fsOk = false;
+        const srvRes: Array<{ isLocal: boolean; ok: boolean; conflict?: boolean; firestorePersisted?: boolean }> = [];
+
+        const tryFinish = () => {
+          if (resolved) return;
+          const anyConflict = srvRes.some((s) => s.conflict);
+          if (anyConflict) {
+            resolved = true;
+            resolve({ firestoreOk: false, serverResults: srvRes });
+            return;
+          }
+          const remoteRelayOk = srvRes.some((s) => !s.isLocal && s.ok);
+          const localServerCloudOk = srvRes.some(
+            (s) => s.isLocal && s.ok && (s.firestorePersisted === true || isFirestoreQuotaExhausted)
+          );
+          const allServersSettled = srvRes.length >= serverPromises.length;
+          if (
+            fsOk ||
+            (localServerCloudOk && (remoteRelayOk || allServersSettled)) ||
+            (!hasLocalServer && remoteRelayOk) ||
+            settledCount >= total
+          ) {
+            resolved = true;
+            resolve({ firestoreOk: fsOk, serverResults: srvRes });
+          }
+        };
+
+        firestorePromise
+          .then((ok) => {
+            fsOk = ok;
+            settledCount++;
+            tryFinish();
+          })
+          .catch(() => {
+            settledCount++;
+            tryFinish();
+          });
+
+        serverPromises.forEach((p) =>
+          p
+            .then((res) => {
+              srvRes.push(res);
+              settledCount++;
+              tryFinish();
+            })
+            .catch(() => {
+              srvRes.push({ isLocal: false, ok: false });
+              settledCount++;
+              tryFinish();
+            })
+        );
+      });
+
+      const { firestoreOk, serverResults } = await durableConfirmation;
       lastLocalMutationTimeMs = Date.now();
 
+      const hasConflict = serverResults.some((s) => s.conflict);
       const remoteRelayOk = serverResults.some((s) => !s.isLocal && s.ok);
       const localServerWithCloudOk = serverResults.some(
         (s) => s.isLocal && s.ok && (s.firestorePersisted === true || isFirestoreQuotaExhausted)
       );
       const anyServerOk = serverResults.some((s) => s.ok);
 
-      if (!firestoreOk && !remoteRelayOk && !localServerWithCloudOk) {
+      if (hasConflict || (!firestoreOk && !remoteRelayOk && !localServerWithCloudOk)) {
         lastLocalSaveFailed = true;
         updateSyncDetails({
           hasUnsavedChanges: true,
-          ...(!anyServerOk ? { serverConnected: false, firestoreConnected: false, channel: 'offline' } : {}),
+          ...(!anyServerOk && !hasConflict ? { serverConnected: false, firestoreConnected: false, channel: 'offline' } : {}),
         });
-        throw new Error('Cloud persistence did not complete across remote endpoints');
+        throw new Error(
+          hasConflict
+            ? 'Stale client conflict rejected by server'
+            : 'Cloud persistence did not complete across remote endpoints'
+        );
       }
 
       lastLocalSaveFailed = false;

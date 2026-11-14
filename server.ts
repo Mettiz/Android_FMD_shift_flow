@@ -114,10 +114,47 @@ async function startServer() {
     fs.mkdirSync(dataDir, { recursive: true });
   }
   const dataFilePath = path.join(dataDir, 'roster-state.json');
+  const auditLogPath = path.join(dataDir, 'sync-audit.log');
+
+  function getSchedHash(sched: any): string {
+    if (!Array.isArray(sched) || sched.length === 0) return 'empty';
+    const str = sched
+      .map((s: any) => `${s.date}:${s.dayShiftPerson || ''}:${s.nightShiftPerson || ''}:${s.onCallPerson || ''}:${(s.extraDayPersons || []).join(',')}:${(s.extraNightPersons || []).join(',')}`)
+      .join('|');
+    let h = 2166136261;
+    for (let i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return (h >>> 0).toString(16).padStart(8, '0');
+  }
+
+  let syncAuditHistory: any[] = [];
+  try {
+    if (fs.existsSync(auditLogPath)) {
+      const lines = fs.readFileSync(auditLogPath, 'utf-8').trim().split('\n').filter(Boolean);
+      syncAuditHistory = lines.slice(-100).map((l) => {
+        try { return JSON.parse(l); } catch { return null; }
+      }).filter(Boolean);
+    }
+  } catch {}
+
+  function recordSyncAudit(entry: Record<string, any>) {
+    const rec = { ts: new Date().toISOString(), ...entry };
+    syncAuditHistory.push(rec);
+    if (syncAuditHistory.length > 100) {
+      syncAuditHistory = syncAuditHistory.slice(-100);
+    }
+    try {
+      const payload = syncAuditHistory.map((x) => JSON.stringify(x)).join('\n') + '\n';
+      fs.promises.writeFile(auditLogPath, payload, 'utf-8').catch(() => {});
+    } catch {}
+  }
 
   // In-memory state and SSE connection pool
   let currentState: any = null;
   let stateVersion = 1;
+  let stateRevision = 0;
   let sseClients: express.Response[] = [];
   let isFirestoreConnected = false;
 
@@ -139,7 +176,8 @@ async function startServer() {
       const raw = fs.readFileSync(dataFilePath, 'utf-8');
       currentState = JSON.parse(raw);
       stateVersion = currentState._version || 1;
-      console.log(`[SyncServer] Loaded local roster state cache (version ${stateVersion}, updatedAt ${currentState.updatedAt})`);
+      stateRevision = typeof currentState._revision === 'number' ? currentState._revision : 0;
+      console.log(`[SyncServer] Loaded local roster state cache (version ${stateVersion}, rev ${stateRevision}, updatedAt ${currentState.updatedAt})`);
     }
   } catch (err) {
     console.error('[SyncServer] Could not read local roster state file:', err);
@@ -309,7 +347,8 @@ async function startServer() {
 
             if (!currentState || (cloudUpdatedAt && localUpdatedAt ? cloudUpdatedAt > localUpdatedAt : Boolean(cloudUpdatedAt))) {
               stateVersion = Math.max(stateVersion, typeof cloudData._version === 'number' ? cloudData._version : 0) + 1;
-              currentState = { ...cloudData, _version: stateVersion };
+              stateRevision = Math.max(stateRevision, typeof cloudData._revision === 'number' ? cloudData._revision : 0);
+              currentState = { ...cloudData, _version: stateVersion, _revision: stateRevision };
               persistToDisk(currentState);
               console.log(`[SyncServer] Synced initial state from Firestore (updatedAt: ${cloudUpdatedAt})`);
             }
@@ -323,7 +362,8 @@ async function startServer() {
             const localUpdatedAt = currentState?.updatedAt || '';
             if (!currentState || (cloudUpdatedAt && localUpdatedAt ? cloudUpdatedAt > localUpdatedAt : Boolean(cloudUpdatedAt))) {
               stateVersion = Math.max(stateVersion, typeof restData._version === 'number' ? restData._version : 0) + 1;
-              currentState = { ...restData, _version: stateVersion };
+              stateRevision = Math.max(stateRevision, typeof restData._revision === 'number' ? restData._revision : 0);
+              currentState = { ...restData, _version: stateVersion, _revision: stateRevision };
               persistToDisk(currentState);
             }
           }
@@ -342,12 +382,28 @@ async function startServer() {
 
             // Update ONLY if remote is strictly newer or if we had no state
             if (!currentState || (remoteUpdated && localUpdated ? remoteUpdated > localUpdated : Boolean(remoteUpdated))) {
+              const prevHash = getSchedHash(currentState?.schedule);
+              const nextHash = getSchedHash(remoteData.schedule);
               stateVersion = Math.max(stateVersion, typeof remoteData._version === 'number' ? remoteData._version : 0) + 1;
+              stateRevision = Math.max(stateRevision, typeof remoteData._revision === 'number' ? remoteData._revision : 0);
               currentState = {
                 ...remoteData,
-                _version: stateVersion
+                _version: stateVersion,
+                _revision: stateRevision
               };
               persistToDisk(currentState);
+              if (prevHash !== nextHash) {
+                recordSyncAudit({
+                  event: 'firestore_snapshot',
+                  clientId: remoteData._originClientId || 'unknown',
+                  clientBuild: remoteData._clientBuild || 'legacy',
+                  updatedAt: remoteUpdated,
+                  prevUpdatedAt: localUpdated,
+                  revision: stateRevision,
+                  schedHash: nextHash,
+                  prevHash,
+                });
+              }
               console.log(`[SyncServer] Real-time Firestore update received (updatedAt: ${remoteUpdated})`);
 
               // Broadcast immediately to all active SSE clients (browser clients in Iran)
@@ -430,9 +486,21 @@ async function startServer() {
       status: 'ok',
       hasData: Boolean(currentState),
       version: stateVersion,
+      revision: stateRevision,
       firestoreConnected: isFirestoreConnected,
       serverTime: new Date().toISOString(),
       activeClients: sseClients.length
+    });
+  });
+
+  // Read-only sync audit history (last 100 events) for diagnosing multi-tab/multi-host overwrites
+  app.get('/api/sync/audit', (_req, res) => {
+    res.json({
+      currentUpdatedAt: currentState?.updatedAt || null,
+      currentVersion: stateVersion,
+      currentRevision: stateRevision,
+      currentSchedHash: getSchedHash(currentState?.schedule),
+      events: syncAuditHistory.slice(-50)
     });
   });
 
@@ -483,7 +551,10 @@ async function startServer() {
         let cloudData: any = null;
         if (db) {
           try {
-            const snapshot = await getDoc(doc(db, 'roster_state', 'current'));
+            const snapshot = await Promise.race([
+              getDoc(doc(db, 'roster_state', 'current')),
+              new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 3500))
+            ]);
             if (snapshot.exists()) {
               cloudData = snapshot.data();
               isFirestoreConnected = true;
@@ -497,9 +568,24 @@ async function startServer() {
           const cloudUpdated = cloudData.updatedAt || '';
           const localUpdated = currentState?.updatedAt || '';
           if (!currentState || (cloudUpdated && (!localUpdated || cloudUpdated > localUpdated))) {
+            const prevHash = getSchedHash(currentState?.schedule);
+            const nextHash = getSchedHash(cloudData.schedule);
             stateVersion = Math.max(stateVersion, typeof cloudData._version === 'number' ? cloudData._version : 0) + 1;
-            currentState = { ...cloudData, _version: stateVersion };
+            stateRevision = Math.max(stateRevision, typeof cloudData._revision === 'number' ? cloudData._revision : 0);
+            currentState = { ...cloudData, _version: stateVersion, _revision: stateRevision };
             persistToDisk(currentState);
+            if (prevHash !== nextHash) {
+              recordSyncAudit({
+                event: 'firestore_poll',
+                clientId: cloudData._originClientId || 'unknown',
+                clientBuild: cloudData._clientBuild || 'legacy',
+                updatedAt: cloudUpdated,
+                prevUpdatedAt: localUpdated,
+                revision: stateRevision,
+                schedHash: nextHash,
+                prevHash,
+              });
+            }
             broadcast({
               type: 'update',
               data: currentState,
@@ -546,15 +632,56 @@ async function startServer() {
       const incoming = req.body;
       const dataToMerge = incoming.data || incoming;
       const clientId = incoming.clientId || incoming.data?.clientId || dataToMerge?._originClientId;
+      const clientBuild = dataToMerge?._clientBuild || 'legacy';
+      const baseUpdatedAt = dataToMerge?._baseUpdatedAt;
+      const prevHash = getSchedHash(currentState?.schedule);
+      const nextHash = Array.isArray(dataToMerge?.schedule) ? getSchedHash(dataToMerge.schedule) : prevHash;
+
+      // Guard against stale background tabs from a different client overwriting newer schedule edits
+      if (
+        currentState?.updatedAt &&
+        baseUpdatedAt &&
+        typeof baseUpdatedAt === 'string' &&
+        clientId &&
+        currentState._originClientId &&
+        clientId !== currentState._originClientId &&
+        Array.isArray(dataToMerge?.schedule) &&
+        nextHash !== prevHash &&
+        !incoming.forceOverwrite
+      ) {
+        const currentMs = Date.parse(currentState.updatedAt);
+        const baseMs = Date.parse(baseUpdatedAt);
+        if (Number.isFinite(currentMs) && Number.isFinite(baseMs) && currentMs - baseMs > 30000) {
+          recordSyncAudit({
+            event: 'rejected_stale',
+            clientId,
+            clientBuild,
+            origin: req.headers.origin || req.headers.referer || '',
+            baseUpdatedAt,
+            currentUpdatedAt: currentState.updatedAt,
+            schedHash: nextHash,
+            prevHash,
+          });
+          return res.status(409).json({
+            success: false,
+            error: 'stale_conflict',
+            updatedAt: currentState.updatedAt,
+            data: currentState,
+          });
+        }
+      }
 
       const now = nextMonotonicIsoTimestamp(currentState?.updatedAt, dataToMerge?.updatedAt);
       stateVersion = Math.max(stateVersion, typeof dataToMerge?._version === 'number' ? dataToMerge._version : 0) + 1;
+      stateRevision = Math.max(stateRevision, typeof dataToMerge?._revision === 'number' ? dataToMerge._revision : 0) + 1;
 
+      const prevUpdatedAt = currentState?.updatedAt || null;
       currentState = {
         ...(currentState || {}),
         ...dataToMerge,
         updatedAt: now,
         _version: stateVersion,
+        _revision: stateRevision,
         ...(clientId ? { _originClientId: clientId } : {})
       };
 
@@ -571,6 +698,20 @@ async function startServer() {
 
       // 3. Await Firestore cloud write before returning 200 so a new browser opening immediately gets the latest state
       const firestorePersisted = await persistToFirestore(currentState, true);
+
+      recordSyncAudit({
+        event: 'post',
+        clientId: clientId || 'unknown',
+        clientBuild,
+        origin: req.headers.origin || req.headers.referer || '',
+        updatedAt: now,
+        prevUpdatedAt,
+        version: stateVersion,
+        revision: stateRevision,
+        schedHash: nextHash,
+        prevHash,
+        firestorePersisted,
+      });
 
       res.json({
         success: true,
@@ -591,13 +732,17 @@ async function startServer() {
       const incoming = req.body;
       const fullData = incoming.data || incoming;
 
+      const prevUpdatedAt = currentState?.updatedAt || null;
+      const prevHash = getSchedHash(currentState?.schedule);
       const now = nextMonotonicIsoTimestamp(currentState?.updatedAt, fullData?.updatedAt);
       stateVersion = Math.max(stateVersion, typeof fullData?._version === 'number' ? fullData._version : 0) + 1;
+      stateRevision = Math.max(stateRevision, typeof fullData?._revision === 'number' ? fullData._revision : 0) + 1;
 
       currentState = {
         ...fullData,
         updatedAt: now,
-        _version: stateVersion
+        _version: stateVersion,
+        _revision: stateRevision
       };
 
       persistToDisk(currentState);
@@ -610,6 +755,19 @@ async function startServer() {
       });
 
       const firestorePersisted = await persistToFirestore(currentState, false);
+
+      recordSyncAudit({
+        event: 'reset',
+        clientId: fullData?._originClientId || 'unknown',
+        origin: req.headers.origin || req.headers.referer || '',
+        updatedAt: now,
+        prevUpdatedAt,
+        version: stateVersion,
+        revision: stateRevision,
+        schedHash: getSchedHash(currentState.schedule),
+        prevHash,
+        firestorePersisted,
+      });
 
       res.json({
         success: true,

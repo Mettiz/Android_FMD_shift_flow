@@ -288,6 +288,7 @@ const App: React.FC = () => {
   });
 
   const handleSavePublishedRange = (range: PublishedRange | null) => {
+    hasUserEditedRef.current = true;
     publishedRangeRef.current = range;
     setPublishedRange(range);
 
@@ -328,6 +329,7 @@ const App: React.FC = () => {
   };
 
   const handleToggleProcessSchedule = (enabled: boolean) => {
+    hasUserEditedRef.current = true;
     showProcessScheduleRef.current = enabled;
     setShowProcessSchedule(enabled);
     const now = new Date().toISOString();
@@ -553,7 +555,8 @@ const App: React.FC = () => {
   });
   const isRemoteUpdateRef = useRef(false);
   const isInitialLoadCompletedRef = useRef(false);
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const hasCloudHydratedRef = useRef(false);
+  const hasUserEditedRef = useRef(false);
 
   // Safety fallback: Never keep the user waiting longer than 3.5s if network is lagging
   useEffect(() => {
@@ -680,6 +683,7 @@ const App: React.FC = () => {
         }
 
         setSyncStatus('synced');
+        hasCloudHydratedRef.current = true;
         isInitialLoadCompletedRef.current = true;
         setIsCloudLoading(false);
 
@@ -693,6 +697,7 @@ const App: React.FC = () => {
         saveCloudRoster(buildCloudRosterSnapshot())
           .then(() => {
             setSyncStatus('synced');
+            hasCloudHydratedRef.current = true;
             isInitialLoadCompletedRef.current = true;
             setIsCloudLoading(false);
           })
@@ -715,8 +720,11 @@ const App: React.FC = () => {
     };
   }, []);
 
-  // LocalStorage backup whenever state updates
+  // LocalStorage backup whenever state updates (never overwrite empty/new browser storage with default fallback before cloud hydration or explicit edit)
   useEffect(() => {
+    if (!hasCloudHydratedRef.current && !hasUserEditedRef.current) {
+      return;
+    }
     try {
       localStorage.setItem(STORAGE_KEYS.SCHEDULE, JSON.stringify(schedule));
       localStorage.setItem(STORAGE_KEYS.PERSONNEL, JSON.stringify(personnelList));
@@ -731,12 +739,14 @@ const App: React.FC = () => {
   const [saveNotice, setSaveNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const handleManualSaveChanges = async () => {
+    hasUserEditedRef.current = true;
     setIsSavingChanges(true);
     setSaveNotice(null);
     try {
-      // Clear pending debounced timer
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
+      // Clear any pending debounced schedule timer
+      if (scheduleSyncTimeoutRef.current) {
+        clearTimeout(scheduleSyncTimeoutRef.current);
+        scheduleSyncTimeoutRef.current = null;
       }
 
       // 1. Ensure distinct non-duplicate colors using live personnelListRef
@@ -1058,6 +1068,7 @@ const App: React.FC = () => {
     };
 
     const updatedList = [...personnelListRef.current, newPerson];
+    hasUserEditedRef.current = true;
     personnelListRef.current = updatedList;
     setPersonnelList(updatedList);
     setNewPersonName('');
@@ -1094,6 +1105,7 @@ const App: React.FC = () => {
   };
 
   const handleColorChange = (name: string, newColor: string) => {
+    hasUserEditedRef.current = true;
     const updatedList = personnelListRef.current.map(p => {
       if (p.name === name) {
         return { ...p, color: newColor };
@@ -1105,6 +1117,7 @@ const App: React.FC = () => {
   };
 
   const handleRemovePersonnel = (name: string) => {
+    hasUserEditedRef.current = true;
     const remainingPersonnel = personnelListRef.current.filter(p => p.name !== name);
     personnelListRef.current = remainingPersonnel;
     setPersonnelList(remainingPersonnel);
@@ -1143,6 +1156,7 @@ const App: React.FC = () => {
   };
   
   const handleToggleActive = (name: string) => {
+      hasUserEditedRef.current = true;
       const updatedList = personnelListRef.current.map(p => 
           p.name === name ? { ...p, isActive: !p.isActive } : p
       );
@@ -1324,6 +1338,7 @@ const App: React.FC = () => {
   };
 
   const syncUpdatedSchedule = (newSchedule: ShiftEntry[], successToast?: string) => {
+    hasUserEditedRef.current = true;
     scheduleRef.current = newSchedule;
     setLocalScheduleFingerprint(newSchedule);
 
@@ -1342,27 +1357,25 @@ const App: React.FC = () => {
 
     if (scheduleSyncTimeoutRef.current) {
       clearTimeout(scheduleSyncTimeoutRef.current);
+      scheduleSyncTimeoutRef.current = null;
     }
     setSyncStatus('syncing');
-    scheduleSyncTimeoutRef.current = setTimeout(() => {
-      scheduleSyncTimeoutRef.current = null;
-      saveCloudRoster(buildCloudRosterSnapshot({ schedule: scheduleRef.current }))
-        .then(() => {
-          setSyncStatus('synced');
-          if (successToast) {
-            setSaveNotice({ type: 'success', message: successToast });
-            setTimeout(() => setSaveNotice(null), 4000);
-          }
-        })
-        .catch((err) => {
-          console.error('Schedule cloud sync error:', err);
-          setSyncStatus('offline');
-          setSaveNotice({
-            type: 'error',
-            message: 'خطا در همگام‌سازی برنامه با سرور ابری؛ تغییرات فعلاً فقط در همین مرورگر ثبت شده است. لطفاً اتصال اینترنت را بررسی کرده و روی تلاش مجدد کلیک کنید.'
-          });
+    saveCloudRoster(buildCloudRosterSnapshot({ schedule: newSchedule }))
+      .then(() => {
+        setSyncStatus('synced');
+        if (successToast) {
+          setSaveNotice({ type: 'success', message: successToast });
+          setTimeout(() => setSaveNotice(null), 4000);
+        }
+      })
+      .catch((err) => {
+        console.error('Schedule cloud sync error:', err);
+        setSyncStatus('offline');
+        setSaveNotice({
+          type: 'error',
+          message: 'خطا در همگام‌سازی برنامه با سرور ابری؛ تغییرات فعلاً فقط در همین مرورگر ثبت شده است. لطفاً اتصال اینترنت را بررسی کرده و روی تلاش مجدد کلیک کنید.'
         });
-    }, 25);
+      });
   };
 
   const handleUpdateShift = (id: number, field: 'dayShiftPerson' | 'nightShiftPerson' | 'onCallPerson', value: string) => {
@@ -1511,6 +1524,7 @@ const App: React.FC = () => {
   };
   
   const handleToggleLock = () => {
+      hasUserEditedRef.current = true;
       const key = currentMonthKey;
       let newLocked: string[];
       if (unlockedMonths.includes(key)) {
@@ -1647,6 +1661,7 @@ const App: React.FC = () => {
   };
   
   const handleImport = (data: AppData) => {
+      hasUserEditedRef.current = true;
       const rawSched = data.schedule || scheduleRef.current;
       const non1404 = rawSched.filter(s => !s.date.startsWith('1404'));
       const incomingStaff = data.personnel || [];

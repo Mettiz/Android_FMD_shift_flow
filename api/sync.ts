@@ -99,11 +99,37 @@ async function fetchFromFirestore(): Promise<any> {
 let isVercelFirestoreQuotaExhausted = false;
 let lastVercelQuotaCheckTime = 0;
 
-async function writeToFirestore(data: any, merge = true): Promise<void> {
+function nextMonotonicTimestamp(...existingIsos: Array<string | undefined | null>): string {
+  let maxMs = Date.now();
+  for (const iso of existingIsos) {
+    if (iso && typeof iso === 'string') {
+      const parsed = Date.parse(iso);
+      if (Number.isFinite(parsed) && parsed >= maxMs) {
+        maxMs = parsed + 1;
+      }
+    }
+  }
+  return new Date(maxMs).toISOString();
+}
+
+function getSchedHash(sched: any): string {
+  if (!Array.isArray(sched) || sched.length === 0) return 'empty';
+  const str = sched
+    .map((s: any) => `${s.date}:${s.dayShiftPerson || ''}:${s.nightShiftPerson || ''}:${s.onCallPerson || ''}:${(s.extraDayPersons || []).join(',')}:${(s.extraNightPersons || []).join(',')}`)
+    .join('|');
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0).toString(16).padStart(8, '0');
+}
+
+async function writeToFirestore(data: any, merge = true): Promise<boolean> {
   const now = Date.now();
   if (isVercelFirestoreQuotaExhausted) {
     // Retry only once every hour
-    if (now - lastVercelQuotaCheckTime < 3600000) return;
+    if (now - lastVercelQuotaCheckTime < 3600000) return false;
     isVercelFirestoreQuotaExhausted = false;
   }
 
@@ -130,12 +156,15 @@ async function writeToFirestore(data: any, merge = true): Promise<void> {
         isVercelFirestoreQuotaExhausted = true;
         lastVercelQuotaCheckTime = now;
         console.warn('[VercelSync] Firestore daily write quota reached. Maintained in-memory cache.');
-        return;
+        return false;
       }
       console.warn(`[VercelSync] Firestore write notice (${res.status}): ${errText}`);
+      return false;
     }
+    return true;
   } catch (err: any) {
     console.warn('[VercelSync] Firestore write notice:', err?.message || err);
+    return false;
   } finally {
     clearTimeout(timeoutId);
   }
@@ -185,7 +214,7 @@ async function handleEdge(req: Request): Promise<Response> {
       }
     }
     return new Response(
-      `data: ${JSON.stringify({ type: 'init', data: memoryCache, version: 1 })}\n\n`,
+      `data: ${JSON.stringify({ type: 'init', data: memoryCache, version: memoryCache?._version || 1 })}\n\n`,
       {
         status: 200,
         headers: {
@@ -215,14 +244,15 @@ async function handleEdge(req: Request): Promise<Response> {
 
     if (memoryCache) {
       const updatedAt = memoryCache.updatedAt || '';
+      const ver = typeof memoryCache._version === 'number' ? memoryCache._version : 1;
       if (clientSince && updatedAt && updatedAt === clientSince) {
         return new Response(
-          JSON.stringify({ exists: true, modified: false, version: 1, updatedAt }),
+          JSON.stringify({ exists: true, modified: false, version: ver, updatedAt }),
           { status: 200, headers: corsHeaders }
         );
       }
       return new Response(
-        JSON.stringify({ exists: true, modified: true, version: 1, updatedAt, data: memoryCache }),
+        JSON.stringify({ exists: true, modified: true, version: ver, updatedAt, data: memoryCache }),
         { status: 200, headers: corsHeaders }
       );
     }
@@ -242,7 +272,7 @@ async function handleEdge(req: Request): Promise<Response> {
     }
 
     const incoming = bodyData?.data || bodyData || {};
-    const now = new Date().toISOString();
+    const clientId = bodyData?.clientId || incoming?._originClientId;
 
     let baseState = memoryCache;
     if (!isReset && (!baseState || !Array.isArray(baseState.schedule))) {
@@ -252,9 +282,49 @@ async function handleEdge(req: Request): Promise<Response> {
       } catch {}
     }
 
+    if (
+      !isReset &&
+      !bodyData?.forceOverwrite &&
+      baseState?.updatedAt &&
+      incoming?._baseUpdatedAt &&
+      typeof incoming._baseUpdatedAt === 'string' &&
+      clientId &&
+      baseState._originClientId &&
+      clientId !== baseState._originClientId &&
+      Array.isArray(incoming.schedule) &&
+      getSchedHash(incoming.schedule) !== getSchedHash(baseState.schedule)
+    ) {
+      const currentMs = Date.parse(baseState.updatedAt);
+      const baseMs = Date.parse(incoming._baseUpdatedAt);
+      if (Number.isFinite(currentMs) && Number.isFinite(baseMs) && currentMs - baseMs > 30000) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'stale_conflict',
+            updatedAt: baseState.updatedAt,
+            data: baseState
+          }),
+          { status: 409, headers: corsHeaders }
+        );
+      }
+    }
+
+    const now = nextMonotonicTimestamp(baseState?.updatedAt, incoming?.updatedAt);
+    const nextVersion = Math.max(
+      typeof baseState?._version === 'number' ? baseState._version : 0,
+      typeof incoming?._version === 'number' ? incoming._version : 0
+    ) + 1;
+    const nextRevision = Math.max(
+      typeof baseState?._revision === 'number' ? baseState._revision : 0,
+      typeof incoming?._revision === 'number' ? incoming._revision : 0
+    ) + 1;
+
     const firestorePatch = {
       ...incoming,
-      updatedAt: now
+      updatedAt: now,
+      _version: nextVersion,
+      _revision: nextRevision,
+      ...(clientId ? { _originClientId: clientId } : {})
     };
     const payload = {
       ...(isReset ? {} : (baseState || {})),
@@ -266,12 +336,10 @@ async function handleEdge(req: Request): Promise<Response> {
       lastFirestoreReadTime = Date.now();
     }
 
-    writeToFirestore(isReset ? payload : firestorePatch, !isReset).catch((err) => {
-      console.warn('[VercelSync] Edge async Firestore write error:', err);
-    });
+    const firestorePersisted = await writeToFirestore(isReset ? payload : firestorePatch, !isReset);
 
     return new Response(
-      JSON.stringify({ success: true, version: 1, updatedAt: now, data: payload }),
+      JSON.stringify({ success: true, version: nextVersion, updatedAt: now, firestorePersisted, data: payload }),
       { status: 200, headers: corsHeaders }
     );
   }
@@ -316,7 +384,7 @@ async function handleNode(req: any, res: any): Promise<void> {
         console.warn('[VercelSync] Node SSE fetch error:', e);
       }
     }
-    res.write(`data: ${JSON.stringify({ type: 'init', data: memoryCache, version: 1 })}\n\n`);
+    res.write(`data: ${JSON.stringify({ type: 'init', data: memoryCache, version: memoryCache?._version || 1 })}\n\n`);
     return res.end();
   }
 
@@ -338,10 +406,11 @@ async function handleNode(req: any, res: any): Promise<void> {
 
     if (memoryCache) {
       const updatedAt = memoryCache.updatedAt || '';
+      const ver = typeof memoryCache._version === 'number' ? memoryCache._version : 1;
       if (clientSince && updatedAt && updatedAt === clientSince) {
-        return res.status(200).json({ exists: true, modified: false, version: 1, updatedAt });
+        return res.status(200).json({ exists: true, modified: false, version: ver, updatedAt });
       }
-      return res.status(200).json({ exists: true, modified: true, version: 1, updatedAt, data: memoryCache });
+      return res.status(200).json({ exists: true, modified: true, version: ver, updatedAt, data: memoryCache });
     }
 
     return res.status(200).json({ exists: false, data: null });
@@ -358,7 +427,7 @@ async function handleNode(req: any, res: any): Promise<void> {
     }
 
     const incoming = bodyData?.data || bodyData || {};
-    const now = new Date().toISOString();
+    const clientId = bodyData?.clientId || incoming?._originClientId;
 
     let baseState = memoryCache;
     if (!isReset && (!baseState || !Array.isArray(baseState.schedule))) {
@@ -368,9 +437,46 @@ async function handleNode(req: any, res: any): Promise<void> {
       } catch {}
     }
 
+    if (
+      !isReset &&
+      !bodyData?.forceOverwrite &&
+      baseState?.updatedAt &&
+      incoming?._baseUpdatedAt &&
+      typeof incoming._baseUpdatedAt === 'string' &&
+      clientId &&
+      baseState._originClientId &&
+      clientId !== baseState._originClientId &&
+      Array.isArray(incoming.schedule) &&
+      getSchedHash(incoming.schedule) !== getSchedHash(baseState.schedule)
+    ) {
+      const currentMs = Date.parse(baseState.updatedAt);
+      const baseMs = Date.parse(incoming._baseUpdatedAt);
+      if (Number.isFinite(currentMs) && Number.isFinite(baseMs) && currentMs - baseMs > 30000) {
+        return res.status(409).json({
+          success: false,
+          error: 'stale_conflict',
+          updatedAt: baseState.updatedAt,
+          data: baseState
+        });
+      }
+    }
+
+    const now = nextMonotonicTimestamp(baseState?.updatedAt, incoming?.updatedAt);
+    const nextVersion = Math.max(
+      typeof baseState?._version === 'number' ? baseState._version : 0,
+      typeof incoming?._version === 'number' ? incoming._version : 0
+    ) + 1;
+    const nextRevision = Math.max(
+      typeof baseState?._revision === 'number' ? baseState._revision : 0,
+      typeof incoming?._revision === 'number' ? incoming._revision : 0
+    ) + 1;
+
     const firestorePatch = {
       ...incoming,
-      updatedAt: now
+      updatedAt: now,
+      _version: nextVersion,
+      _revision: nextRevision,
+      ...(clientId ? { _originClientId: clientId } : {})
     };
     const payload = {
       ...(isReset ? {} : (baseState || {})),
@@ -382,11 +488,9 @@ async function handleNode(req: any, res: any): Promise<void> {
       lastFirestoreReadTime = Date.now();
     }
 
-    writeToFirestore(isReset ? payload : firestorePatch, !isReset).catch((err) => {
-      console.warn('[VercelSync] Node async Firestore write error:', err);
-    });
+    const firestorePersisted = await writeToFirestore(isReset ? payload : firestorePatch, !isReset);
 
-    return res.status(200).json({ success: true, version: 1, updatedAt: now, data: payload });
+    return res.status(200).json({ success: true, version: nextVersion, updatedAt: now, firestorePersisted, data: payload });
   }
 
   return res.status(405).json({ error: 'Method not allowed' });
