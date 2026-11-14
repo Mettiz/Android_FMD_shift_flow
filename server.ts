@@ -109,7 +109,9 @@ async function startServer() {
   const auditLogPath = path.join(dataDir, 'sync-audit.log');
 
   const LEGACY_STALE_SCHEDULE_HASH = '88aedc2d';
-  const WORKER_RELAY_SYNC_URL = 'https://shiftflow-sync.rzcegpj.workers.dev/api/sync';
+  const WORKER_RELAY_BASE = 'https://shiftflow-sync.rzcegpj.workers.dev';
+  const WORKER_RELAY_SYNC_URL = `${WORKER_RELAY_BASE}/api/sync`;
+  const WORKER_RELAY_RESET_URL = `${WORKER_RELAY_BASE}/api/sync/reset`;
 
   function getSchedHash(sched: any): string {
     if (!Array.isArray(sched) || sched.length === 0) return 'empty';
@@ -129,27 +131,34 @@ async function startServer() {
     try {
       return JSON.stringify({
         dp: state.dailyProcesses || {},
-        pd: (state.processDefinitions || []).map((x: any) => `${x.id}:${x.name}:${x.defaultVessel || ''}:${x.defaultMedium || ''}:${x.durationDays || 0}`),
+        pd: (state.processDefinitions || []).map((x: any) => `${x.id}:${x.name}:${x.category || ''}:${x.description || ''}:${x.defaultVessel || ''}:${x.defaultMedium || ''}:${x.durationDays || 0}`),
         u: state.unlockedMonths || [],
         p: state.publishedRange || null,
         s: state.showProcessSchedule,
-        pl: (state.personnelList || []).map((x: any) => `${x.name}:${x.color}:${x.isActive}`),
+        ap: state.adminPassword || '',
+        h: Array.isArray(state.schedule) ? state.schedule.filter((x: any) => x.isHoliday).map((x: any) => x.date) : [],
+        pl: (state.personnelList || []).map((x: any) => `${x.name}:${x.color}:${x.isActive}:${(x.roles || []).join(',')}`),
       });
     } catch {
       return '';
     }
   }
 
-  async function mirrorToWorkerRelay(stateToMirror: any): Promise<boolean> {
+  async function mirrorToWorkerRelay(stateToMirror: any, isReset = false): Promise<boolean> {
     if (!stateToMirror) return false;
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 5000);
+    const timer = setTimeout(() => controller.abort(), 6000);
     try {
-      const res = await fetch(WORKER_RELAY_SYNC_URL, {
+      const targetUrl = isReset ? WORKER_RELAY_RESET_URL : WORKER_RELAY_SYNC_URL;
+      const sanitized = sanitizeForFirestore(stateToMirror);
+      if (isReset && sanitized && typeof sanitized === 'object') {
+        sanitized._explicitReset = true;
+      }
+      const res = await fetch(targetUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          data: sanitizeForFirestore(stateToMirror),
+          data: sanitized,
           clientId: stateToMirror._originClientId || 'server_healer',
           forceOverwrite: true,
         }),
@@ -446,10 +455,11 @@ async function startServer() {
   }
 
   // Bidirectional sync with Cloudflare Worker relay (never blindly overwrites newer client edits!)
+  let lastWorkerSyncTime = 0;
   async function syncWithWorkerRelay(): Promise<void> {
-    if (!currentState) return;
+    lastWorkerSyncTime = Date.now();
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 6000);
+    const timer = setTimeout(() => controller.abort(), 5000);
     try {
       const res = await fetch(`${WORKER_RELAY_SYNC_URL}?_t=${Date.now()}`, {
         headers: { Accept: 'application/json' },
@@ -459,21 +469,30 @@ async function startServer() {
       if (!res.ok) return;
       const json: any = await res.json();
       if (json?.exists === false) {
-        // Worker cache is cold/empty — warm it with currentState
-        await mirrorToWorkerRelay(currentState);
+        if (currentState) {
+          await mirrorToWorkerRelay(currentState);
+        }
         return;
       }
       if (json?.exists === true && json?.data) {
         const remote = json.data;
         const remoteUpdated = json.updatedAt || remote.updatedAt || '';
-        const localUpdated = currentState.updatedAt || '';
+        const localUpdated = currentState?.updatedAt || '';
+        const remoteRev = typeof remote._revision === 'number' ? remote._revision : 0;
+        const localRev = typeof currentState?._revision === 'number' ? currentState._revision : 0;
         const sameContent =
+          currentState &&
           getSchedHash(remote.schedule) === getSchedHash(currentState.schedule) &&
           getMetaFingerprint(remote) === getMetaFingerprint(currentState);
 
-        if (remoteUpdated && localUpdated && remoteUpdated > localUpdated && !sameContent) {
+        const isRemoteNewer =
+          !currentState ||
+          (remoteUpdated && localUpdated && remoteUpdated > localUpdated) ||
+          (remoteUpdated === localUpdated && remoteRev > localRev);
+
+        if (isRemoteNewer && !sameContent) {
           reconcileCloudState(remote, 'worker_relay_sync');
-        } else if (!sameContent && (!remoteUpdated || (localUpdated && localUpdated > remoteUpdated))) {
+        } else if (currentState && !sameContent && (!remoteUpdated || (localUpdated && localUpdated > remoteUpdated))) {
           await mirrorToWorkerRelay(currentState);
         }
       }
@@ -488,7 +507,7 @@ async function startServer() {
   syncWithWorkerRelay().catch(() => {});
   setInterval(() => {
     syncWithWorkerRelay().catch(() => {});
-  }, 60000);
+  }, 15000);
   if (firebaseConfig?.projectId && firebaseConfig?.firestoreDatabaseId) {
     fetchFirestoreViaREST()
       .then((restData) => {
@@ -613,6 +632,16 @@ async function startServer() {
     const clientSince = req.query.since as string | undefined;
     const nowMs = Date.now();
 
+    // Refresh from Worker Relay periodically (bounded to 1.5s) so edits from Pages/Workers/other hosts propagate quickly
+    if (!currentState || nowMs - lastWorkerSyncTime > 8000) {
+      try {
+        await Promise.race([
+          syncWithWorkerRelay(),
+          new Promise<void>((resolve) => setTimeout(resolve, 1500)),
+        ]);
+      } catch {}
+    }
+
     // Check Firestore on-demand if memory state is empty OR every 60 seconds to conserve daily read quota
     if (!isFirestoreQuotaExhausted && (!currentState || nowMs - lastFirestoreFetchTime > 60000)) {
       try {
@@ -715,9 +744,11 @@ async function startServer() {
         updatedAt: now
       });
 
-      // 3. Await Firestore cloud write before returning 200 so a new browser opening immediately gets the latest state
-      const firestorePersisted = await persistToFirestore(currentState, true);
-      mirrorToWorkerRelay(currentState).catch(() => {});
+      // 3. Await Firestore & Worker Relay writes in parallel before returning 200 so a new browser opening immediately gets the latest state
+      const [firestorePersisted, workerPersisted] = await Promise.all([
+        persistToFirestore(currentState, true),
+        mirrorToWorkerRelay(currentState, false),
+      ]);
 
       recordSyncAudit({
         event: 'post',
@@ -731,6 +762,7 @@ async function startServer() {
         schedHash: nextHash,
         prevHash,
         firestorePersisted,
+        workerPersisted,
       });
 
       res.json({
@@ -738,6 +770,7 @@ async function startServer() {
         version: stateVersion,
         updatedAt: now,
         firestorePersisted,
+        workerPersisted,
         data: currentState
       });
     } catch (err: any) {
@@ -762,7 +795,8 @@ async function startServer() {
         ...fullData,
         updatedAt: now,
         _version: stateVersion,
-        _revision: stateRevision
+        _revision: stateRevision,
+        _explicitReset: true,
       };
 
       persistToDisk(currentState);
@@ -774,7 +808,10 @@ async function startServer() {
         updatedAt: now
       });
 
-      const firestorePersisted = await persistToFirestore(currentState, false);
+      const [firestorePersisted, workerPersisted] = await Promise.all([
+        persistToFirestore(currentState, false),
+        mirrorToWorkerRelay(currentState, true),
+      ]);
 
       recordSyncAudit({
         event: 'reset',
@@ -787,13 +824,16 @@ async function startServer() {
         schedHash: getSchedHash(currentState.schedule),
         prevHash,
         firestorePersisted,
+        workerPersisted,
       });
 
       res.json({
         success: true,
         version: stateVersion,
         updatedAt: now,
-        firestorePersisted
+        firestorePersisted,
+        workerPersisted,
+        data: currentState,
       });
     } catch (err: any) {
       console.error('[SyncServer] Error resetting state:', err);

@@ -6,10 +6,13 @@
 
 const FIRESTORE_DOC_URL =
   'https://firestore.googleapis.com/v1/projects/beaming-source-hcbh2/databases/ai-studio-fmdproductionshi-3f0608ec-b995-44d1-a9c8-f98c589f0e16/documents/roster_state/current';
+const WORKER_RELAY_BASE = 'https://shiftflow-sync.rzcegpj.workers.dev';
 
 let memoryCache = null;
 let lastReadTime = 0;
-const CACHE_TTL_MS = 60000;
+const CACHE_TTL_MS = 5000;
+let isFirestoreQuotaExhausted = false;
+let lastQuotaCheckTime = 0;
 
 function decodeValue(val) {
   if (!val || typeof val !== 'object') return val;
@@ -72,15 +75,81 @@ function encodeDoc(data) {
 }
 
 async function fetchFromFirestore() {
-  const res = await fetch(FIRESTORE_DOC_URL, {
-    headers: { Accept: 'application/json' },
-  });
-  if (res.status === 404) return null;
-  if (!res.ok) throw new Error(`Firestore GET ${res.status}`);
-  return decodeDoc(await res.json());
+  const now = Date.now();
+  if (isFirestoreQuotaExhausted && now - lastQuotaCheckTime < 3600000) return null;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 4500);
+  try {
+    const res = await fetch(FIRESTORE_DOC_URL, {
+      headers: { Accept: 'application/json' },
+      signal: controller.signal,
+    });
+    if (res.status === 429) {
+      isFirestoreQuotaExhausted = true;
+      lastQuotaCheckTime = now;
+      return null;
+    }
+    if (res.status === 404 || !res.ok) return null;
+    isFirestoreQuotaExhausted = false;
+    return decodeDoc(await res.json());
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function fetchFromWorkerRelay() {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 4500);
+  try {
+    const res = await fetch(`${WORKER_RELAY_BASE}/api/sync?_t=${Date.now()}`, {
+      headers: { Accept: 'application/json' },
+      signal: controller.signal,
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    if (json && json.exists && json.data) {
+      return json.data;
+    }
+    return null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function isCandidateNewer(candidate, baseline) {
+  if (!candidate) return false;
+  if (!baseline) return true;
+  const candTs = candidate.updatedAt || '';
+  const baseTs = baseline.updatedAt || '';
+  if (candTs && baseTs && candTs !== baseTs) return candTs > baseTs;
+  if (candTs && !baseTs) return true;
+  const candRev = typeof candidate._revision === 'number' ? candidate._revision : 0;
+  const baseRev = typeof baseline._revision === 'number' ? baseline._revision : 0;
+  if (candRev !== baseRev) return candRev > baseRev;
+  const candVer = typeof candidate._version === 'number' ? candidate._version : 0;
+  const baseVer = typeof baseline._version === 'number' ? baseline._version : 0;
+  return candVer > baseVer;
+}
+
+async function refreshLatestFromBackends() {
+  const [fsData, workerData] = await Promise.all([fetchFromFirestore(), fetchFromWorkerRelay()]);
+  let best = memoryCache;
+  if (isCandidateNewer(fsData, best)) best = fsData;
+  if (isCandidateNewer(workerData, best)) best = workerData;
+  if (best) {
+    memoryCache = best;
+    lastReadTime = Date.now();
+  }
+  return best;
 }
 
 async function writeToFirestore(data, merge = true) {
+  const now = Date.now();
+  if (isFirestoreQuotaExhausted && now - lastQuotaCheckTime < 3600000) return false;
   let url = FIRESTORE_DOC_URL;
   if (merge) {
     const mask = Object.keys(data)
@@ -89,13 +158,50 @@ async function writeToFirestore(data, merge = true) {
       .join('&');
     if (mask) url += `?${mask}`;
   }
-  const res = await fetch(url, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(encodeDoc(data)),
-  });
-  if (!res.ok) {
-    throw new Error(`Firestore PATCH ${res.status}`);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 5000);
+  try {
+    const res = await fetch(url, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(encodeDoc(data)),
+      signal: controller.signal,
+    });
+    if (res.status === 429) {
+      isFirestoreQuotaExhausted = true;
+      lastQuotaCheckTime = now;
+      return false;
+    }
+    if (!res.ok) return false;
+    isFirestoreQuotaExhausted = false;
+    return true;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function writeToWorkerRelay(data, isReset = false, clientId = 'pages_proxy') {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 5000);
+  try {
+    const target = `${WORKER_RELAY_BASE}/api/sync${isReset ? '/reset' : ''}`;
+    const res = await fetch(target, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        data: isReset ? { ...data, _explicitReset: true } : data,
+        clientId,
+        forceOverwrite: true,
+      }),
+      signal: controller.signal,
+    });
+    return res.ok;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -163,10 +269,7 @@ export async function onRequest(context) {
 
   if (isStream && request.method === 'GET') {
     if (!memoryCache) {
-      try {
-        memoryCache = await fetchFromFirestore();
-        lastReadTime = Date.now();
-      } catch {}
+      await refreshLatestFromBackends();
     }
     return new Response(
       `data: ${JSON.stringify({ type: 'init', data: memoryCache, version: memoryCache?._version || 1 })}\n\n`,
@@ -186,13 +289,7 @@ export async function onRequest(context) {
     const now = Date.now();
 
     if (!memoryCache || now - lastReadTime > CACHE_TTL_MS) {
-      try {
-        const fresh = await fetchFromFirestore();
-        if (fresh) {
-          memoryCache = fresh;
-          lastReadTime = now;
-        }
-      } catch {}
+      await refreshLatestFromBackends();
     }
 
     if (memoryCache) {
@@ -233,10 +330,7 @@ export async function onRequest(context) {
 
     let baseState = memoryCache;
     if (!isReset && (!baseState || !Array.isArray(baseState.schedule))) {
-      try {
-        const fresh = await fetchFromFirestore();
-        if (fresh) baseState = fresh;
-      } catch {}
+      baseState = await refreshLatestFromBackends();
     }
 
     // Only block legacy 88aedc2d fallback overwrites unless explicit reset
@@ -279,6 +373,7 @@ export async function onRequest(context) {
       _version: nextVersion,
       _revision: nextRevision,
       ...(clientId ? { _originClientId: clientId } : {}),
+      ...(isReset ? { _explicitReset: true } : {}),
     };
     const payload = {
       ...(isReset ? {} : baseState || {}),
@@ -290,12 +385,15 @@ export async function onRequest(context) {
       lastReadTime = Date.now();
     }
 
-    try {
-      await writeToFirestore(isReset ? payload : firestorePatch, !isReset);
-    } catch (err) {
+    const [firestorePersisted, workerPersisted] = await Promise.all([
+      writeToFirestore(isReset ? payload : firestorePatch, !isReset),
+      writeToWorkerRelay(payload, isReset, clientId || 'pages_proxy'),
+    ]);
+
+    if (!firestorePersisted && !workerPersisted) {
       return new Response(
-        JSON.stringify({ success: false, error: String((err && err.message) || err) }),
-        { status: 500, headers: cors }
+        JSON.stringify({ success: false, error: 'All cloud persistence backends failed' }),
+        { status: 502, headers: cors }
       );
     }
 
@@ -304,7 +402,8 @@ export async function onRequest(context) {
         success: true,
         version: nextVersion,
         updatedAt: now,
-        firestorePersisted: true,
+        firestorePersisted,
+        workerPersisted,
         data: payload,
       }),
       { status: 200, headers: cors }

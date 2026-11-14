@@ -203,15 +203,75 @@ export function getScheduleHash(schedule?: ShiftEntry[]): string {
   return (h >>> 0).toString(16).padStart(8, '0');
 }
 
-// Per-instance in-memory state of the currently applied schedule & revision
+// Per-instance & persistent LocalStorage sync metadata
+const PENDING_SYNC_STORAGE_KEY = 'shiftflow_pending_sync_v2';
+const CLOUD_META_STORAGE_KEY = 'shiftflow_cloud_meta_v2';
+
+interface PendingSyncRecord {
+  data: Partial<CloudRosterState>;
+  updatedAt: string;
+  queuedAtMs: number;
+  seq: number;
+}
+
+function readPendingSync(): PendingSyncRecord | null {
+  if (typeof localStorage === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(PENDING_SYNC_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && parsed.data && typeof parsed.updatedAt === 'string') {
+      return parsed as PendingSyncRecord;
+    }
+  } catch {}
+  return null;
+}
+
+function writePendingSync(record: PendingSyncRecord): void {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    localStorage.setItem(PENDING_SYNC_STORAGE_KEY, JSON.stringify(record));
+  } catch (e) {
+    console.warn('[CloudSync] Failed to persist pending sync queue:', e);
+  }
+}
+
+function clearPendingSync(): void {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    localStorage.removeItem(PENDING_SYNC_STORAGE_KEY);
+  } catch {}
+}
+
+function writeConfirmedCloudMeta(updatedAt?: string, revision?: number): void {
+  if (typeof localStorage === 'undefined' || !updatedAt) return;
+  try {
+    localStorage.setItem(
+      CLOUD_META_STORAGE_KEY,
+      JSON.stringify({ updatedAt, revision: typeof revision === 'number' ? revision : 0 })
+    );
+  } catch {}
+}
+
+export function hasPendingCloudSync(): boolean {
+  return Boolean(readPendingSync());
+}
+
+const initialPendingSync = readPendingSync();
+if (initialPendingSync) {
+  currentSyncDetails = { ...currentSyncDetails, hasUnsavedChanges: true };
+}
+
 let currentInstanceScheduleFingerprint = '';
 let currentInstanceScheduleHash = '';
-let lastLocalMutationTimeMs = 0;
-let lastLocalMutationUpdatedAt = '';
+let lastLocalMutationTimeMs = initialPendingSync ? initialPendingSync.queuedAtMs : 0;
+let lastLocalMutationUpdatedAt = initialPendingSync ? initialPendingSync.updatedAt : '';
 let lastKnownCloudUpdatedAt = '';
 let lastKnownRevision = 0;
 let activePendingMutations = 0;
-let lastLocalSaveFailed = false;
+let latestPendingSeq = initialPendingSync ? initialPendingSync.seq : 0;
+let lastLocalSaveFailed = Boolean(initialPendingSync);
+let isFlushingPendingSync = false;
 let writeQueuePromise: Promise<void> = Promise.resolve();
 
 function nextMonotonicTimestamp(...existingIsos: Array<string | undefined | null>): string {
@@ -574,10 +634,13 @@ export function subscribeToCloudRoster(
       u: d.unlockedMonths || [],
       p: d.publishedRange || null,
       s: d.showProcessSchedule,
-      pl: (d.personnelList || []).map((x) => `${x.name}:${x.color}:${x.isActive}`),
+      ap: d.adminPassword || '',
+      h: Array.isArray(d.schedule) ? d.schedule.filter((s) => s.isHoliday).map((s) => s.date) : [],
+      pl: (d.personnelList || []).map((x) => `${x.name}:${x.color}:${x.isActive}:${(x.roles || []).join(',')}`),
       dp: d.dailyProcesses || {},
       pd: (d.processDefinitions || []).map(
-        (x) => `${x.id}:${x.name}:${x.defaultVessel || ''}:${x.defaultMedium || ''}:${x.durationDays || 0}:${x.color || ''}`
+        (x) =>
+          `${x.id}:${x.name}:${x.category || ''}:${x.defaultVessel || ''}:${x.defaultMedium || ''}:${x.durationDays || 0}:${x.color || ''}:${x.description || ''}`
       ),
     });
   };
@@ -599,13 +662,13 @@ export function subscribeToCloudRoster(
       return;
     }
 
-    // If our last local save failed to reach remote cloud, never silently revert user's local edits to older remote state
-    if (
-      source !== 'broadcast' &&
-      lastLocalSaveFailed &&
-      (!data.updatedAt || !lastLocalMutationUpdatedAt || data.updatedAt <= lastLocalMutationUpdatedAt)
-    ) {
-      return;
+    // If local edits failed to reach remote cloud (or await offline flush), never silently revert local edits to older remote state
+    const pendingSync = readPendingSync();
+    if (source !== 'broadcast' && (lastLocalSaveFailed || pendingSync)) {
+      const pendingTs = pendingSync?.updatedAt || lastLocalMutationUpdatedAt;
+      if (!data._explicitReset || !data.updatedAt || !pendingTs || data.updatedAt <= pendingTs) {
+        return;
+      }
     }
 
     const incomingFp = getScheduleFingerprint(data.schedule);
@@ -711,6 +774,7 @@ export function subscribeToCloudRoster(
     if (typeof localStorage !== 'undefined' && data.updatedAt) {
       try {
         localStorage.setItem('shiftflow_updated_at', data.updatedAt);
+        writeConfirmedCloudMeta(data.updatedAt, incomingRevision);
       } catch {}
     }
     hasReceivedAnyData = true;
@@ -729,25 +793,51 @@ export function subscribeToCloudRoster(
     broadcastChannel.addEventListener('message', handleBroadcast);
   }
 
+  const WATCHED_STORAGE_KEYS = new Set([
+    'shiftflow_schedule_v2',
+    'shiftflow_personnel_v2',
+    'shiftflow_locked_v2',
+    'shiftflow_published_range_v2',
+    'shiftflow_daily_processes_v2',
+    'shiftflow_process_definitions_v2',
+    'shiftflow_show_process_schedule_v2',
+    'shiftflow_admin_password',
+    'shiftflow_updated_at',
+  ]);
+
   const handleStorageEvent = (event: StorageEvent) => {
-    if (isCancelled) return;
-    if (event.key === 'shiftflow_schedule_v2' && event.newValue) {
-      try {
-        const parsedSchedule = JSON.parse(event.newValue) as ShiftEntry[];
-        if (Array.isArray(parsedSchedule) && parsedSchedule.length > 0) {
-          const incomingFp = getScheduleFingerprint(parsedSchedule);
-          if (incomingFp && incomingFp !== currentInstanceScheduleFingerprint) {
-            handleIncomingData(
-              {
-                schedule: parsedSchedule,
-                updatedAt: new Date().toISOString(),
-              } as CloudRosterState,
-              'broadcast'
-            );
-          }
-        }
-      } catch {}
-    }
+    if (isCancelled || typeof localStorage === 'undefined') return;
+    if (event.key !== null && !WATCHED_STORAGE_KEYS.has(event.key)) return;
+    try {
+      const schedRaw = localStorage.getItem('shiftflow_schedule_v2');
+      const persRaw = localStorage.getItem('shiftflow_personnel_v2');
+      const lockedRaw = localStorage.getItem('shiftflow_locked_v2');
+      const rangeRaw = localStorage.getItem('shiftflow_published_range_v2');
+      const dpRaw = localStorage.getItem('shiftflow_daily_processes_v2');
+      const pdRaw = localStorage.getItem('shiftflow_process_definitions_v2');
+      const showProcRaw = localStorage.getItem('shiftflow_show_process_schedule_v2');
+      const pwdRaw = localStorage.getItem('shiftflow_admin_password');
+      const updatedRaw = localStorage.getItem('shiftflow_updated_at');
+
+      const parsedSchedule = schedRaw ? (JSON.parse(schedRaw) as ShiftEntry[]) : undefined;
+      if (parsedSchedule && (!Array.isArray(parsedSchedule) || parsedSchedule.length === 0)) {
+        return;
+      }
+
+      const reconstructed: Partial<CloudRosterState> = {
+        ...(parsedSchedule ? { schedule: parsedSchedule } : {}),
+        ...(persRaw ? { personnelList: JSON.parse(persRaw) } : {}),
+        ...(lockedRaw ? { unlockedMonths: JSON.parse(lockedRaw) } : {}),
+        publishedRange: rangeRaw ? JSON.parse(rangeRaw) : null,
+        ...(dpRaw ? { dailyProcesses: JSON.parse(dpRaw) } : {}),
+        ...(pdRaw ? { processDefinitions: JSON.parse(pdRaw) } : {}),
+        ...(showProcRaw !== null ? { showProcessSchedule: showProcRaw === 'true' } : {}),
+        ...(pwdRaw ? { adminPassword: pwdRaw } : {}),
+        updatedAt: updatedRaw || new Date().toISOString(),
+      };
+
+      handleIncomingData(reconstructed as CloudRosterState, 'broadcast');
+    } catch {}
   };
   if (typeof window !== 'undefined') {
     window.addEventListener('storage', handleStorageEvent);
@@ -800,15 +890,19 @@ export function subscribeToCloudRoster(
     };
     const tasks: Promise<Candidate | null>[] = [];
     let sawExplicitEmpty = false;
-    let bestProgressiveUpdatedAt = '';
+    let bestProgressive: Candidate | null = null;
+
+    const isCandidateBetter = (a: Candidate, b: Candidate | null): boolean => {
+      if (!b) return true;
+      if (a.updatedAt !== b.updatedAt) return a.updatedAt > b.updatedAt;
+      if (a.revision !== b.revision) return a.revision > b.revision;
+      return a.version > b.version;
+    };
 
     const emitCandidate = (cand: Candidate | null) => {
       if (!cand) return cand;
-      if (
-        onProgressiveCandidate &&
-        (!bestProgressiveUpdatedAt || cand.updatedAt >= bestProgressiveUpdatedAt)
-      ) {
-        bestProgressiveUpdatedAt = cand.updatedAt || bestProgressiveUpdatedAt;
+      if (onProgressiveCandidate && isCandidateBetter(cand, bestProgressive)) {
+        bestProgressive = cand;
         onProgressiveCandidate(cand.result, cand.source);
       }
       return cand;
@@ -852,7 +946,7 @@ export function subscribeToCloudRoster(
         tasks.push(wrapServerFetch(''));
       }
       const customUrl = getCustomServerUrl();
-      if (customUrl && (checkAllSources || isStaticHost || deadEndpointUrls.has('__local__'))) {
+      if (customUrl && !deadEndpointUrls.has(customUrl)) {
         tasks.push(wrapServerFetch(customUrl));
       }
     } else {
@@ -1022,6 +1116,8 @@ export function subscribeToCloudRoster(
       });
   };
 
+  // Flush any offline/interrupted edits saved in localStorage immediately on boot
+  flushPendingCloudSync().catch(() => {});
   doFetchInitial(1);
 
   // 2. Direct Server-Sent Events (SSE) Stream — connect to local /api/sync/stream whenever local server is available
@@ -1086,9 +1182,19 @@ export function subscribeToCloudRoster(
     connectSSE();
   }
 
-  // 3. Smart Background Polling:
+  // 3. Smart Background Polling & Pending Offline Flush:
   const fetchLatestFromServer = (checkAllSources = false) => {
     if (isCancelled || activePendingMutations > 0) return;
+    if (readPendingSync()) {
+      flushPendingCloudSync()
+        .then((flushed) => {
+          if (flushed && !isCancelled) {
+            fetchLatestFromServer(true);
+          }
+        })
+        .catch(() => {});
+      return;
+    }
     const activeServers = getActiveServerUrls();
     const canUseLocalServer = !isNativeAndroid && !isStaticHost && !deadEndpointUrls.has('__local__');
     if (!checkAllSources && currentSyncDetails.firestoreConnected && activeServers.length === 0 && !canUseLocalServer) {
@@ -1110,7 +1216,7 @@ export function subscribeToCloudRoster(
       .catch(() => {});
   };
 
-  const pollIntervalMs = hasServerEndpoint ? 10000 : 25000;
+  const pollIntervalMs = hasServerEndpoint ? 10000 : 20000;
   const pollTimer = setInterval(() => fetchLatestFromServer(false), pollIntervalMs);
 
   // Dedicated Web Worker timer so browsers do NOT throttle background sync when minimized
@@ -1137,12 +1243,29 @@ export function subscribeToCloudRoster(
     } catch {}
   }
 
-  // Immediate full freshness check when tab becomes active / device unlocked
+  // Immediate pending flush & full freshness check when tab becomes active / online / device unlocked
   const handleVisibilityOrFocus = () => {
-    fetchLatestFromServer(true);
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+    if (readPendingSync()) {
+      flushPendingCloudSync()
+        .then(() => fetchLatestFromServer(true))
+        .catch(() => {});
+    } else {
+      fetchLatestFromServer(true);
+    }
+  };
+  const handleOnline = () => {
+    if (readPendingSync()) {
+      flushPendingCloudSync()
+        .then(() => fetchLatestFromServer(true))
+        .catch(() => {});
+    } else {
+      fetchLatestFromServer(true);
+    }
   };
   if (typeof window !== 'undefined') {
     window.addEventListener('focus', handleVisibilityOrFocus);
+    window.addEventListener('online', handleOnline);
     document.addEventListener('visibilitychange', handleVisibilityOrFocus);
   }
 
@@ -1229,6 +1352,7 @@ export function subscribeToCloudRoster(
     if (typeof window !== 'undefined') {
       window.removeEventListener('storage', handleStorageEvent);
       window.removeEventListener('focus', handleVisibilityOrFocus);
+      window.removeEventListener('online', handleOnline);
       document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
     }
     if (eventSource) {
@@ -1246,7 +1370,7 @@ export function subscribeToCloudRoster(
  * Fetches latest roster state on-demand across all active endpoints (Local Server, Relay Worker, Firestore REST/SDK)
  * and picks whichever has the newest updatedAt timestamp.
  */
-export async function fetchLatestCloudRosterNow(): Promise<CloudRosterState | null> {
+export async function fetchLatestCloudRosterNow(preservePendingFlag = false): Promise<CloudRosterState | null> {
   const isAndroid = isStandaloneAndroidRuntime();
   const isStaticHost = isStaticHostingOrigin();
   const customUrl = getCustomServerUrl();
@@ -1319,7 +1443,12 @@ export async function fetchLatestCloudRosterNow(): Promise<CloudRosterState | nu
     .map((r) => r.value!);
 
   if (valid.length > 0) {
-    valid.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    valid.sort((a, b) => {
+      if (a.updatedAt !== b.updatedAt) return b.updatedAt.localeCompare(a.updatedAt);
+      const revA = typeof a.data._revision === 'number' ? a.data._revision : 0;
+      const revB = typeof b.data._revision === 'number' ? b.data._revision : 0;
+      return revB - revA;
+    });
     const best = valid[0].data;
     if (best.updatedAt && (!lastKnownCloudUpdatedAt || best.updatedAt > lastKnownCloudUpdatedAt)) {
       lastKnownCloudUpdatedAt = best.updatedAt;
@@ -1327,8 +1456,10 @@ export async function fetchLatestCloudRosterNow(): Promise<CloudRosterState | nu
     if (typeof best._revision === 'number' && best._revision > lastKnownRevision) {
       lastKnownRevision = best._revision;
     }
-    lastLocalSaveFailed = false;
-    updateSyncDetails({ hasUnsavedChanges: false });
+    if (!preservePendingFlag && !readPendingSync()) {
+      lastLocalSaveFailed = false;
+      updateSyncDetails({ hasUnsavedChanges: false });
+    }
     return best;
   }
 
@@ -1342,7 +1473,7 @@ export async function fetchLatestCloudRosterNow(): Promise<CloudRosterState | nu
           firestoreConnected: true,
           lastSyncTime: new Date().toLocaleTimeString('fa-IR'),
           channel: currentSyncDetails.serverConnected ? 'both' : 'firestore',
-          hasUnsavedChanges: false,
+          ...(preservePendingFlag || readPendingSync() ? {} : { hasUnsavedChanges: false }),
         });
         if (cloudData.updatedAt && (!lastKnownCloudUpdatedAt || cloudData.updatedAt > lastKnownCloudUpdatedAt)) {
           lastKnownCloudUpdatedAt = cloudData.updatedAt;
@@ -1350,7 +1481,9 @@ export async function fetchLatestCloudRosterNow(): Promise<CloudRosterState | nu
         if (typeof cloudData._revision === 'number' && cloudData._revision > lastKnownRevision) {
           lastKnownRevision = cloudData._revision;
         }
-        lastLocalSaveFailed = false;
+        if (!preservePendingFlag && !readPendingSync()) {
+          lastLocalSaveFailed = false;
+        }
         return cloudData;
       }
     } catch {}
@@ -1390,6 +1523,36 @@ export async function saveCloudRoster(data: Partial<CloudRosterState>): Promise<
     return;
   }
 
+  // Persist pending snapshot synchronously to LocalStorage BEFORE async network queue
+  // so immediate refresh/offline close never loses any edit
+  const currentWriteSeq = ++latestPendingSeq;
+  const existingPending = readPendingSync();
+  const immediateTs = nextMonotonicTimestamp(
+    lastKnownCloudUpdatedAt,
+    lastLocalMutationUpdatedAt,
+    existingPending?.updatedAt,
+    data.updatedAt
+  );
+  lastLocalMutationTimeMs = Date.now();
+  lastLocalMutationUpdatedAt = immediateTs;
+  const mergedPendingData = cleanFirestoreData({
+    ...(existingPending?.data || {}),
+    ...data,
+    updatedAt: immediateTs,
+    _userEdited: true,
+  });
+  writePendingSync({
+    data: mergedPendingData,
+    updatedAt: immediateTs,
+    queuedAtMs: Date.now(),
+    seq: currentWriteSeq,
+  });
+  if (typeof localStorage !== 'undefined') {
+    try {
+      localStorage.setItem('shiftflow_updated_at', immediateTs);
+    } catch {}
+  }
+
   const runWrite = async (): Promise<void> => {
     activePendingMutations++;
     lastLocalMutationTimeMs = Date.now();
@@ -1401,8 +1564,8 @@ export async function saveCloudRoster(data: Partial<CloudRosterState>): Promise<
       if ((!lastKnownCloudUpdatedAt || lastKnownRevision === 0) && !data._explicitReset) {
         try {
           remotePreState = await Promise.race([
-            fetchLatestCloudRosterNow(),
-            new Promise<null>((r) => setTimeout(() => r(null), 3000)),
+            fetchLatestCloudRosterNow(true),
+            new Promise<null>((r) => setTimeout(() => r(null), 2500)),
           ]);
           if (remotePreState) {
             if (remotePreState.updatedAt && (!lastKnownCloudUpdatedAt || remotePreState.updatedAt > lastKnownCloudUpdatedAt)) {
@@ -1419,7 +1582,8 @@ export async function saveCloudRoster(data: Partial<CloudRosterState>): Promise<
       const now = nextMonotonicTimestamp(
         lastKnownCloudUpdatedAt,
         lastLocalMutationUpdatedAt,
-        remotePreState?.updatedAt
+        remotePreState?.updatedAt,
+        immediateTs
       );
       const nextRevision = Math.max(lastKnownRevision, remotePreState?._revision || 0) + 1;
 
@@ -1468,7 +1632,6 @@ export async function saveCloudRoster(data: Partial<CloudRosterState>): Promise<
 
       const isAndroid = isStandaloneAndroidRuntime();
       const isStaticHost = isStaticHostingOrigin();
-      const isPagesHost = isCloudflarePagesOrigin();
       const customUrl = getCustomServerUrl();
       const hasLocalServer = !isAndroid && !isStaticHost && !deadEndpointUrls.has('__local__');
       const targetUrls: string[] = [];
@@ -1479,11 +1642,7 @@ export async function saveCloudRoster(data: Partial<CloudRosterState>): Promise<
         if (hasLocalServer) {
           targetUrls.push('/api/sync');
         }
-        if (
-          customUrl &&
-          !deadEndpointUrls.has(customUrl) &&
-          (!isPagesHost || deadEndpointUrls.has('__local__') || customUrl !== DEFAULT_VERCEL_SYNC_URL)
-        ) {
+        if (customUrl && !deadEndpointUrls.has(customUrl)) {
           targetUrls.push(`${customUrl}/api/sync`);
         }
       }
@@ -1506,7 +1665,6 @@ export async function saveCloudRoster(data: Partial<CloudRosterState>): Promise<
             return true;
           }
         } catch {
-          // If direct REST timed out/failed and we have relay/server endpoints, avoid stalling another 6.5s on SDK
           if (targetUrls.length > 0) {
             return false;
           }
@@ -1598,7 +1756,6 @@ export async function saveCloudRoster(data: Partial<CloudRosterState>): Promise<
                 lastKnownRevision = conflictRevision;
               }
             } catch {}
-            // Auto-retry once with forceOverwrite for genuine user edits so stale Relay timestamps never block saving
             const isLegacySchedule =
               Array.isArray(payload.schedule) &&
               getScheduleHash(payload.schedule) === LEGACY_STALE_SCHEDULE_HASH &&
@@ -1648,9 +1805,8 @@ export async function saveCloudRoster(data: Partial<CloudRosterState>): Promise<
         }
       };
 
-      // Launch direct Firestore + server/relay writes; resolve promptly once durable cloud persistence is confirmed
       const firestorePromise = writeToFirestore();
-      const serverPromises = targetUrls.map((url) => postToServer(url));
+      const serverPromises = targetUrls.map((url) => postToServer(url, Boolean((data as any)?.forceOverwrite)));
 
       const durableConfirmation = new Promise<{
         firestoreOk: boolean;
@@ -1731,8 +1887,12 @@ export async function saveCloudRoster(data: Partial<CloudRosterState>): Promise<
         );
       }
 
-      lastLocalSaveFailed = false;
-      updateSyncDetails({ hasUnsavedChanges: false });
+      if (currentWriteSeq >= latestPendingSeq) {
+        clearPendingSync();
+        lastLocalSaveFailed = false;
+        writeConfirmedCloudMeta(lastKnownCloudUpdatedAt, lastKnownRevision);
+        updateSyncDetails({ hasUnsavedChanges: false });
+      }
     } finally {
       activePendingMutations = Math.max(0, activePendingMutations - 1);
     }
@@ -1745,76 +1905,111 @@ export async function saveCloudRoster(data: Partial<CloudRosterState>): Promise<
 }
 
 /**
+ * Attempts to flush any pending unsaved edits stored in LocalStorage when connectivity returns.
+ */
+export async function flushPendingCloudSync(): Promise<boolean> {
+  if (isFlushingPendingSync || activePendingMutations > 0) return false;
+  const pending = readPendingSync();
+  if (!pending || !pending.data) return false;
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return false;
+
+  isFlushingPendingSync = true;
+  try {
+    await saveCloudRoster({
+      ...pending.data,
+      _scheduleEdited: true,
+      forceOverwrite: true,
+    } as any);
+    return !readPendingSync();
+  } catch {
+    return false;
+  } finally {
+    isFlushingPendingSync = false;
+  }
+}
+
+/**
  * Overwrites entire cloud roster with fresh initial data across both channels.
  */
 export async function resetCloudRoster(data: CloudRosterState): Promise<void> {
-  const now = nextMonotonicTimestamp(lastKnownCloudUpdatedAt, lastLocalMutationUpdatedAt);
-  lastLocalMutationTimeMs = Date.now();
-  lastLocalMutationUpdatedAt = now;
-  lastKnownCloudUpdatedAt = now;
-  if (data.schedule) {
-    setLocalScheduleFingerprint(data.schedule);
-  }
-
-  const nextRevision = lastKnownRevision + 1;
-  lastKnownRevision = nextRevision;
-  const payload = cleanFirestoreData({
-    ...data,
-    updatedAt: now,
-    _revision: nextRevision,
-    _explicitReset: true,
-    _userEdited: true,
-    _clientBuild: CLIENT_BUILD_ID,
-    _originClientId: CLIENT_ID,
-  });
-
-  broadcastLocalStateChange(payload);
-
-  activePendingMutations++;
-  try {
-    const ops: Promise<any>[] = [];
-    if (!isFirestoreQuotaExhausted) {
-      ops.push(
-        writeFirestoreDocREST(payload, false).catch(() =>
-          setDoc(doc(db, ROSTER_DOC_PATH, ROSTER_DOC_ID), payload).catch(() => false)
-        )
-      );
-    }
-
-    const isAndroid = isStandaloneAndroidRuntime();
-    const isStaticHost = isStaticHostingOrigin();
-    const isPagesHost = isCloudflarePagesOrigin();
-    const customUrl = getCustomServerUrl();
-    const targetUrls: string[] = [];
-    if (isAndroid) {
-      targetUrls.push(...getActiveServerUrls().map((base) => `${base}/api/sync/reset`));
-    } else {
-      if (!isStaticHost && !deadEndpointUrls.has('__local__')) {
-        targetUrls.push('/api/sync/reset');
-      }
-      if (
-        customUrl &&
-        !deadEndpointUrls.has(customUrl) &&
-        (!isPagesHost || deadEndpointUrls.has('__local__') || customUrl !== DEFAULT_VERCEL_SYNC_URL)
-      ) {
-        targetUrls.push(`${customUrl}/api/sync/reset`);
-      }
-    }
-
-    for (const url of targetUrls) {
-      ops.push(
-        fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ data: payload }),
-        })
-      );
-    }
-
-    await Promise.allSettled(ops);
-    lastLocalSaveFailed = false;
-  } finally {
-    activePendingMutations = Math.max(0, activePendingMutations - 1);
+  const runReset = async (): Promise<void> => {
+    latestPendingSeq++;
+    clearPendingSync();
+    const now = nextMonotonicTimestamp(lastKnownCloudUpdatedAt, lastLocalMutationUpdatedAt);
     lastLocalMutationTimeMs = Date.now();
-  }
+    lastLocalMutationUpdatedAt = now;
+    lastKnownCloudUpdatedAt = now;
+    if (data.schedule) {
+      setLocalScheduleFingerprint(data.schedule);
+    }
+
+    const nextRevision = lastKnownRevision + 1;
+    lastKnownRevision = nextRevision;
+    const payload = cleanFirestoreData({
+      ...data,
+      updatedAt: now,
+      _revision: nextRevision,
+      _explicitReset: true,
+      _userEdited: true,
+      _clientBuild: CLIENT_BUILD_ID,
+      _originClientId: CLIENT_ID,
+    });
+
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem('shiftflow_updated_at', now);
+        writeConfirmedCloudMeta(now, nextRevision);
+      } catch {}
+    }
+
+    broadcastLocalStateChange(payload);
+
+    activePendingMutations++;
+    try {
+      const ops: Promise<any>[] = [];
+      if (!isFirestoreQuotaExhausted) {
+        ops.push(
+          writeFirestoreDocREST(payload, false).catch(() =>
+            setDoc(doc(db, ROSTER_DOC_PATH, ROSTER_DOC_ID), payload).catch(() => false)
+          )
+        );
+      }
+
+      const isAndroid = isStandaloneAndroidRuntime();
+      const isStaticHost = isStaticHostingOrigin();
+      const customUrl = getCustomServerUrl();
+      const targetUrls: string[] = [];
+      if (isAndroid) {
+        targetUrls.push(...getActiveServerUrls().map((base) => `${base}/api/sync/reset`));
+      } else {
+        if (!isStaticHost && !deadEndpointUrls.has('__local__')) {
+          targetUrls.push('/api/sync/reset');
+        }
+        if (customUrl && !deadEndpointUrls.has(customUrl)) {
+          targetUrls.push(`${customUrl}/api/sync/reset`);
+        }
+      }
+
+      for (const url of targetUrls) {
+        ops.push(
+          fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: payload, clientId: CLIENT_ID, forceOverwrite: true }),
+          })
+        );
+      }
+
+      await Promise.allSettled(ops);
+      lastLocalSaveFailed = false;
+      updateSyncDetails({ hasUnsavedChanges: false });
+    } finally {
+      activePendingMutations = Math.max(0, activePendingMutations - 1);
+      lastLocalMutationTimeMs = Date.now();
+    }
+  };
+
+  const chained = writeQueuePromise.then(runReset, runReset);
+  writeQueuePromise = chained.catch(() => {});
+  return chained;
 }

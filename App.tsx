@@ -16,7 +16,7 @@ import { ShiftEntry, Personnel, AppData, PublishedRange, DailyProcessMap, Proces
 import { Settings, Plus, Trash2, Save, ArrowUp, ArrowDown, UserCog, Users, ArrowRightLeft, AlertCircle, AlertTriangle, CheckCircle2, Edit, Calendar as CalendarIcon, List, Table as TableIcon, Check, Lock, X, KeyRound, CalendarPlus, Crown, LogOut, ShieldCheck, Palette, Cloud, CloudUpload, Wifi, RefreshCw, UserPlus, Sun, Moon, Sparkles, FlaskConical, Server, SlidersHorizontal } from 'lucide-react';
 import { getTodayPersianParts, getDayNameForJalali, toPersianDigits, getNextJalaliDate } from './utils/persianDate';
 import { getNextPersonnelColor, getPersonColor, ensureUniquePersonnelColors, upgradeToVibrantPersonnel } from './utils/personnelColors';
-import { subscribeToCloudRoster, saveCloudRoster, resetCloudRoster, subscribeSyncStatus, SyncStatusDetails, getSyncApiBase, setLocalScheduleFingerprint, fetchLatestCloudRosterNow, CloudRosterState, getScheduleHash, LEGACY_STALE_SCHEDULE_HASH } from './utils/firebase';
+import { subscribeToCloudRoster, saveCloudRoster, resetCloudRoster, subscribeSyncStatus, SyncStatusDetails, getSyncApiBase, setLocalScheduleFingerprint, fetchLatestCloudRosterNow, CloudRosterState, getScheduleHash, LEGACY_STALE_SCHEDULE_HASH, hasPendingCloudSync } from './utils/firebase';
 import { unifyPersonnelAndShifts } from './utils/customFormatHandler';
 import { DEFAULT_PROCESS_DEFINITIONS, generateFullBioprocessCampaign } from './utils/bioprocessData';
 import { dispatchScheduleChangeNotifications } from './utils/shiftNotifications';
@@ -237,48 +237,30 @@ const App: React.FC = () => {
     hasUserEditedRef.current = true;
     dailyProcessesRef.current = updated;
     setDailyProcesses(updated);
-    const now = new Date().toISOString();
-    try {
-      localStorage.setItem(STORAGE_KEYS.DAILY_PROCESSES, JSON.stringify(updated));
-      localStorage.setItem(STORAGE_KEYS.UPDATED_AT, now);
-    } catch (e) {
-      console.error('LocalStorage error', e);
+    if (isStagingPreviewRef.current || isResettingRef.current) {
+      return;
     }
-    setSyncStatus('syncing');
-    saveCloudRoster(buildCloudRosterSnapshot({ dailyProcesses: updated }))
-      .then(() => setSyncStatus('synced'))
-      .catch((e) => {
-        console.warn('Process save error:', e);
-        setSyncStatus('offline');
-        setSaveNotice({
-          type: 'error',
-          message: 'خطا در ثبت تغییرات پروسه در سرور ابری. لطفاً اتصال اینترنت را بررسی کرده و دکمه تلاش مجدد را بزنید.'
-        });
-      });
+    pushRosterChangeToCloud(
+      { dailyProcesses: updated },
+      {
+        errorMessage: 'خطا در ثبت تغییرات پروسه در سرور ابری. تغییرات در حافظه مرورگر ذخیره شد و به محض اتصال ارسال می‌شود.'
+      }
+    );
   };
 
   const handleSaveProcessDefinitions = (updated: ProcessDefinition[]) => {
     hasUserEditedRef.current = true;
     processDefinitionsRef.current = updated;
     setProcessDefinitions(updated);
-    const now = new Date().toISOString();
-    try {
-      localStorage.setItem(STORAGE_KEYS.PROCESS_DEFINITIONS, JSON.stringify(updated));
-      localStorage.setItem(STORAGE_KEYS.UPDATED_AT, now);
-    } catch (e) {
-      console.error('LocalStorage error', e);
+    if (isStagingPreviewRef.current || isResettingRef.current) {
+      return;
     }
-    setSyncStatus('syncing');
-    saveCloudRoster(buildCloudRosterSnapshot({ processDefinitions: updated }))
-      .then(() => setSyncStatus('synced'))
-      .catch((e) => {
-        console.warn('Process definitions save error:', e);
-        setSyncStatus('offline');
-        setSaveNotice({
-          type: 'error',
-          message: 'خطا در ذخیره کتابخانه پروسه‌ها در سرور ابری. لطفاً اتصال اینترنت را بررسی کنید.'
-        });
-      });
+    pushRosterChangeToCloud(
+      { processDefinitions: updated },
+      {
+        errorMessage: 'خطا در ذخیره کتابخانه پروسه‌ها در سرور ابری. تغییرات در حافظه مرورگر ذخیره شد.'
+      }
+    );
   };
 
   // --- PROCESS SCHEDULE DISPLAY TOGGLE (Dashboard Visibility) ---
@@ -295,7 +277,9 @@ const App: React.FC = () => {
   // Staged Preview Mode flag & live refs so async/debounced cloud writes never read stale closures
   const [isStagingPreview, setIsStagingPreview] = useState(false);
   const isStagingPreviewRef = useRef(false);
+  const isResettingRef = useRef(false);
   const scheduleSyncTimeoutRef = useRef<any>(null);
+  const colorSyncTimeoutRef = useRef<any>(null);
 
   const scheduleRef = useRef<ShiftEntry[]>(schedule);
   const personnelListRef = useRef<Personnel[]>(personnelList);
@@ -316,6 +300,44 @@ const App: React.FC = () => {
   useEffect(() => { showProcessScheduleRef.current = showProcessSchedule; }, [showProcessSchedule]);
   useEffect(() => { isStagingPreviewRef.current = isStagingPreview; }, [isStagingPreview]);
 
+  useEffect(() => {
+    return () => {
+      if (scheduleSyncTimeoutRef.current) clearTimeout(scheduleSyncTimeoutRef.current);
+      if (colorSyncTimeoutRef.current) clearTimeout(colorSyncTimeoutRef.current);
+    };
+  }, []);
+
+  const persistAllToLocalStorage = (overrides: Partial<CloudRosterState> = {}, updatedAtIso?: string) => {
+    if (isStagingPreviewRef.current || isResettingRef.current) return;
+    const nextSchedule = overrides.schedule ?? scheduleRef.current;
+    const nextPersonnel = overrides.personnelList ?? personnelListRef.current;
+    const nextLocked = overrides.unlockedMonths ?? unlockedMonthsRef.current;
+    const nextPublished = overrides.publishedRange !== undefined ? overrides.publishedRange : publishedRangeRef.current;
+    const nextPassword = overrides.adminPassword ?? adminPasswordRef.current;
+    const nextDailyProcesses = overrides.dailyProcesses ?? dailyProcessesRef.current;
+    const nextProcessDefs = overrides.processDefinitions ?? processDefinitionsRef.current;
+    const nextShowProcess = overrides.showProcessSchedule !== undefined ? overrides.showProcessSchedule : showProcessScheduleRef.current;
+    const timestamp = updatedAtIso || new Date().toISOString();
+
+    try {
+      localStorage.setItem(STORAGE_KEYS.SCHEDULE, JSON.stringify(nextSchedule));
+      localStorage.setItem(STORAGE_KEYS.PERSONNEL, JSON.stringify(nextPersonnel));
+      localStorage.setItem(STORAGE_KEYS.LOCKED, JSON.stringify(nextLocked));
+      if (nextPublished && nextPublished.isActive) {
+        localStorage.setItem(STORAGE_KEYS.PUBLISHED_RANGE, JSON.stringify(nextPublished));
+      } else {
+        localStorage.removeItem(STORAGE_KEYS.PUBLISHED_RANGE);
+      }
+      localStorage.setItem(STORAGE_KEYS.PASSWORD, nextPassword);
+      localStorage.setItem(STORAGE_KEYS.DAILY_PROCESSES, JSON.stringify(nextDailyProcesses));
+      localStorage.setItem(STORAGE_KEYS.PROCESS_DEFINITIONS, JSON.stringify(nextProcessDefs));
+      localStorage.setItem(STORAGE_KEYS.SHOW_PROCESS_SCHEDULE, String(nextShowProcess));
+      localStorage.setItem(STORAGE_KEYS.UPDATED_AT, timestamp);
+    } catch (e) {
+      console.error('LocalStorage persist error:', e);
+    }
+  };
+
   const buildCloudRosterSnapshot = (overrides: Partial<CloudRosterState> = {}): Partial<CloudRosterState> => ({
     schedule: overrides.schedule ?? scheduleRef.current,
     personnelList: overrides.personnelList ?? personnelListRef.current,
@@ -328,6 +350,38 @@ const App: React.FC = () => {
     _userEdited: true,
     _scheduleEdited: Boolean(overrides.schedule !== undefined || overrides._scheduleEdited || hasUserEditedScheduleRef.current),
   });
+
+  const pushRosterChangeToCloud = (
+    overrides: Partial<CloudRosterState> = {},
+    options?: { successMessage?: string; errorMessage?: string; successDurationMs?: number }
+  ) => {
+    if (isStagingPreviewRef.current || isResettingRef.current) {
+      return Promise.resolve();
+    }
+    if (colorSyncTimeoutRef.current) {
+      clearTimeout(colorSyncTimeoutRef.current);
+      colorSyncTimeoutRef.current = null;
+    }
+    const localTs = new Date().toISOString();
+    persistAllToLocalStorage(overrides, localTs);
+    setSyncStatus('syncing');
+    return saveCloudRoster(buildCloudRosterSnapshot(overrides))
+      .then(() => {
+        setSyncStatus('synced');
+        if (options?.successMessage) {
+          setSaveNotice({ type: 'success', message: options.successMessage });
+          setTimeout(() => setSaveNotice(null), options.successDurationMs ?? 4000);
+        }
+      })
+      .catch((err) => {
+        console.warn('Cloud sync error:', err);
+        setSyncStatus('offline');
+        setSaveNotice({
+          type: 'error',
+          message: options?.errorMessage || 'خطا در همگام‌سازی با سرور ابری؛ تغییرات در حافظه مرورگر ذخیره شد و به محض برقراری ارتباط ارسال می‌شود.'
+        });
+      });
+  };
 
   const handleSavePublishedRange = (range: PublishedRange | null) => {
     hasUserEditedRef.current = true;
@@ -344,62 +398,28 @@ const App: React.FC = () => {
       scheduleSyncTimeoutRef.current = null;
     }
 
-    const now = new Date().toISOString();
-    try {
-      if (range && range.isActive) {
-        localStorage.setItem(STORAGE_KEYS.PUBLISHED_RANGE, JSON.stringify(range));
-      } else {
-        localStorage.removeItem(STORAGE_KEYS.PUBLISHED_RANGE);
+    pushRosterChangeToCloud(
+      { publishedRange: range },
+      {
+        errorMessage: 'خطا در ثبت وضعیت انتشار بازه زمانی در سرور ابری. لطفاً دوباره تلاش کنید.'
       }
-      localStorage.setItem(STORAGE_KEYS.SCHEDULE, JSON.stringify(scheduleRef.current));
-      localStorage.setItem(STORAGE_KEYS.UPDATED_AT, now);
-    } catch (e) {
-      console.error('LocalStorage error', e);
-    }
-
-    setSyncStatus('syncing');
-    saveCloudRoster(buildCloudRosterSnapshot({ publishedRange: range }))
-      .then(() => setSyncStatus('synced'))
-      .catch((e) => {
-        console.error(e);
-        setSyncStatus('offline');
-        setSaveNotice({
-          type: 'error',
-          message: 'خطا در ثبت وضعیت انتشار بازه زمانی در سرور ابری. لطفاً دوباره تلاش کنید.'
-        });
-      });
+    );
   };
 
   const handleToggleProcessSchedule = (enabled: boolean) => {
     hasUserEditedRef.current = true;
     showProcessScheduleRef.current = enabled;
     setShowProcessSchedule(enabled);
-    const now = new Date().toISOString();
-    try {
-      localStorage.setItem(STORAGE_KEYS.SHOW_PROCESS_SCHEDULE, String(enabled));
-      localStorage.setItem(STORAGE_KEYS.UPDATED_AT, now);
-    } catch (e) {
-      console.error('LocalStorage error', e);
-    }
-    setSyncStatus('syncing');
-    saveCloudRoster(buildCloudRosterSnapshot({ showProcessSchedule: enabled }))
-      .then(() => {
-        setSyncStatus('synced');
-        setSaveNotice({
-          type: 'success',
-          message: enabled
-            ? 'برنامه و جدول پروسه‌ها در داشبورد فعال و در سرور ذخیره شد.'
-            : 'برنامه پروسه‌ها از داشبورد برداشته شد و در سرور ثبت گردید.'
-        });
-        setTimeout(() => setSaveNotice(null), 3500);
-      })
-      .catch(() => {
-        setSyncStatus('offline');
-        setSaveNotice({
-          type: 'error',
-          message: 'خطا در همگام‌سازی تغییر نمایش پروسه‌ها با سرور ابری.'
-        });
-      });
+    pushRosterChangeToCloud(
+      { showProcessSchedule: enabled },
+      {
+        successMessage: enabled
+          ? 'برنامه و جدول پروسه‌ها در داشبورد فعال و در سرور ذخیره شد.'
+          : 'برنامه پروسه‌ها از داشبورد برداشته شد و در سرور ثبت گردید.',
+        successDurationMs: 3500,
+        errorMessage: 'خطا در همگام‌سازی تغییر نمایش پروسه‌ها با سرور ابری.'
+      }
+    );
   };
 
   // --- IN-APP CONFIRMATION DIALOG & INLINE ERRORS (IFRAME-SAFE) ---
@@ -477,32 +497,32 @@ const App: React.FC = () => {
           return;
       }
 
+      hasUserEditedRef.current = true;
       setChangePwdError(null);
       adminPasswordRef.current = pwdForm.new;
       setAdminPassword(pwdForm.new);
-      localStorage.setItem(STORAGE_KEYS.PASSWORD, pwdForm.new);
-      saveCloudRoster(buildCloudRosterSnapshot({ adminPassword: pwdForm.new }))
-        .then(() => {
-          setSaveNotice({ type: 'success', message: 'رمز عبور مدیریت با موفقیت تغییر کرد و در سرور ذخیره شد.' });
-          setTimeout(() => setSaveNotice(null), 4000);
-        })
-        .catch(() => {
-          setSyncStatus('offline');
-          setSaveNotice({ type: 'error', message: 'رمز عبور در مرورگر تغییر کرد اما ذخیره ابری ناموفق بود.' });
-        });
+      pushRosterChangeToCloud(
+        { adminPassword: pwdForm.new },
+        {
+          successMessage: 'رمز عبور مدیریت با موفقیت تغییر کرد و در سرور ذخیره شد.',
+          errorMessage: 'رمز عبور در مرورگر تغییر کرد اما ذخیره ابری ناموفق بود.'
+        }
+      );
       setChangePwdOpen(false);
       setPwdForm({ current: '', new: '', confirm: '' });
   };
 
   // --- CLOUD & SERVER DUAL SYNCHRONIZATION ---
-  const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'offline'>('syncing');
-  const [syncDetails, setSyncDetails] = useState<SyncStatusDetails>({
+  const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'offline'>(() =>
+    hasPendingCloudSync() ? 'offline' : 'syncing'
+  );
+  const [syncDetails, setSyncDetails] = useState<SyncStatusDetails>(() => ({
     serverConnected: false,
     firestoreConnected: false,
     lastSyncTime: null,
     channel: 'offline',
-    hasUnsavedChanges: false,
-  });
+    hasUnsavedChanges: hasPendingCloudSync(),
+  }));
   const [isForceSyncing, setIsForceSyncing] = useState(false);
 
   useEffect(() => {
@@ -512,6 +532,7 @@ const App: React.FC = () => {
         setSyncStatus('offline');
       } else if (details.firestoreConnected || details.serverConnected) {
         setSyncStatus('synced');
+        setSaveNotice((prev) => (prev && prev.type === 'error' ? null : prev));
       } else if (details.isQuotaExhausted) {
         setSyncStatus('offline');
       }
@@ -523,58 +544,73 @@ const App: React.FC = () => {
     setIsForceSyncing(true);
     try {
       // If local edits failed to reach cloud earlier, retry uploading them instead of discarding them
-      if (syncDetails.hasUnsavedChanges) {
+      if (syncDetails.hasUnsavedChanges || hasPendingCloudSync()) {
         await handleManualSaveChanges();
         return;
       }
       const cloudData = await fetchLatestCloudRosterNow();
       if (cloudData) {
-        if (cloudData.schedule && Array.isArray(cloudData.schedule)) {
-          dispatchScheduleChangeNotifications(scheduleRef.current, cloudData.schedule);
-          setLocalScheduleFingerprint(cloudData.schedule);
-          scheduleRef.current = cloudData.schedule;
-          setSchedule(cloudData.schedule);
-          localStorage.setItem(STORAGE_KEYS.SCHEDULE, JSON.stringify(cloudData.schedule));
-        }
-        if (cloudData.personnelList && Array.isArray(cloudData.personnelList)) {
-          personnelListRef.current = cloudData.personnelList;
-          setPersonnelList(cloudData.personnelList);
-          localStorage.setItem(STORAGE_KEYS.PERSONNEL, JSON.stringify(cloudData.personnelList));
+        if (cloudData.schedule && Array.isArray(cloudData.schedule) && cloudData.schedule.length > 0) {
+          const non1404 = cloudData.schedule.filter(s => !s.date.startsWith('1404'));
+          const cleanSchedule = non1404.length > 0 ? non1404 : SCHEDULE_DATA;
+          const normalizedSchedule = cleanSchedule.map(entry => {
+            const parts = entry.date.split('/');
+            if (parts.length === 3) {
+              const y = parseInt(parts[0], 10);
+              const m = parseInt(parts[1], 10);
+              const d = parseInt(parts[2], 10);
+              if (y && m && d) {
+                const correctDay = getDayNameForJalali(y, m, d);
+                if (entry.dayName !== correctDay) {
+                  return { ...entry, dayName: correctDay };
+                }
+              }
+            }
+            return entry;
+          });
+          const cloudPersonnel = (cloudData.personnelList && Array.isArray(cloudData.personnelList) && cloudData.personnelList.length > 0)
+            ? cloudData.personnelList
+            : personnelListRef.current;
+          const { updated } = upgradeToVibrantPersonnel(cloudPersonnel);
+          const { unifiedShifts, unifiedPersonnel } = unifyPersonnelAndShifts(normalizedSchedule, updated, updated);
+          dispatchScheduleChangeNotifications(scheduleRef.current, unifiedShifts);
+          setLocalScheduleFingerprint(unifiedShifts);
+          scheduleRef.current = unifiedShifts;
+          personnelListRef.current = unifiedPersonnel;
+          setSchedule(unifiedShifts);
+          setPersonnelList(unifiedPersonnel);
+        } else if (cloudData.personnelList && Array.isArray(cloudData.personnelList) && cloudData.personnelList.length > 0) {
+          const { updated } = upgradeToVibrantPersonnel(cloudData.personnelList);
+          const { unifiedPersonnel } = unifyPersonnelAndShifts([], updated, []);
+          personnelListRef.current = unifiedPersonnel;
+          setPersonnelList(unifiedPersonnel);
         }
         if (cloudData.unlockedMonths && Array.isArray(cloudData.unlockedMonths)) {
           unlockedMonthsRef.current = cloudData.unlockedMonths;
           setUnlockedMonths(cloudData.unlockedMonths);
-          localStorage.setItem(STORAGE_KEYS.LOCKED, JSON.stringify(cloudData.unlockedMonths));
         }
         if (cloudData.publishedRange !== undefined) {
           publishedRangeRef.current = cloudData.publishedRange;
           setPublishedRange(cloudData.publishedRange);
-          if (cloudData.publishedRange && cloudData.publishedRange.isActive) {
-            localStorage.setItem(STORAGE_KEYS.PUBLISHED_RANGE, JSON.stringify(cloudData.publishedRange));
-          } else {
-            localStorage.removeItem(STORAGE_KEYS.PUBLISHED_RANGE);
-          }
         }
         if (cloudData.adminPassword) {
           adminPasswordRef.current = cloudData.adminPassword;
           setAdminPassword(cloudData.adminPassword);
-          localStorage.setItem(STORAGE_KEYS.PASSWORD, cloudData.adminPassword);
         }
         if (cloudData.dailyProcesses) {
           dailyProcessesRef.current = cloudData.dailyProcesses;
           setDailyProcesses(cloudData.dailyProcesses);
-          localStorage.setItem(STORAGE_KEYS.DAILY_PROCESSES, JSON.stringify(cloudData.dailyProcesses));
         }
         if (cloudData.processDefinitions) {
           processDefinitionsRef.current = cloudData.processDefinitions;
           setProcessDefinitions(cloudData.processDefinitions);
-          localStorage.setItem(STORAGE_KEYS.PROCESS_DEFINITIONS, JSON.stringify(cloudData.processDefinitions));
         }
         if (cloudData.showProcessSchedule !== undefined) {
           showProcessScheduleRef.current = cloudData.showProcessSchedule;
           setShowProcessSchedule(cloudData.showProcessSchedule);
-          localStorage.setItem(STORAGE_KEYS.SHOW_PROCESS_SCHEDULE, String(cloudData.showProcessSchedule));
         }
+        hasCloudHydratedRef.current = true;
+        persistAllToLocalStorage({}, cloudData.updatedAt || new Date().toISOString());
         setSyncStatus('synced');
         setSaveNotice({
           type: 'success',
@@ -592,6 +628,7 @@ const App: React.FC = () => {
       }
     } catch (err) {
       console.warn('Force sync error:', err);
+      setSyncStatus('offline');
     } finally {
       setIsForceSyncing(false);
     }
@@ -740,7 +777,13 @@ const App: React.FC = () => {
           }
         }
 
-        setSyncStatus('synced');
+        if (cloudData.updatedAt) {
+          try {
+            localStorage.setItem(STORAGE_KEYS.UPDATED_AT, cloudData.updatedAt);
+          } catch {}
+        }
+
+        setSyncStatus(hasPendingCloudSync() ? 'offline' : 'synced');
         hasCloudHydratedRef.current = true;
         isInitialLoadCompletedRef.current = true;
         setIsCloudLoading(false);
@@ -754,7 +797,7 @@ const App: React.FC = () => {
       () => {
         isInitialLoadCompletedRef.current = true;
         setIsCloudLoading(false);
-        setSyncStatus('synced');
+        setSyncStatus(hasPendingCloudSync() ? 'offline' : 'synced');
         if (hasUserEditedRef.current && scheduleRef.current && scheduleRef.current.length > 0) {
           saveCloudRoster(buildCloudRosterSnapshot()).catch(() => {});
         }
@@ -772,19 +815,16 @@ const App: React.FC = () => {
     };
   }, []);
 
-  // LocalStorage backup whenever state updates (never overwrite empty/new browser storage with default fallback before cloud hydration or explicit edit)
+  // LocalStorage backup whenever state updates (never overwrite empty/new browser storage before hydration/edit, and never leak staging preview or reset states)
   useEffect(() => {
+    if (isStagingPreviewRef.current || isStagingPreview || isResettingRef.current) {
+      return;
+    }
     if (!hasCloudHydratedRef.current && !hasUserEditedRef.current) {
       return;
     }
-    try {
-      localStorage.setItem(STORAGE_KEYS.SCHEDULE, JSON.stringify(schedule));
-      localStorage.setItem(STORAGE_KEYS.PERSONNEL, JSON.stringify(personnelList));
-      localStorage.setItem(STORAGE_KEYS.LOCKED, JSON.stringify(unlockedMonths));
-    } catch (e) {
-      console.error('LocalStorage backup notice:', e);
-    }
-  }, [schedule, personnelList, unlockedMonths]);
+    persistAllToLocalStorage();
+  }, [schedule, personnelList, unlockedMonths, publishedRange, dailyProcesses, processDefinitions, showProcessSchedule, adminPassword, isStagingPreview]);
 
   // --- MANUAL SAVE & APPLY CHANGES (SETTINGS) ---
   const [isSavingChanges, setIsSavingChanges] = useState(false);
@@ -796,10 +836,14 @@ const App: React.FC = () => {
     setIsSavingChanges(true);
     setSaveNotice(null);
     try {
-      // Clear any pending debounced schedule timer
+      // Clear any pending debounced schedule/color timers
       if (scheduleSyncTimeoutRef.current) {
         clearTimeout(scheduleSyncTimeoutRef.current);
         scheduleSyncTimeoutRef.current = null;
+      }
+      if (colorSyncTimeoutRef.current) {
+        clearTimeout(colorSyncTimeoutRef.current);
+        colorSyncTimeoutRef.current = null;
       }
 
       // 1. Ensure distinct non-duplicate colors using live personnelListRef
@@ -846,18 +890,13 @@ const App: React.FC = () => {
 
       setLocalScheduleFingerprint(finalSchedule);
 
-      // 3. Immediately persist to localStorage
-      localStorage.setItem(STORAGE_KEYS.SCHEDULE, JSON.stringify(finalSchedule));
-      localStorage.setItem(STORAGE_KEYS.PERSONNEL, JSON.stringify(distinctPersonnel));
-      localStorage.setItem(STORAGE_KEYS.LOCKED, JSON.stringify(unlockedMonthsRef.current));
-      if (publishedRangeRef.current && publishedRangeRef.current.isActive) {
-        localStorage.setItem(STORAGE_KEYS.PUBLISHED_RANGE, JSON.stringify(publishedRangeRef.current));
-      } else {
-        localStorage.removeItem(STORAGE_KEYS.PUBLISHED_RANGE);
-      }
-      localStorage.setItem(STORAGE_KEYS.PASSWORD, adminPasswordRef.current);
+      // 3. Immediately persist all state keys to localStorage
+      persistAllToLocalStorage({
+        schedule: finalSchedule,
+        personnelList: distinctPersonnel,
+      });
 
-      // 4. Immediately commit to Firestore cloud database
+      // 4. Immediately commit to Cloud & Relay
       setSyncStatus('syncing');
       await saveCloudRoster(buildCloudRosterSnapshot({
         schedule: finalSchedule,
@@ -1029,12 +1068,11 @@ const App: React.FC = () => {
 
   const handleSaveStagingFinal = async () => {
     setLocalScheduleFingerprint(scheduleRef.current);
-    const savePromise = handleManualSaveChanges();
     setIsStagingPreview(false);
     isStagingPreviewRef.current = false;
     setStagingMeta(null);
     setBackupBeforeStaging(null);
-    await savePromise;
+    await handleManualSaveChanges();
   };
 
   const handleCancelStaging = () => {
@@ -1125,7 +1163,9 @@ const App: React.FC = () => {
     personnelListRef.current = updatedList;
     setPersonnelList(updatedList);
     setNewPersonName('');
-    
+
+    let nextSchedOverride: ShiftEntry[] | undefined;
+
     // Close the add form
     if (role === 'Shift') {
       setIsAddingShiftPerson(false);
@@ -1151,10 +1191,16 @@ const App: React.FC = () => {
           return entry;
         });
       }
+      hasUserEditedScheduleRef.current = true;
       scheduleRef.current = nextSched;
       setLocalScheduleFingerprint(nextSched);
       setSchedule(nextSched);
+      nextSchedOverride = nextSched;
     }
+
+    pushRosterChangeToCloud(
+      nextSchedOverride ? { personnelList: updatedList, schedule: nextSchedOverride } : { personnelList: updatedList }
+    );
   };
 
   const handleColorChange = (name: string, newColor: string) => {
@@ -1167,10 +1213,25 @@ const App: React.FC = () => {
     });
     personnelListRef.current = updatedList;
     setPersonnelList(updatedList);
+    persistAllToLocalStorage({ personnelList: updatedList });
+
+    if (colorSyncTimeoutRef.current) {
+      clearTimeout(colorSyncTimeoutRef.current);
+    }
+    setSyncStatus('syncing');
+    colorSyncTimeoutRef.current = setTimeout(() => {
+      colorSyncTimeoutRef.current = null;
+      saveCloudRoster(buildCloudRosterSnapshot({ personnelList: personnelListRef.current }))
+        .then(() => setSyncStatus('synced'))
+        .catch(() => {
+          setSyncStatus('offline');
+        });
+    }, 300);
   };
 
   const handleRemovePersonnel = (name: string) => {
     hasUserEditedRef.current = true;
+    hasUserEditedScheduleRef.current = true;
     const remainingPersonnel = personnelListRef.current.filter(p => p.name !== name);
     personnelListRef.current = remainingPersonnel;
     setPersonnelList(remainingPersonnel);
@@ -1206,6 +1267,11 @@ const App: React.FC = () => {
     scheduleRef.current = nextSched;
     setLocalScheduleFingerprint(nextSched);
     setSchedule(nextSched);
+
+    pushRosterChangeToCloud({
+      personnelList: remainingPersonnel,
+      schedule: nextSched,
+    });
   };
   
   const handleToggleActive = (name: string) => {
@@ -1220,6 +1286,7 @@ const App: React.FC = () => {
         .filter(p => p.roles.includes('Supervisor') && p.isActive)
         .map(p => p.name);
 
+      let nextSchedOverride: ShiftEntry[] | undefined;
       if (activeSupervisors.length > 0) {
         const nextSched = scheduleRef.current.map(entry => {
           if (!activeSupervisors.includes(entry.onCallPerson)) {
@@ -1227,10 +1294,16 @@ const App: React.FC = () => {
           }
           return entry;
         });
+        hasUserEditedScheduleRef.current = true;
         scheduleRef.current = nextSched;
         setLocalScheduleFingerprint(nextSched);
         setSchedule(nextSched);
+        nextSchedOverride = nextSched;
       }
+
+      pushRosterChangeToCloud(
+        nextSchedOverride ? { personnelList: updatedList, schedule: nextSchedOverride } : { personnelList: updatedList }
+      );
   };
 
   const movePersonnel = (name: string, direction: 'up' | 'down', roleFilter: 'Shift' | 'Supervisor') => {
@@ -1256,8 +1329,10 @@ const App: React.FC = () => {
 
     const newList = [...prev];
     [newList[realIndexA], newList[realIndexB]] = [newList[realIndexB], newList[realIndexA]];
+    hasUserEditedRef.current = true;
     personnelListRef.current = newList;
     setPersonnelList(newList);
+    pushRosterChangeToCloud({ personnelList: newList });
   };
 
   // --- SCHEDULING LOGIC ---
@@ -1397,39 +1472,22 @@ const App: React.FC = () => {
     setLocalScheduleFingerprint(newSchedule);
 
     // During temporary preview mode, do not overwrite live cloud roster or trigger remote overwrites
-    if (isStagingPreviewRef.current) {
+    if (isStagingPreviewRef.current || isResettingRef.current) {
       return;
-    }
-
-    const now = new Date().toISOString();
-    try {
-      localStorage.setItem(STORAGE_KEYS.SCHEDULE, JSON.stringify(newSchedule));
-      localStorage.setItem(STORAGE_KEYS.UPDATED_AT, now);
-    } catch (e) {
-      console.error('LocalStorage save error:', e);
     }
 
     if (scheduleSyncTimeoutRef.current) {
       clearTimeout(scheduleSyncTimeoutRef.current);
       scheduleSyncTimeoutRef.current = null;
     }
-    setSyncStatus('syncing');
-    saveCloudRoster(buildCloudRosterSnapshot({ schedule: newSchedule }))
-      .then(() => {
-        setSyncStatus('synced');
-        if (successToast) {
-          setSaveNotice({ type: 'success', message: successToast });
-          setTimeout(() => setSaveNotice(null), 4000);
-        }
-      })
-      .catch((err) => {
-        console.error('Schedule cloud sync error:', err);
-        setSyncStatus('offline');
-        setSaveNotice({
-          type: 'error',
-          message: 'خطا در همگام‌سازی برنامه با سرور ابری؛ تغییرات فعلاً فقط در همین مرورگر ثبت شده است. لطفاً اتصال اینترنت را بررسی کرده و روی تلاش مجدد کلیک کنید.'
-        });
-      });
+
+    pushRosterChangeToCloud(
+      { schedule: newSchedule },
+      {
+        successMessage: successToast,
+        errorMessage: 'خطا در همگام‌سازی برنامه با سرور ابری؛ تغییرات فعلاً فقط در همین مرورگر ثبت شده است. لطفاً اتصال اینترنت را بررسی کرده و روی تلاش مجدد کلیک کنید.'
+      }
+    );
   };
 
   const handleUpdateShift = (id: number, field: 'dayShiftPerson' | 'nightShiftPerson' | 'onCallPerson', value: string) => {
@@ -1592,11 +1650,7 @@ const App: React.FC = () => {
       }
       unlockedMonthsRef.current = newLocked;
       setUnlockedMonths(newLocked);
-      try {
-        localStorage.setItem(STORAGE_KEYS.LOCKED, JSON.stringify(newLocked));
-      } catch (e) {
-        console.error(e);
-      }
+      persistAllToLocalStorage({ unlockedMonths: newLocked });
       setSaveNotice({
         type: 'success',
         message: wasUnlocked
@@ -1605,7 +1659,7 @@ const App: React.FC = () => {
       });
       setTimeout(() => setSaveNotice(null), 4000);
 
-      if (!isStagingPreviewRef.current) {
+      if (!isStagingPreviewRef.current && !isResettingRef.current) {
         setSyncStatus('syncing');
         saveCloudRoster(buildCloudRosterSnapshot({ unlockedMonths: newLocked }))
           .then(() => setSyncStatus('synced'))
@@ -1756,15 +1810,6 @@ const App: React.FC = () => {
       if (data.publishedRange !== undefined) {
         publishedRangeRef.current = data.publishedRange;
         setPublishedRange(data.publishedRange);
-        try {
-          if (data.publishedRange && data.publishedRange.isActive) {
-            localStorage.setItem(STORAGE_KEYS.PUBLISHED_RANGE, JSON.stringify(data.publishedRange));
-          } else {
-            localStorage.removeItem(STORAGE_KEYS.PUBLISHED_RANGE);
-          }
-        } catch (e) {
-          console.error('LocalStorage error', e);
-        }
         if (data.publishedRange && data.publishedRange.isActive) {
           const useEndMonth =
             data.publishedRange.from.month !== data.publishedRange.to.month &&
@@ -1787,40 +1832,25 @@ const App: React.FC = () => {
       if (data.showProcessSchedule !== undefined) {
         showProcessScheduleRef.current = data.showProcessSchedule;
         setShowProcessSchedule(data.showProcessSchedule);
-        try {
-          localStorage.setItem(STORAGE_KEYS.SHOW_PROCESS_SCHEDULE, String(data.showProcessSchedule));
-        } catch (e) {
-          console.error('LocalStorage error', e);
-        }
       }
 
-      // Immediately persist imported data to cloud as a single atomic snapshot
-      setSyncStatus('syncing');
-      saveCloudRoster(buildCloudRosterSnapshot({
-        schedule: targetSchedule,
-        personnelList: targetPersonnel,
-        unlockedMonths: targetLocked,
-        publishedRange: targetPublishedRange,
-        dailyProcesses: targetDailyProcesses,
-        processDefinitions: targetProcessDefs,
-        showProcessSchedule: targetShowProcess,
-      }))
-        .then(() => {
-          setSyncStatus('synced');
-          setSaveNotice({
-            type: 'success',
-            message: 'داده‌های جدید با موفقیت جایگزین و در سرور ابری ذخیره شد.'
-          });
-          setTimeout(() => setSaveNotice(null), 4500);
-        })
-        .catch((err) => {
-          console.error('Import cloud sync error:', err);
-          setSyncStatus('offline');
-          setSaveNotice({
-            type: 'error',
-            message: 'فایل بارگذاری شد اما ذخیره در سرور ابری با خطا مواجه شد. لطفاً اتصال اینترنت را بررسی کرده و دوباره ذخیره کنید.'
-          });
-        });
+      // Immediately persist imported data to localStorage + cloud as a single atomic snapshot
+      pushRosterChangeToCloud(
+        {
+          schedule: targetSchedule,
+          personnelList: targetPersonnel,
+          unlockedMonths: targetLocked,
+          publishedRange: targetPublishedRange,
+          dailyProcesses: targetDailyProcesses,
+          processDefinitions: targetProcessDefs,
+          showProcessSchedule: targetShowProcess,
+        },
+        {
+          successMessage: 'داده‌های جدید با موفقیت جایگزین و در سرور ابری ذخیره شد.',
+          successDurationMs: 4500,
+          errorMessage: 'فایل بارگذاری شد اما ذخیره در سرور ابری با خطا مواجه شد. لطفاً اتصال اینترنت را بررسی کرده و دوباره ذخیره کنید.'
+        }
+      );
 
       setActiveTab('dashboard');
   };
@@ -1832,15 +1862,41 @@ const App: React.FC = () => {
           confirmLabel: 'بازنشانی کامل',
           tone: 'danger',
           onConfirm: async () => {
+              isResettingRef.current = true;
+              if (scheduleSyncTimeoutRef.current) {
+                clearTimeout(scheduleSyncTimeoutRef.current);
+                scheduleSyncTimeoutRef.current = null;
+              }
+              if (colorSyncTimeoutRef.current) {
+                clearTimeout(colorSyncTimeoutRef.current);
+                colorSyncTimeoutRef.current = null;
+              }
+
               const defaultDaily = generateFullBioprocessCampaign('1405/05/26');
+              const resetTimestamp = new Date().toISOString();
+              let preservedCustomSyncUrl: string | null = null;
+              try {
+                preservedCustomSyncUrl = localStorage.getItem('shiftflow_custom_sync_url');
+              } catch {}
+
+              scheduleRef.current = SCHEDULE_DATA;
+              personnelListRef.current = INITIAL_STAFF;
+              unlockedMonthsRef.current = [];
+              publishedRangeRef.current = null;
+              adminPasswordRef.current = '1234';
+              dailyProcessesRef.current = defaultDaily;
+              processDefinitionsRef.current = DEFAULT_PROCESS_DEFINITIONS;
+              showProcessScheduleRef.current = true;
+
               setSchedule(SCHEDULE_DATA);
               setPersonnelList(INITIAL_STAFF);
               setUnlockedMonths([]);
               setPublishedRange(null);
+              setAdminPassword('1234');
               setDailyProcesses(defaultDaily);
               setProcessDefinitions(DEFAULT_PROCESS_DEFINITIONS);
               setShowProcessSchedule(true);
-              localStorage.clear();
+
               try {
                 await resetCloudRoster({
                   schedule: SCHEDULE_DATA,
@@ -1851,11 +1907,30 @@ const App: React.FC = () => {
                   dailyProcesses: defaultDaily,
                   processDefinitions: DEFAULT_PROCESS_DEFINITIONS,
                   showProcessSchedule: true,
-                  updatedAt: new Date().toISOString(),
+                  updatedAt: resetTimestamp,
                 });
               } catch (e) {
                 console.error('Failed to reset cloud roster:', e);
               }
+
+              try {
+                localStorage.clear();
+                if (preservedCustomSyncUrl) {
+                  localStorage.setItem('shiftflow_custom_sync_url', preservedCustomSyncUrl);
+                }
+                localStorage.setItem('shiftflow_aban_base_v32_applied', 'true');
+                localStorage.setItem(STORAGE_KEYS.SCHEDULE, JSON.stringify(SCHEDULE_DATA));
+                localStorage.setItem(STORAGE_KEYS.PERSONNEL, JSON.stringify(INITIAL_STAFF));
+                localStorage.setItem(STORAGE_KEYS.LOCKED, JSON.stringify([]));
+                localStorage.setItem(STORAGE_KEYS.PASSWORD, '1234');
+                localStorage.setItem(STORAGE_KEYS.DAILY_PROCESSES, JSON.stringify(defaultDaily));
+                localStorage.setItem(STORAGE_KEYS.PROCESS_DEFINITIONS, JSON.stringify(DEFAULT_PROCESS_DEFINITIONS));
+                localStorage.setItem(STORAGE_KEYS.SHOW_PROCESS_SCHEDULE, 'true');
+                localStorage.setItem(STORAGE_KEYS.UPDATED_AT, resetTimestamp);
+              } catch (e) {
+                console.error('Failed to clean localStorage on reset:', e);
+              }
+
               window.location.reload();
           }
       });

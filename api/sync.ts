@@ -7,6 +7,7 @@
 const FIRESTORE_PROJECT_ID = 'beaming-source-hcbh2';
 const FIRESTORE_DATABASE_ID = 'ai-studio-fmdproductionshi-3f0608ec-b995-44d1-a9c8-f98c589f0e16';
 const FIRESTORE_DOC_URL = `https://firestore.googleapis.com/v1/projects/${FIRESTORE_PROJECT_ID}/databases/${FIRESTORE_DATABASE_ID}/documents/roster_state/current`;
+const WORKER_RELAY_BASE = 'https://shiftflow-sync.rzcegpj.workers.dev';
 
 function decodeFirestoreValue(val: any): any {
   if (!val || typeof val !== 'object') return val;
@@ -76,28 +77,110 @@ function encodeFirestoreDoc(data: any): any {
 // In-memory cache across warm invocations
 let memoryCache: any = null;
 let lastFirestoreReadTime = 0;
-const CACHE_TTL_MS = 8000;
+const CACHE_TTL_MS = 5000;
+let isVercelFirestoreQuotaExhausted = false;
+let lastVercelQuotaCheckTime = 0;
 
 async function fetchFromFirestore(): Promise<any> {
+  const now = Date.now();
+  if (isVercelFirestoreQuotaExhausted && now - lastVercelQuotaCheckTime < 3600000) {
+    return null;
+  }
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 6000);
+  const timeoutId = setTimeout(() => controller.abort(), 5000);
   try {
     const res = await fetch(FIRESTORE_DOC_URL, {
       headers: { Accept: 'application/json' },
       signal: controller.signal
     });
-    if (!res.ok) {
-      throw new Error(`Firestore REST returned ${res.status}: ${res.statusText}`);
+    if (res.status === 429) {
+      isVercelFirestoreQuotaExhausted = true;
+      lastVercelQuotaCheckTime = now;
+      return null;
     }
+    if (!res.ok) {
+      return null;
+    }
+    isVercelFirestoreQuotaExhausted = false;
     const doc = await res.json();
     return decodeFirestoreDoc(doc);
+  } catch {
+    return null;
   } finally {
     clearTimeout(timeoutId);
   }
 }
 
-let isVercelFirestoreQuotaExhausted = false;
-let lastVercelQuotaCheckTime = 0;
+async function fetchFromWorkerRelay(): Promise<any> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 4500);
+  try {
+    const res = await fetch(`${WORKER_RELAY_BASE}/api/sync?_t=${Date.now()}`, {
+      headers: { Accept: 'application/json' },
+      signal: controller.signal,
+    });
+    if (!res.ok) return null;
+    const json: any = await res.json();
+    if (json && json.exists && json.data) {
+      return json.data;
+    }
+    return null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+function isCandidateNewer(candidate: any, baseline: any): boolean {
+  if (!candidate) return false;
+  if (!baseline) return true;
+  const candTs = candidate.updatedAt || '';
+  const baseTs = baseline.updatedAt || '';
+  if (candTs && baseTs && candTs !== baseTs) return candTs > baseTs;
+  if (candTs && !baseTs) return true;
+  const candRev = typeof candidate._revision === 'number' ? candidate._revision : 0;
+  const baseRev = typeof baseline._revision === 'number' ? baseline._revision : 0;
+  if (candRev !== baseRev) return candRev > baseRev;
+  const candVer = typeof candidate._version === 'number' ? candidate._version : 0;
+  const baseVer = typeof baseline._version === 'number' ? baseline._version : 0;
+  return candVer > baseVer;
+}
+
+async function refreshLatestFromBackends(): Promise<any> {
+  const [fsData, workerData] = await Promise.all([fetchFromFirestore(), fetchFromWorkerRelay()]);
+  let best = memoryCache;
+  if (isCandidateNewer(fsData, best)) best = fsData;
+  if (isCandidateNewer(workerData, best)) best = workerData;
+  if (best) {
+    memoryCache = best;
+    lastFirestoreReadTime = Date.now();
+  }
+  return best;
+}
+
+async function writeToWorkerRelay(data: any, isReset = false, clientId = 'vercel_proxy'): Promise<boolean> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000);
+  try {
+    const target = `${WORKER_RELAY_BASE}/api/sync${isReset ? '/reset' : ''}`;
+    const res = await fetch(target, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        data: isReset ? { ...data, _explicitReset: true } : data,
+        clientId,
+        forceOverwrite: true,
+      }),
+      signal: controller.signal,
+    });
+    return res.ok;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
 
 function nextMonotonicTimestamp(...existingIsos: Array<string | undefined | null>): string {
   let maxMs = Date.now();
@@ -206,12 +289,7 @@ async function handleEdge(req: Request): Promise<Response> {
 
   if (isStream && method === 'GET') {
     if (!memoryCache) {
-      try {
-        memoryCache = await fetchFromFirestore();
-        lastFirestoreReadTime = Date.now();
-      } catch (e) {
-        console.warn('[VercelSync] Edge SSE fetch error:', e);
-      }
+      await refreshLatestFromBackends();
     }
     return new Response(
       `data: ${JSON.stringify({ type: 'init', data: memoryCache, version: memoryCache?._version || 1 })}\n\n`,
@@ -231,15 +309,7 @@ async function handleEdge(req: Request): Promise<Response> {
     const now = Date.now();
 
     if (!memoryCache || (now - lastFirestoreReadTime > CACHE_TTL_MS)) {
-      try {
-        const freshData = await fetchFromFirestore();
-        if (freshData && freshData.schedule) {
-          memoryCache = freshData;
-          lastFirestoreReadTime = now;
-        }
-      } catch (fetchErr: any) {
-        console.warn('[VercelSync] Edge Firestore read notice:', fetchErr?.message || fetchErr);
-      }
+      await refreshLatestFromBackends();
     }
 
     if (memoryCache) {
@@ -276,10 +346,7 @@ async function handleEdge(req: Request): Promise<Response> {
 
     let baseState = memoryCache;
     if (!isReset && (!baseState || !Array.isArray(baseState.schedule))) {
-      try {
-        const fresh = await fetchFromFirestore();
-        if (fresh) baseState = fresh;
-      } catch {}
+      baseState = await refreshLatestFromBackends();
     }
 
     if (
@@ -324,7 +391,8 @@ async function handleEdge(req: Request): Promise<Response> {
       updatedAt: now,
       _version: nextVersion,
       _revision: nextRevision,
-      ...(clientId ? { _originClientId: clientId } : {})
+      ...(clientId ? { _originClientId: clientId } : {}),
+      ...(isReset ? { _explicitReset: true } : {}),
     };
     const payload = {
       ...(isReset ? {} : (baseState || {})),
@@ -336,10 +404,13 @@ async function handleEdge(req: Request): Promise<Response> {
       lastFirestoreReadTime = Date.now();
     }
 
-    const firestorePersisted = await writeToFirestore(isReset ? payload : firestorePatch, !isReset);
+    const [firestorePersisted, workerPersisted] = await Promise.all([
+      writeToFirestore(isReset ? payload : firestorePatch, !isReset),
+      writeToWorkerRelay(payload, isReset, clientId || 'vercel_edge')
+    ]);
 
     return new Response(
-      JSON.stringify({ success: true, version: nextVersion, updatedAt: now, firestorePersisted, data: payload }),
+      JSON.stringify({ success: true, version: nextVersion, updatedAt: now, firestorePersisted, workerPersisted, data: payload }),
       { status: 200, headers: corsHeaders }
     );
   }
@@ -377,12 +448,7 @@ async function handleNode(req: any, res: any): Promise<void> {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Connection', 'keep-alive');
     if (!memoryCache) {
-      try {
-        memoryCache = await fetchFromFirestore();
-        lastFirestoreReadTime = Date.now();
-      } catch (e) {
-        console.warn('[VercelSync] Node SSE fetch error:', e);
-      }
+      await refreshLatestFromBackends();
     }
     res.write(`data: ${JSON.stringify({ type: 'init', data: memoryCache, version: memoryCache?._version || 1 })}\n\n`);
     return res.end();
@@ -393,15 +459,7 @@ async function handleNode(req: any, res: any): Promise<void> {
     const now = Date.now();
 
     if (!memoryCache || (now - lastFirestoreReadTime > CACHE_TTL_MS)) {
-      try {
-        const freshData = await fetchFromFirestore();
-        if (freshData && freshData.schedule) {
-          memoryCache = freshData;
-          lastFirestoreReadTime = now;
-        }
-      } catch (fetchErr: any) {
-        console.warn('[VercelSync] Node Firestore read notice:', fetchErr?.message || fetchErr);
-      }
+      await refreshLatestFromBackends();
     }
 
     if (memoryCache) {
@@ -431,10 +489,7 @@ async function handleNode(req: any, res: any): Promise<void> {
 
     let baseState = memoryCache;
     if (!isReset && (!baseState || !Array.isArray(baseState.schedule))) {
-      try {
-        const fresh = await fetchFromFirestore();
-        if (fresh) baseState = fresh;
-      } catch {}
+      baseState = await refreshLatestFromBackends();
     }
 
     if (
@@ -476,7 +531,8 @@ async function handleNode(req: any, res: any): Promise<void> {
       updatedAt: now,
       _version: nextVersion,
       _revision: nextRevision,
-      ...(clientId ? { _originClientId: clientId } : {})
+      ...(clientId ? { _originClientId: clientId } : {}),
+      ...(isReset ? { _explicitReset: true } : {}),
     };
     const payload = {
       ...(isReset ? {} : (baseState || {})),
@@ -488,9 +544,12 @@ async function handleNode(req: any, res: any): Promise<void> {
       lastFirestoreReadTime = Date.now();
     }
 
-    const firestorePersisted = await writeToFirestore(isReset ? payload : firestorePatch, !isReset);
+    const [firestorePersisted, workerPersisted] = await Promise.all([
+      writeToFirestore(isReset ? payload : firestorePatch, !isReset),
+      writeToWorkerRelay(payload, isReset, clientId || 'vercel_node')
+    ]);
 
-    return res.status(200).json({ success: true, version: nextVersion, updatedAt: now, firestorePersisted, data: payload });
+    return res.status(200).json({ success: true, version: nextVersion, updatedAt: now, firestorePersisted, workerPersisted, data: payload });
   }
 
   return res.status(405).json({ error: 'Method not allowed' });
