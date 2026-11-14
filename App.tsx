@@ -56,9 +56,9 @@ const App: React.FC = () => {
   const [showAiAssistant, setShowAiAssistant] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem('shiftflow_show_ai_assistant');
-      return saved !== null ? saved === 'true' : true;
+      return saved !== null ? saved === 'true' : false;
     } catch {
-      return true;
+      return false;
     }
   });
   const [settingsSubTab, setSettingsSubTab] = useState<'general' | 'shifts' | 'processes'>(() => {
@@ -72,6 +72,19 @@ const App: React.FC = () => {
       return 'general';
     }
   });
+
+  // Always start from the very top when entering Settings or switching tabs
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    const raf = requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [activeTab, settingsSubTab]);
 
   const handleSelectSettingsSubTab = (tab: 'general' | 'shifts' | 'processes') => {
     setSettingsSubTab(tab);
@@ -389,10 +402,10 @@ const App: React.FC = () => {
         setPasswordModalError(null);
         setIsOwner(true);
         setIsSettingsUnlocked(true);
-        setShowAiAssistant(true);
+        setShowAiAssistant(false);
         try {
           localStorage.setItem(STORAGE_KEYS.IS_OWNER, 'true');
-          localStorage.setItem('shiftflow_show_ai_assistant', 'true');
+          localStorage.setItem('shiftflow_show_ai_assistant', 'false');
         } catch (e) {
           console.error(e);
         }
@@ -400,6 +413,7 @@ const App: React.FC = () => {
         setIsPasswordModalOpen(false);
         if (intendedTab === 'settings') {
           setActiveTab('settings');
+          window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
         }
         setIntendedTab('dashboard');
     } else {
@@ -1521,11 +1535,15 @@ const App: React.FC = () => {
     setSchedule(newSched);
   };
   
+  const [isUpdateScheduleModalOpen, setIsUpdateScheduleModalOpen] = useState(false);
+
   const handleToggleLock = () => {
       hasUserEditedRef.current = true;
       const key = currentMonthKey;
+      const monthLabel = `${currentMonth.name} ${toPersianDigits(currentYear)}`;
+      const wasUnlocked = unlockedMonths.includes(key);
       let newLocked: string[];
-      if (unlockedMonths.includes(key)) {
+      if (wasUnlocked) {
           newLocked = unlockedMonths.filter(m => m !== key);
       } else {
           newLocked = [...unlockedMonths, key];
@@ -1537,6 +1555,14 @@ const App: React.FC = () => {
       } catch (e) {
         console.error(e);
       }
+      setSaveNotice({
+        type: 'success',
+        message: wasUnlocked
+          ? `برنامه شیفت ${monthLabel} قفل شد؛ ویرایش‌های دستی غیرفعال گردید تا از تغییرات ناخواسته جلوگیری شود.`
+          : `قفل برنامه شیفت ${monthLabel} باز شد؛ اکنون امکان ویرایش شیفت‌ها فعال است.`
+      });
+      setTimeout(() => setSaveNotice(null), 4000);
+
       if (!isStagingPreviewRef.current) {
         setSyncStatus('syncing');
         saveCloudRoster(buildCloudRosterSnapshot({ unlockedMonths: newLocked }))
@@ -1552,52 +1578,48 @@ const App: React.FC = () => {
       }
   };
 
-  const handleRegenerate = () => {
+  const executeSmartMonthRegenerate = () => {
       const monthCode = currentMonth.code;
       const monthLabel = `${currentMonth.name} ${toPersianDigits(currentYear)}`;
       const yearStr = String(currentYear);
-      setConfirmDialog({
-          title: `چیدمان مجدد ${monthLabel}`,
-          message: `آیا از چیدمان مجدد برنامه شیفت ${monthLabel} اطمینان دارید؟ تمام تغییرات دستی این ماه جایگزین و در سرور ابری ذخیره خواهد شد.`,
-          confirmLabel: 'تایید و آپدیت برنامه',
-          tone: 'warning',
-          onConfirm: () => {
-              const filteredSchedule = scheduleRef.current.filter(s => !s.date.startsWith(`${yearStr}/${monthCode}`));
-              const monthStartPrefix = `${yearStr}/${monthCode}/01`;
-              const priorSchedule = [...filteredSchedule]
-                .filter(s => s.date < monthStartPrefix)
-                .sort((a, b) => a.date.localeCompare(b.date));
+      const filteredSchedule = scheduleRef.current.filter(s => !s.date.startsWith(`${yearStr}/${monthCode}`));
+      const monthStartPrefix = `${yearStr}/${monthCode}/01`;
+      const priorSchedule = [...filteredSchedule]
+        .filter(s => s.date < monthStartPrefix)
+        .sort((a, b) => a.date.localeCompare(b.date));
 
-              let startDayIndex = 6;
-              if (priorSchedule.length > 0) {
-                   const lastEntry = priorSchedule[priorSchedule.length - 1];
-                   const weekDays = ['شنبه', 'یک‌شنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'];
-                   const idx = weekDays.indexOf(lastEntry.dayName);
-                   if (idx !== -1) startDayIndex = (idx + 1) % 7;
-              } else {
-                   const weekdayMap = ['یک‌شنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه', 'شنبه'];
-                   const firstDayName = getDayNameForJalali(currentYear, parseInt(monthCode, 10), 1);
-                   const weekDays = ['شنبه', 'یک‌شنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'];
-                   const idx = weekDays.indexOf(firstDayName);
-                   if (idx !== -1) startDayIndex = idx;
-                   else if (weekdayMap.length) startDayIndex = 6;
-              }
+      let startDayIndex = 6;
+      if (priorSchedule.length > 0) {
+           const lastEntry = priorSchedule[priorSchedule.length - 1];
+           const weekDays = ['شنبه', 'یک‌شنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'];
+           const idx = weekDays.indexOf(lastEntry.dayName);
+           if (idx !== -1) startDayIndex = (idx + 1) % 7;
+      } else {
+           const weekdayMap = ['یک‌شنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه', 'شنبه'];
+           const firstDayName = getDayNameForJalali(currentYear, parseInt(monthCode, 10), 1);
+           const weekDays = ['شنبه', 'یک‌شنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'];
+           const idx = weekDays.indexOf(firstDayName);
+           if (idx !== -1) startDayIndex = idx;
+           else if (weekdayMap.length) startDayIndex = 6;
+      }
 
-              const daysInMonth = getDaysInPersianMonth(monthCode);
-              const newData = generateNextMonth(
-                  priorSchedule,
-                  currentYear,
-                  monthCode,
-                  startDayIndex,
-                  personnelListRef.current,
-                  daysInMonth
-              );
+      const daysInMonth = getDaysInPersianMonth(monthCode);
+      const newData = generateNextMonth(
+          priorSchedule,
+          currentYear,
+          monthCode,
+          startDayIndex,
+          personnelListRef.current,
+          daysInMonth
+      );
 
-              const updatedSchedule = [...filteredSchedule, ...newData].sort((a, b) => a.date.localeCompare(b.date));
-              setSchedule(updatedSchedule);
-              syncUpdatedSchedule(updatedSchedule, `برنامه ${monthLabel} با موفقیت آپدیت و در سرور ابری ذخیره شد.`);
-          }
-      });
+      const updatedSchedule = [...filteredSchedule, ...newData].sort((a, b) => a.date.localeCompare(b.date));
+      setSchedule(updatedSchedule);
+      syncUpdatedSchedule(updatedSchedule, `چیدمان هوشمند ${monthLabel} انجام شد و در سرور ابری ذخیره گردید.`);
+  };
+
+  const handleRegenerate = () => {
+      setIsUpdateScheduleModalOpen(true);
   };
 
   const handleApplyAiGeneratedMonth = (
@@ -3396,6 +3418,131 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
+      {/* Practical Update & Cloud Sync Schedule Modal */}
+      {isUpdateScheduleModalOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/45 backdrop-blur-[2px] flex items-center justify-center p-4 animate-in fade-in duration-200 no-print"
+          onClick={() => setIsUpdateScheduleModalOpen(false)}
+        >
+          <div
+            className="bg-white p-5 sm:p-6 rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full animate-in zoom-in-95 text-right space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center shrink-0">
+                  <RefreshCw size={20} />
+                </div>
+                <div>
+                  <h3 className="font-black text-slate-900 text-sm sm:text-base">
+                    آپدیت و بروزرسانی برنامه {currentMonth.name} {toPersianDigits(currentYear)}
+                  </h3>
+                  <p className="text-[11px] text-slate-500 font-bold mt-0.5">
+                    عملیات مورد نظر برای بروزرسانی برنامه شیفت را انتخاب کنید
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsUpdateScheduleModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-2.5">
+              {/* Option 1: Save & Publish Current Schedule to Cloud */}
+              <button
+                type="button"
+                disabled={isSavingChanges}
+                onClick={async () => {
+                  setIsUpdateScheduleModalOpen(false);
+                  await handleManualSaveChanges();
+                }}
+                className="w-full p-3.5 rounded-xl border border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100/80 text-right transition flex items-start gap-3 cursor-pointer group"
+              >
+                <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+                  <Save size={18} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="font-black text-emerald-950 text-xs sm:text-sm">
+                    ذخیره و آپدیت تغییرات فعلی در سرور ابری
+                  </div>
+                  <p className="text-[11px] text-emerald-800/90 mt-0.5 leading-relaxed">
+                    تمام ویرایش‌های دستی، نفرات کمکی و سرپرستان فعلی را فوراً برای همه مرورگرها و دستگاه‌ها تثبیت می‌کند.
+                  </p>
+                </div>
+              </button>
+
+              {/* Option 2: Fetch Latest From Cloud Server */}
+              <button
+                type="button"
+                disabled={isForceSyncing}
+                onClick={async () => {
+                  setIsUpdateScheduleModalOpen(false);
+                  await handleForceSync();
+                }}
+                className="w-full p-3.5 rounded-xl border border-blue-200 bg-blue-50/60 hover:bg-blue-100/70 text-right transition flex items-start gap-3 cursor-pointer group"
+              >
+                <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+                  <Cloud size={18} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="font-black text-blue-950 text-xs sm:text-sm">
+                    دریافت آخرین نسخه ثبت‌شده از سرور
+                  </div>
+                  <p className="text-[11px] text-blue-800/90 mt-0.5 leading-relaxed">
+                    اطلاعات صفحه را مستقیماً با آخرین نسخه ذخیره‌شده در پایگاه داده ابری همگام‌سازی می‌کند.
+                  </p>
+                </div>
+              </button>
+
+              {/* Option 3: Smart Auto-Layout / Regenerate Month */}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsUpdateScheduleModalOpen(false);
+                  const monthLabel = `${currentMonth.name} ${toPersianDigits(currentYear)}`;
+                  setConfirmDialog({
+                    title: `چیدمان مجدد هوشمند ${monthLabel}`,
+                    message: isCurrentMonthLocked
+                      ? `ماه ${monthLabel} در حال حاضر قفل است. در صورت تایید، برنامه این ماه بر اساس الگوریتم چرخش خودکار از نو چیده شده و جایگزین شیفت‌های فعلی می‌شود.`
+                      : `آیا از چیدمان مجدد خودکار ${monthLabel} اطمینان دارید؟ تمام تغییرات دستی این ماه با الگوریتم چرخش استاندارد جایگزین خواهد شد.`,
+                    confirmLabel: 'تایید و چیدمان مجدد ماه',
+                    tone: 'warning',
+                    onConfirm: executeSmartMonthRegenerate
+                  });
+                }}
+                className="w-full p-3.5 rounded-xl border border-amber-200 bg-amber-50/60 hover:bg-amber-100/70 text-right transition flex items-start gap-3 cursor-pointer group"
+              >
+                <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+                  <Sparkles size={18} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="font-black text-amber-950 text-xs sm:text-sm">
+                    چیدمان مجدد خودکار کل ماه ({currentMonth.name})
+                  </div>
+                  <p className="text-[11px] text-amber-900/80 mt-0.5 leading-relaxed">
+                    چیدمان خودکار شیفت‌های این ماه از ابتدا بر اساس لیست پرسنل فعال و الگوریتم نوبت‌دهی.
+                  </p>
+                </div>
+              </button>
+            </div>
+
+            <div className="pt-1 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIsUpdateScheduleModalOpen(false)}
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer"
+              >
+                بستن
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Floating Gemini AI Assistant (Manager Only) */}
       {isOwner && showAiAssistant && (
         <GeminiChatbot

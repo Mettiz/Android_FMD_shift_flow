@@ -118,59 +118,79 @@ export const TodayHero: React.FC<TodayHeroProps> = ({
   ) : null;
 
   return (
-    <div id="today-hero-section" className="bg-white rounded-2xl shadow-md border border-slate-100 overflow-hidden relative no-print scroll-mt-20">
-      {/* Background Pattern */}
+    <div id="today-hero-section" className="bg-white rounded-2xl shadow-xs border border-slate-200/90 overflow-hidden relative no-print scroll-mt-20 divide-y divide-slate-100">
+      {/* Top Accent Line */}
       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-blue-500"></div>
       
-      <div className="p-4 sm:p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-4 md:gap-6">
-        
-        {/* Date & Time Section */}
-        <div className="flex flex-col items-center md:items-start gap-1.5 sm:gap-2 w-full md:w-auto md:min-w-[200px]">
-           <div className="flex items-center justify-between md:justify-start w-full md:w-auto gap-2">
-             <div className="flex items-center gap-1.5 text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full text-[11px] font-bold border border-emerald-200/70">
-               <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-               <span>وضعیت زنده</span>
-             </div>
-             <span className={`md:hidden text-[11px] font-black px-2.5 py-1 rounded-full border flex items-center gap-1 ${
-               liveShiftNow === 'DAY'
-                 ? 'bg-amber-50 text-amber-800 border-amber-200'
-                 : 'bg-indigo-50 text-indigo-800 border-indigo-200'
-             }`}>
-               {liveShiftNow === 'DAY' ? <Sun size={12} className="text-amber-500" /> : <Moon size={12} className="text-indigo-600" />}
-               <span>{liveShiftNow === 'DAY' ? 'نوبت روز فعال' : 'نوبت شب فعال'}</span>
-             </span>
-           </div>
-
-           <div className="flex flex-row md:flex-col items-center md:items-start justify-between w-full md:w-auto gap-2 mt-1">
-             <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-slate-800 tracking-tight text-right">
-               {currentWeekdayStr || 'سه‌شنبه'}
-             </h2>
-             
-             {/* LTR Container: Icon Date (Persian & Gregorian) | Divider | Icon Time */}
-             <div className="flex items-center gap-2.5 sm:gap-4 text-slate-500 font-medium" dir="ltr">
-               <div className="flex items-center gap-1.5 sm:gap-2">
-                 <Calendar size={16} className="text-emerald-500 shrink-0 self-center" />
-                 <div className="flex flex-col items-center justify-center leading-tight">
-                   <span className="text-sm sm:text-lg font-black text-slate-800 tracking-tight text-center tabular-nums">{toPersianDigits(currentDateStr)}</span>
-                   <span className="text-[10px] sm:text-xs font-semibold text-slate-500 tracking-wider tabular-nums text-center mt-0.5">
-                     {currentGregorianDateStr}
-                   </span>
-                 </div>
-               </div>
-               <div className="w-px h-7 sm:h-8.5 bg-slate-200 mx-0.5 sm:mx-1"></div>
-               <div className="flex items-center gap-1.5 sm:gap-2">
-                 <Clock size={16} className="text-blue-500 shrink-0" />
-                 <span className="text-sm sm:text-lg font-bold text-slate-700 tabular-nums">{toPersianDigits(currentTimeStr)}</span>
-               </div>
-             </div>
-           </div>
+      {/* 1. Balanced Header Row: Live Status Title + Symmetrical 3-Column Day | Date | Clock Strip */}
+      <div className="p-3.5 sm:p-4 pt-4 sm:pt-4.5 flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3">
+        {/* Right: Live Status Identity & Active Shift Badge */}
+        <div className="flex items-center justify-between md:justify-start gap-3 min-w-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-2xs relative">
+              <Clock size={20} />
+              <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-emerald-400 ring-2 ring-white animate-pulse"></span>
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-sm sm:text-base md:text-lg font-black text-slate-900 tracking-tight leading-snug">
+                  وضعیت زنده شیفت امروز
+                </h2>
+                <span className={`inline-flex items-center gap-1 text-[10.5px] sm:text-[11px] font-black px-2.5 py-0.5 rounded-full border whitespace-nowrap ${
+                  liveShiftNow === 'DAY'
+                    ? 'bg-amber-50 text-amber-800 border-amber-200/90'
+                    : 'bg-indigo-50 text-indigo-800 border-indigo-200/90'
+                }`}>
+                  {liveShiftNow === 'DAY' ? <Sun size={12} className="text-amber-500 shrink-0" /> : <Moon size={12} className="text-indigo-600 shrink-0" />}
+                  <span>{liveShiftNow === 'DAY' ? 'نوبت روز فعال' : 'نوبت شب فعال'}</span>
+                </span>
+              </div>
+              <p className="text-[11px] sm:text-xs text-slate-500 font-medium mt-0.5">
+                برنامه کشیک و پرسنل حاضر در شیفت جاری
+              </p>
+            </div>
+          </div>
         </div>
 
-        {/* Vertical Divider (Desktop) */}
-        <div className="hidden md:block w-px h-24 bg-slate-100"></div>
+        {/* Left: Balanced 3-Column Strip (Day | Date | Clock) on BOTH Mobile & Desktop */}
+        <div className="grid grid-cols-3 gap-2 w-full md:w-auto md:min-w-[330px] lg:min-w-[360px] bg-slate-50/90 border border-slate-200/90 rounded-xl px-2.5 py-2 text-center items-center shrink-0">
+          {/* Col 1: Weekday */}
+          <div className="flex flex-col items-center justify-center border-l border-slate-200/80 pl-2 min-w-0">
+            <span className="text-[10px] font-bold text-slate-400 mb-0.5">روز هفته</span>
+            <span className="text-xs sm:text-sm font-black text-slate-800 truncate w-full">
+              {currentWeekdayStr || 'سه‌شنبه'}
+            </span>
+          </div>
 
-        {/* Shifts Section */}
-        <div className="flex-1 w-full">
+          {/* Col 2: Persian & Gregorian Date */}
+          <div className="flex flex-col items-center justify-center border-l border-slate-200/80 px-1.5 min-w-0" dir="ltr">
+            <div className="flex items-center justify-center gap-1">
+              <Calendar size={12} className="text-emerald-500 shrink-0" />
+              <span className="text-xs sm:text-sm font-black text-slate-800 tabular-nums tracking-tight">
+                {toPersianDigits(currentDateStr)}
+              </span>
+            </div>
+            <span className="text-[9.5px] sm:text-[10px] font-bold text-slate-400 tabular-nums tracking-wider mt-0.5">
+              {currentGregorianDateStr}
+            </span>
+          </div>
+
+          {/* Col 3: Live Clock */}
+          <div className="flex flex-col items-center justify-center pr-1.5 min-w-0">
+            <span className="text-[10px] font-bold text-slate-400 mb-0.5">ساعت</span>
+            <div className="flex items-center justify-center gap-1" dir="ltr">
+              <Clock size={12} className="text-blue-500 shrink-0" />
+              <span className="text-xs sm:text-sm font-black text-slate-800 tabular-nums">
+                {toPersianDigits(currentTimeStr)}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 2. Balanced Shifts Section */}
+      <div className="p-3.5 sm:p-4 bg-slate-50/35">
+        <div className="w-full">
            {todayEntry ? (
              <>
                {/* Mobile Side-by-Side Compact View */}
@@ -212,7 +232,7 @@ export const TodayHero: React.FC<TodayHeroProps> = ({
                    <div className={`rounded-xl p-2.5 border transition-colors ${
                      liveShiftNow === 'NIGHT'
                        ? 'bg-indigo-50/95 border-indigo-300 ring-1 ring-indigo-400/50'
-                       : 'bg-slate-100/80 border-slate-200/90'
+                       : 'bg-indigo-50/60 border-indigo-200/80'
                    }`}>
                      <div className="flex items-center justify-between gap-1 mb-1.5">
                        <span className="inline-flex items-center gap-1 text-[11px] font-black text-indigo-800">
@@ -251,51 +271,78 @@ export const TodayHero: React.FC<TodayHeroProps> = ({
                  />
                </div>
 
-               {/* Desktop 3-Column Grid */}
-               <div className="hidden md:grid md:grid-cols-3 gap-4">
-                 {/* Supervisor */}
-                 <div className="flex flex-col gap-1 items-stretch">
-                   <span className="text-xs font-bold text-slate-400 pr-1 text-right">سرپرست</span>
-                   <ShiftUserCard name={todayEntry.onCallPerson} type="Supervisor" showIcon={true} />
-                 </div>
-                 
-                 {/* Day Shift */}
-                 <div className="flex flex-col gap-1 items-stretch">
-                   <div className="flex items-center justify-between pr-1">
-                     <span className="text-xs font-bold text-slate-400 text-right">شیفت روز (۰۸ - ۱۹)</span>
-                     {todayEntry.extraDayPersons && todayEntry.extraDayPersons.length > 0 && (
+               {/* Desktop Symmetrical 3-Column Grid (Aligned with Table Columns: Day -> Night -> Supervisor) */}
+               <div className="hidden md:grid md:grid-cols-3 gap-3.5 items-stretch">
+                 {/* 1. Day Shift */}
+                 <div className="flex flex-col gap-1.5 items-stretch bg-white p-2.5 rounded-xl border border-slate-200/80 shadow-2xs">
+                   <div className="flex items-center justify-between px-1">
+                     <span className="inline-flex items-center gap-1.5 text-xs font-extrabold text-amber-800">
+                       <Sun size={14} className="text-amber-500 shrink-0" />
+                       <span>شیفت روز (۰۸ - ۱۹)</span>
+                     </span>
+                     {todayEntry.extraDayPersons && todayEntry.extraDayPersons.length > 0 ? (
                        <span className="text-[10px] font-black text-orange-700 bg-orange-100 px-2 py-0.5 rounded-full">
-                         {todayEntry.extraDayPersons.length + 1} نفره
+                         {toPersianDigits(todayEntry.extraDayPersons.length + 1)} نفره
                        </span>
-                     )}
+                     ) : liveShiftNow === 'DAY' ? (
+                       <span className="text-[10px] font-black text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.2 rounded-full">
+                         در حال انجام
+                       </span>
+                     ) : null}
                    </div>
-                   {dayShiftCards}
+                   <div className="flex-1 flex flex-col justify-center">
+                     {dayShiftCards}
+                   </div>
                  </div>
 
-                 {/* Night Shift */}
-                 <div className="flex flex-col gap-1 items-stretch">
-                   <div className="flex items-center justify-between pr-1">
-                     <span className="text-xs font-bold text-slate-400 text-right">شیفت شب (۱۹ - ۰۸)</span>
-                     {todayEntry.extraNightPersons && todayEntry.extraNightPersons.length > 0 && (
+                 {/* 2. Night Shift */}
+                 <div className="flex flex-col gap-1.5 items-stretch bg-white p-2.5 rounded-xl border border-slate-200/80 shadow-2xs">
+                   <div className="flex items-center justify-between px-1">
+                     <span className="inline-flex items-center gap-1.5 text-xs font-extrabold text-indigo-800">
+                       <Moon size={14} className="text-indigo-600 shrink-0" />
+                       <span>شیفت شب (۱۹ - ۰۸)</span>
+                     </span>
+                     {todayEntry.extraNightPersons && todayEntry.extraNightPersons.length > 0 ? (
                        <span className="text-[10px] font-black text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded-full">
-                         {todayEntry.extraNightPersons.length + 1} نفره
+                         {toPersianDigits(todayEntry.extraNightPersons.length + 1)} نفره
                        </span>
-                     )}
+                     ) : liveShiftNow === 'NIGHT' ? (
+                       <span className="text-[10px] font-black text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.2 rounded-full">
+                         در حال انجام
+                       </span>
+                     ) : null}
                    </div>
-                   {nightShiftCards}
+                   <div className="flex-1 flex flex-col justify-center">
+                     {nightShiftCards}
+                   </div>
+                 </div>
+
+                 {/* 3. Supervisor */}
+                 <div className="flex flex-col gap-1.5 items-stretch bg-white p-2.5 rounded-xl border border-slate-200/80 shadow-2xs">
+                   <div className="flex items-center justify-between px-1">
+                     <span className="inline-flex items-center gap-1.5 text-xs font-extrabold text-emerald-800">
+                       <span>سرپرست کشیک (On-Call)</span>
+                     </span>
+                     <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2 py-0.2 rounded-full">
+                       ۲۴ ساعته
+                     </span>
+                   </div>
+                   <div className="flex-1 flex flex-col justify-center">
+                     <ShiftUserCard name={todayEntry.onCallPerson} type="Supervisor" showIcon={true} />
+                   </div>
                  </div>
                </div>
              </>
            ) : (
-             <div className="flex flex-col items-center justify-center text-center py-4 bg-slate-50 rounded-xl border border-dashed border-slate-200 h-full">
-               <Calendar size={40} className="text-slate-300 mb-2" />
-               <p className="text-slate-500 font-medium">برای تاریخ امروز ({toPersianDigits(currentDateStr)}) شیفتی در دیتابیس ثبت نشده است.</p>
+             <div className="flex flex-col items-center justify-center text-center py-4 bg-white rounded-xl border border-dashed border-slate-200 h-full">
+               <Calendar size={36} className="text-slate-300 mb-2" />
+               <p className="text-slate-500 font-medium text-xs sm:text-sm">برای تاریخ امروز ({toPersianDigits(currentDateStr)}) شیفتی در دیتابیس ثبت نشده است.</p>
                {onNavigateToToday && (
                  <button 
                    onClick={onNavigateToToday}
-                   className="mt-2 text-xs font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg flex items-center gap-1 transition"
+                   className="mt-2 text-xs font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg flex items-center gap-1 transition cursor-pointer"
                  >
-                   <span>مشاهده تقویم و شیفت‌های شهریور</span>
+                   <span>مشاهده تقویم و شیفت‌های ماه جاری</span>
                    <ArrowLeft size={14} />
                  </button>
                )}

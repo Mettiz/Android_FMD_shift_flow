@@ -20,21 +20,16 @@ export const ShiftUserCard: React.FC<ShiftUserCardProps> = ({
   type, 
   className = '', 
   originalName, 
-  showIcon = false,
+  showIcon = true,
   badgeLabel,
   size = 'md'
 }) => {
   const isDay = type === 'Day';
   const isNight = type === 'Night';
-  const isSupervisor = type === 'Supervisor';
   
   // Display full name with prefix (matching Settings page)
   const displayName = name ? name.trim() : '---';
   const displayOriginal = originalName ? originalName.trim() : null;
-  
-  // Extract family name without prefix so the circle avatar preserves the first letter of the family name
-  const familyName = name ? name.replace(/^(مهندس|خانم|آقای|دکتر)\s*/, '').trim() : '';
-  const firstLetter = familyName ? familyName.charAt(0) : (name ? name.charAt(0) : '');
 
   // Styling Config
   let styles = {
@@ -46,53 +41,53 @@ export const ShiftUserCard: React.FC<ShiftUserCardProps> = ({
 
   if (isDay) {
     styles = {
-      wrapper: 'bg-orange-50/80 hover:bg-orange-100 text-orange-900', // Warm transparent background
-      avatar: 'bg-white text-orange-600 shadow-sm ring-1 ring-orange-200',
+      wrapper: 'bg-orange-50/80 hover:bg-orange-100/90 text-orange-950 border border-orange-200/70',
+      avatar: 'bg-white text-amber-500 shadow-2xs ring-1 ring-orange-200',
       subText: 'text-orange-600/70',
-      indicator: 'bg-orange-500' // Small color strip
+      indicator: 'bg-amber-500'
     };
   } else if (isNight) {
     styles = {
-      wrapper: 'bg-slate-100 hover:bg-slate-200 text-slate-800', // Cool slate background
-      avatar: 'bg-white text-slate-600 shadow-sm ring-1 ring-slate-300',
-      subText: 'text-slate-500',
-      indicator: 'bg-slate-600'
+      wrapper: 'bg-indigo-50/60 hover:bg-indigo-100/75 text-slate-800 border border-indigo-200/70',
+      avatar: 'bg-white text-indigo-600 shadow-2xs ring-1 ring-indigo-200',
+      subText: 'text-indigo-500',
+      indicator: 'bg-indigo-600'
     };
   } else {
     // Supervisor
     styles = {
-      wrapper: 'bg-emerald-50/80 hover:bg-emerald-100 text-emerald-900',
-      avatar: 'bg-white text-emerald-600 shadow-sm ring-1 ring-emerald-200',
+      wrapper: 'bg-emerald-50/80 hover:bg-emerald-100/90 text-emerald-950 border border-emerald-200/70',
+      avatar: 'bg-white text-emerald-600 shadow-2xs ring-1 ring-emerald-200',
       subText: 'text-emerald-600/70',
       indicator: 'bg-emerald-500'
     };
   }
   
-  // Icon Selection
+  // Icon Selection (Always use Sun / Moon / CheckCircle2 icons instead of name initials)
   const Icon = isDay ? Sun : (isNight ? Moon : CheckCircle2);
   const isCompact = size === 'sm';
 
   return (
     <div className={`
-      relative flex items-center ${isCompact ? 'gap-2 px-3 py-1.5' : 'gap-3 px-4 py-3'} w-full transition-all duration-200
-      ${styles.wrapper} rounded-lg cursor-default ${className}
+      relative flex items-center ${isCompact ? 'gap-2 px-2.5 py-1.5' : 'gap-2.5 px-3 py-2.5'} w-full transition-all duration-200
+      ${styles.wrapper} rounded-xl cursor-default ${className}
     `}>
       
       {/* Colored Indicator Strip (Right side) */}
-      <div className={`absolute right-0 top-1.5 bottom-1.5 w-1 rounded-l-full ${styles.indicator} opacity-50`}></div>
+      <div className={`absolute right-0 top-1.5 bottom-1.5 w-1 rounded-l-full ${styles.indicator} opacity-60`}></div>
 
-      {/* Avatar or Icon */}
+      {/* Sun / Moon / Supervisor Icon Badge */}
       <div className={`
-        ${isCompact ? 'w-7 h-7 min-w-[28px] text-xs' : 'w-9 h-9 min-w-[36px] text-sm'} rounded-full flex items-center justify-center 
-        font-bold ml-1 ${styles.avatar}
+        ${isCompact ? 'w-7 h-7 min-w-[28px]' : 'w-8 h-8 min-w-[32px]'} rounded-lg flex items-center justify-center 
+        shrink-0 ${styles.avatar}
       `}>
-        {showIcon ? <Icon size={isCompact ? 14 : 18} /> : firstLetter}
+        <Icon size={isCompact ? 14 : 16} className={showIcon ? '' : ''} />
       </div>
 
       {/* Details */}
       <div className="flex flex-col items-start z-10 min-w-0 flex-1">
         <div className="flex items-center gap-1.5 flex-wrap w-full">
-          <span className={`${isCompact ? 'text-xs' : 'text-sm'} font-bold tracking-tight truncate text-right`}>
+          <span className={`${isCompact ? 'text-xs' : 'text-[13px] sm:text-sm'} font-extrabold tracking-tight truncate text-right`}>
             {displayName}
           </span>
           {badgeLabel && (
@@ -104,7 +99,7 @@ export const ShiftUserCard: React.FC<ShiftUserCardProps> = ({
         
         {/* If swapped, show original name crossed out */}
         {displayOriginal && displayOriginal !== displayName && (
-           <span className="text-[9px] text-red-400/80 line-through decoration-red-300 truncate w-full text-right" title={`تغییر یافته از: ${originalName}`}>
+           <span className="text-[9px] text-red-500/85 line-through decoration-red-300 truncate w-full text-right" title={`تغییر یافته از: ${originalName}`}>
              {displayOriginal}
            </span>
         )}

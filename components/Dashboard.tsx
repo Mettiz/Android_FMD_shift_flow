@@ -471,10 +471,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
     });
   }, [baseScheduleForView, filterPerson, filterShiftType]);
 
-  const hiddenPastDaysCount = useMemo(() => {
-    return filteredSchedule.filter((s) => s.date < todayPersianDate).length;
-  }, [filteredSchedule, todayPersianDate]);
-
   const mobileFilteredSchedule = useMemo(() => {
     if (!hidePastDaysMobile) return filteredSchedule;
     return filteredSchedule.filter((s) => s.date >= todayPersianDate);
@@ -751,16 +747,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
          <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden divide-y divide-slate-100">
             
             {/* 1. Header Row: Period Title + Today & Month Navigation */}
-            <div className="p-3 sm:p-4 flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3">
+            <div className="p-3.5 sm:p-4 flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3">
                
                {/* Period Info */}
-               <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-                  <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 ${
+               <div className="flex items-center gap-3 min-w-0">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-2xs ${
                      viewMode === 'RANGE' && appliedFilter
                        ? 'bg-blue-600 text-white'
                        : 'bg-emerald-600 text-white'
                   }`}>
-                     <CalendarRange size={19} />
+                     <CalendarRange size={20} />
                   </div>
                   <div className="min-w-0 flex-1">
                      {viewMode === 'RANGE' && appliedFilter ? (
@@ -786,7 +782,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                                  {toPersianDigits(appliedFilter.to.year)}/{toPersianDigits(appliedFilter.to.month)}/{toPersianDigits(appliedFilter.to.day)}
                               </span>
                               <span className="text-slate-300">•</span>
-                              <span className="tabular-nums">{toPersianDigits(filteredSchedule.length)} روز</span>
+                              <span className="tabular-nums">{toPersianDigits(mobileFilteredSchedule.length)} روز</span>
                            </div>
                         </div>
                      ) : (
@@ -795,6 +791,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
                               <h2 className="text-sm sm:text-base md:text-lg font-black text-slate-900 tracking-tight leading-snug">
                                  برنامه شیفت {monthName} {toPersianDigits(year)}
                               </h2>
+                              {isOwner && (
+                                 <span className={`inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full border whitespace-nowrap ${
+                                    isLocked
+                                      ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                      : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                 }`}>
+                                    {isLocked ? <Lock size={10} /> : <Unlock size={10} />}
+                                    <span>{isLocked ? 'قفل شده' : 'باز (قابل ویرایش)'}</span>
+                                 </span>
+                              )}
                               {filterPerson !== 'All' && (
                                  <span className="bg-emerald-50 text-emerald-800 text-[10px] sm:text-[11px] font-bold px-2 py-0.5 rounded-full border border-emerald-200 whitespace-nowrap">
                                     فیلتر: {filterPerson.replace('مهندس', '')}
@@ -802,120 +808,110 @@ export const Dashboard: React.FC<DashboardProps> = ({
                               )}
                            </div>
                            <p className="text-[11px] sm:text-xs text-slate-500 font-medium mt-0.5 tabular-nums">
-                              {toPersianDigits(filteredSchedule.length)} روز شیفت در جدول
+                              {toPersianDigits(mobileFilteredSchedule.length)} روز شیفت در جدول
                            </p>
                         </div>
                      )}
                   </div>
                </div>
 
-               {/* Today Button + Month Navigator */}
-               <div className="flex items-center gap-2 justify-between sm:justify-end w-full md:w-auto shrink-0 pt-2.5 md:pt-0 border-t md:border-t-0 border-slate-100">
+               {/* Today Button (with Date on Mobile & Desktop) + Month Navigator (Balanced 50/50 on Mobile & Desktop) */}
+               <div className={`grid ${onNavigateToToday ? 'grid-cols-2' : 'grid-cols-1'} items-center gap-2 w-full md:w-auto md:min-w-[330px] lg:min-w-[360px] shrink-0 pt-2.5 md:pt-0 border-t md:border-t-0 border-slate-100`}>
                   {onNavigateToToday && (
                      <button 
                        onClick={handleNavigateAndScrollToToday}
-                       className="h-9 sm:h-10 flex items-center justify-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300/80 hover:border-emerald-400 px-3 rounded-xl text-xs font-black transition active:scale-95 cursor-pointer whitespace-nowrap shrink-0 group"
+                       className="h-10 w-full flex items-center justify-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300/80 hover:border-emerald-400 px-2.5 rounded-xl text-xs font-black transition active:scale-95 cursor-pointer whitespace-nowrap group"
                        title="پرش و اسکرول مستقیم به برنامه شیفت امروز"
                      >
-                       <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-                       <CalendarCheck size={15} className="text-emerald-600 shrink-0" />
+                       <CalendarCheck size={14} className="text-emerald-600 shrink-0" />
                        <span>امروز</span>
-                       <span className="hidden sm:inline text-[10.5px] font-black text-emerald-700 bg-white/80 px-1.5 py-0.5 rounded-md tabular-nums">
+                       <span className="text-[10.5px] sm:text-[11px] font-black text-emerald-800 bg-white/90 px-1.5 py-0.5 rounded-md border border-emerald-200/70 tabular-nums">
                           {toPersianDigits(todayPersianDate)}
                        </span>
                      </button>
                   )}
-                  <div className="h-9 sm:h-10 flex items-center bg-slate-50/90 px-1 rounded-xl border border-slate-200/90 shrink-0">
-                     <button onClick={onPrevMonth} className="p-1.5 hover:bg-white rounded-lg text-slate-600 transition cursor-pointer" title="ماه قبل">
-                        <ChevronRight size={17} />
+                  <div className="h-10 w-full flex items-center justify-between bg-slate-50/90 px-1 rounded-xl border border-slate-200/90">
+                     <button onClick={onPrevMonth} className="w-7 h-7 flex items-center justify-center hover:bg-white rounded-lg text-slate-600 transition cursor-pointer shrink-0" title="ماه قبل">
+                        <ChevronRight size={16} />
                      </button>
-                     <span className="font-extrabold text-slate-800 text-xs sm:text-sm px-2 sm:px-2.5 text-center min-w-[82px] sm:min-w-[94px] whitespace-nowrap">
+                     <span className="font-extrabold text-slate-800 text-xs sm:text-sm px-1.5 text-center whitespace-nowrap truncate">
                         {monthName} {toPersianDigits(year)}
                      </span>
-                     <button onClick={onNextMonth} className="p-1.5 hover:bg-white rounded-lg text-slate-600 transition cursor-pointer" title="ماه بعد">
-                        <ChevronLeft size={17} />
+                     <button onClick={onNextMonth} className="w-7 h-7 flex items-center justify-center hover:bg-white rounded-lg text-slate-600 transition cursor-pointer shrink-0" title="ماه بعد">
+                        <ChevronLeft size={16} />
                      </button>
                   </div>
                </div>
             </div>
 
-            {/* 2. Unified Action Toolbar Row */}
-            <div className="px-3 py-2.5 sm:px-4 bg-slate-50/45 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-               {/* Owner Tools Group */}
-               {isOwner ? (
-                 <div className="flex items-center gap-1.5 w-full md:w-auto flex-wrap">
-                    <span className="hidden lg:inline-flex items-center gap-1 text-[11px] font-black text-amber-800 bg-amber-50 border border-amber-200/90 px-2 py-1 rounded-lg shrink-0">
-                       <Crown size={12} className="text-amber-600 shrink-0" />
-                       <span>مدیریت</span>
-                    </span>
+            {/* 2. Unified & Balanced Action Toolbar Grid */}
+            <div className="p-3 sm:px-4 bg-slate-50/50">
+               <div className={`grid gap-2 items-center ${
+                 isOwner
+                   ? 'grid-cols-2 sm:grid-cols-4 lg:grid-cols-7'
+                   : 'grid-cols-3'
+               }`}>
+                  {isOwner && (
+                    <>
+                      <button 
+                        type="button"
+                        onClick={onRegenerate}
+                        className="h-10 w-full flex items-center justify-center gap-1.5 bg-white border border-slate-200/90 text-slate-700 hover:border-amber-400 hover:text-amber-800 hover:bg-amber-50/60 px-2.5 rounded-xl text-xs font-extrabold transition whitespace-nowrap cursor-pointer shadow-2xs"
+                        title="بروزرسانی، ذخیره ابری یا چیدمان مجدد هوشمند این ماه"
+                      >
+                         <RefreshCw size={14} className="shrink-0 text-amber-600" />
+                         <span>آپدیت برنامه</span>
+                      </button>
 
-                    <button 
-                      onClick={onRegenerate}
-                      className="h-9 flex items-center justify-center gap-1.5 bg-white border border-slate-200 text-slate-700 hover:border-amber-400 hover:text-amber-700 hover:bg-amber-50/50 px-2.5 sm:px-3 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer"
-                      title="چیدمان مجدد هوشمند"
-                    >
-                       <RefreshCw size={14} className="shrink-0 text-amber-600" />
-                       <span>آپدیت</span>
-                    </button>
+                      <button 
+                        type="button"
+                        onClick={onToggleLock}
+                        className={`h-10 w-full flex items-center justify-center gap-1.5 border px-2.5 rounded-xl text-xs font-extrabold transition whitespace-nowrap cursor-pointer shadow-2xs ${
+                          isLocked 
+                            ? 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100' 
+                            : 'bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100'
+                        }`}
+                        title={isLocked ? 'برنامه این ماه قفل است؛ برای باز کردن قفل و امکان ویرایش کلیک کنید' : 'برنامه این ماه باز است؛ برای قفل کردن و جلوگیری از تغییر ناخواسته کلیک کنید'}
+                      >
+                         {isLocked ? <Lock size={14} className="shrink-0 text-rose-600" /> : <Unlock size={14} className="shrink-0 text-emerald-600" />}
+                         <span>{isLocked ? 'قفل ماه: فعال' : 'قفل ماه: باز'}</span>
+                      </button>
 
-                    <button 
-                      onClick={onToggleLock}
-                      className={`h-9 flex items-center justify-center gap-1.5 border px-2.5 sm:px-3 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
-                        isLocked 
-                          ? 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100' 
-                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                      }`}
-                      title={isLocked ? 'قفل شده' : 'باز (قابل ویرایش)'}
-                    >
-                       {isLocked ? <Lock size={14} className="shrink-0 text-red-500" /> : <Unlock size={14} className="shrink-0 text-slate-500" />}
-                       <span>{isLocked ? 'قفل' : 'باز'}</span>
-                    </button>
+                      <button 
+                         type="button"
+                         onClick={() => setIsFiltersOpen(!isFiltersOpen)}
+                         className={`h-10 w-full flex items-center justify-center gap-1.5 px-2.5 rounded-xl text-xs font-extrabold transition border whitespace-nowrap cursor-pointer shadow-2xs ${
+                            publishedRange?.isActive 
+                               ? 'bg-amber-500 text-white border-amber-600' 
+                               : appliedFilter 
+                                  ? 'bg-blue-600 text-white border-blue-700' 
+                                  : isFiltersOpen 
+                                     ? 'bg-amber-50 border-amber-300 text-amber-900' 
+                                     : 'bg-white border-slate-200/90 text-slate-700 hover:bg-amber-50/40 hover:border-amber-200'
+                         }`}
+                         title="محدودسازی روزها و تعیین بازه برای نمایش به سایر کاربران"
+                      >
+                         <Crown size={14} className={`shrink-0 ${publishedRange?.isActive || appliedFilter ? 'text-white' : 'text-amber-600'}`} />
+                         <span className="truncate">محدودسازی بازه</span>
+                         {isFiltersOpen ? <ChevronUp size={13} className="shrink-0" /> : <ChevronDown size={13} className="shrink-0" />}
+                      </button>
+                    </>
+                  )}
 
-                    <button 
-                       onClick={() => setIsFiltersOpen(!isFiltersOpen)}
-                       className={`h-9 flex items-center justify-center gap-1.5 px-2.5 sm:px-3 rounded-xl text-xs font-bold transition border whitespace-nowrap cursor-pointer ${
-                          publishedRange?.isActive 
-                             ? 'bg-amber-500 text-white border-amber-600' 
-                             : appliedFilter 
-                                ? 'bg-blue-600 text-white border-blue-700' 
-                                : isFiltersOpen 
-                                   ? 'bg-amber-50 border-amber-300 text-amber-900' 
-                                   : 'bg-white border-slate-200 text-slate-700 hover:bg-amber-50/40 hover:border-amber-200'
-                       }`}
-                       title="محدودسازی روزها و تعیین بازه برای نمایش به سایر کاربران"
-                    >
-                       <Crown size={14} className={`shrink-0 ${publishedRange?.isActive || appliedFilter ? 'text-white' : 'text-amber-600'}`} />
-                       <span>محدودسازی بازه</span>
-                       {publishedRange?.isActive ? (
-                          <span className="hidden sm:inline bg-black/20 text-white px-1.5 py-0.5 rounded-full text-[9px] font-black">
-                             منتشر
-                          </span>
-                       ) : appliedFilter ? (
-                          <span className="hidden sm:inline bg-white/25 text-white px-1.5 py-0.5 rounded-full text-[9px] font-black">
-                             فیلتر
-                          </span>
-                       ) : null}
-                       {isFiltersOpen ? <ChevronUp size={13} className="shrink-0" /> : <ChevronDown size={13} className="shrink-0" />}
-                    </button>
-                 </div>
-               ) : null}
-
-               {/* General Actions Group */}
-               <div className={`flex flex-wrap items-center gap-1.5 w-full md:w-auto ${isOwner ? 'pt-2 md:pt-0 border-t md:border-t-0 border-slate-200/70 md:mr-auto' : 'md:mr-auto md:justify-end'}`}>
                   <button 
                     id="btn-toggle-shift-filter"
                     type="button"
                     onClick={() => setIsShiftFilterOpen(prev => !prev)}
-                    className={`h-9 flex items-center justify-center gap-1.5 px-2.5 sm:px-3 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+                    className={`h-10 w-full flex items-center justify-center gap-1.5 px-2.5 rounded-xl text-xs font-extrabold transition whitespace-nowrap cursor-pointer shadow-2xs ${
                       filterPerson !== 'All' || filterShiftType !== 'ALL'
-                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white border border-blue-600'
                         : isShiftFilterOpen
                           ? 'bg-blue-50 text-blue-800 border border-blue-300'
-                          : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300'
+                          : 'bg-white border border-slate-200/90 text-slate-700 hover:bg-slate-50 hover:border-slate-300'
                     }`}
                     title="فیلتر هوشمند پرسنل و نوع شیفت"
                   >
-                     <Filter size={14} className={filterPerson !== 'All' || filterShiftType !== 'ALL' ? 'text-white' : 'text-blue-600'} />
+                     <Filter size={14} className={filterPerson !== 'All' || filterShiftType !== 'ALL' ? 'text-white shrink-0' : 'text-blue-600 shrink-0'} />
                      <span>فیلتر شیفت</span>
                      {(filterPerson !== 'All' || filterShiftType !== 'ALL') && (
                        <span className="bg-amber-400 text-slate-950 text-[10px] font-black px-1.5 py-0.2 rounded-full">
@@ -932,7 +928,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         const el = document.getElementById('fairness-analysis-section');
                         el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                       }}
-                      className="h-9 flex items-center justify-center gap-1.5 bg-white border border-slate-200 hover:border-indigo-400 text-slate-700 hover:text-indigo-700 hover:bg-indigo-50/50 px-2.5 sm:px-3 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer"
+                      className="h-10 w-full flex items-center justify-center gap-1.5 bg-white border border-slate-200/90 hover:border-indigo-400 text-slate-700 hover:text-indigo-700 hover:bg-indigo-50/50 px-2.5 rounded-xl text-xs font-extrabold transition whitespace-nowrap cursor-pointer shadow-2xs"
                       title="تحلیل عدالت، سختی کار و ساعت وزنی پرسنل"
                     >
                        <Scale size={14} className="shrink-0 text-indigo-600" />
@@ -941,8 +937,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   )}
 
                   <button 
+                    type="button"
                     onClick={onOpenReport}
-                    className="h-9 flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 sm:px-3 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer"
+                    className="h-10 w-full flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 rounded-xl text-xs font-extrabold transition whitespace-nowrap cursor-pointer shadow-2xs"
                     title="گزارش فردی"
                   >
                      <FileText size={14} className="shrink-0" />
@@ -950,8 +947,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   </button>
 
                   <button 
+                    type="button"
                     onClick={handlePrint}
-                    className="h-9 flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-black text-white px-2.5 sm:px-3 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer"
+                    className={`h-10 w-full flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-black text-white px-2.5 rounded-xl text-xs font-extrabold transition whitespace-nowrap cursor-pointer shadow-2xs ${
+                      isOwner ? 'col-span-2 sm:col-span-2 lg:col-span-1' : ''
+                    }`}
                     title="چاپ برنامه"
                   >
                      <Printer size={14} className="shrink-0" />
@@ -1741,6 +1741,94 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </div>
             </div>
 
+            {/* One-Tap 3-Column Quick Access Bar (Desktop & Mobile - No Horizontal Scroll) */}
+            <div className="bg-white rounded-2xl border border-slate-200/90 p-2 sm:p-2.5 shadow-2xs grid grid-cols-3 gap-1.5 sm:gap-2.5 items-center overflow-hidden print:hidden">
+              {/* 1. One-Tap "From Today Onward" Toggle */}
+              <button
+                type="button"
+                onClick={() => setHidePastDaysMobile((prev) => !prev)}
+                className={`h-9 sm:h-10 w-full px-1.5 sm:px-3 rounded-xl text-[11px] sm:text-xs font-extrabold flex items-center justify-center gap-1 sm:gap-1.5 whitespace-nowrap truncate border transition active:scale-95 cursor-pointer ${
+                  hidePastDaysMobile
+                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
+                    : 'bg-slate-50/90 text-slate-700 border-slate-200/90 hover:bg-emerald-50/60 hover:border-emerald-300'
+                }`}
+                title="مخفی کردن روزهای گذشته ماه برای کاهش اسکرول"
+              >
+                <CalendarCheck size={13} className={hidePastDaysMobile ? 'text-white shrink-0' : 'text-emerald-600 shrink-0'} />
+                <span className="truncate">از امروز به بعد</span>
+              </button>
+
+              {/* 2. One-Tap Shift Type Quick Cycle (All / Only Day / Only Night) */}
+              <button
+                type="button"
+                onClick={() =>
+                  setFilterShiftType((prev) =>
+                    prev === 'ALL' ? 'DAY' : prev === 'DAY' ? 'NIGHT' : 'ALL'
+                  )
+                }
+                className={`h-9 sm:h-10 w-full px-1.5 sm:px-3 rounded-xl text-[11px] sm:text-xs font-extrabold flex items-center justify-center gap-1 sm:gap-1.5 whitespace-nowrap truncate border transition active:scale-95 cursor-pointer ${
+                  filterShiftType === 'DAY'
+                    ? 'bg-amber-500 text-white border-amber-500 shadow-2xs'
+                    : filterShiftType === 'NIGHT'
+                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
+                      : 'bg-slate-50/90 text-slate-700 border-slate-200/90 hover:bg-slate-100'
+                }`}
+                title="تغییر سریع نوع شیفت (روز و شب / فقط روز / فقط شب)"
+              >
+                {filterShiftType === 'DAY' ? (
+                  <>
+                    <Sun size={13} className="text-white shrink-0" />
+                    <span className="truncate">فقط روز</span>
+                  </>
+                ) : filterShiftType === 'NIGHT' ? (
+                  <>
+                    <Moon size={13} className="text-white shrink-0" />
+                    <span className="truncate">فقط شب</span>
+                  </>
+                ) : (
+                  <>
+                    <Layers size={13} className="text-slate-500 shrink-0" />
+                    <span className="truncate">روز و شب</span>
+                  </>
+                )}
+              </button>
+
+              {/* 3. Compact Personnel Dropdown Menu */}
+              <div className="relative w-full min-w-0">
+                <Users
+                  size={13}
+                  className={`absolute right-2 sm:right-2.5 top-1/2 -translate-y-1/2 pointer-events-none ${
+                    filterPerson !== 'All' ? 'text-white' : 'text-slate-500'
+                  }`}
+                />
+                <select
+                  aria-label="فیلتر سریع پرسنل"
+                  value={filterPerson}
+                  onChange={(e) => setFilterPerson(e.target.value)}
+                  className={`w-full h-9 sm:h-10 appearance-none rounded-xl pr-6 sm:pr-7 pl-5 sm:pl-6 text-[11px] sm:text-xs font-extrabold border transition outline-none cursor-pointer truncate ${
+                    filterPerson !== 'All'
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
+                      : 'bg-slate-50/90 text-slate-700 border-slate-200/90 hover:bg-slate-100'
+                  }`}
+                >
+                  <option value="All" className="bg-white text-slate-800 font-bold">
+                    همه پرسنل
+                  </option>
+                  {shiftWorkers.map((person) => (
+                    <option key={`quick-opt-${person}`} value={person} className="bg-white text-slate-800 font-bold">
+                      {person}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  size={13}
+                  className={`absolute left-1.5 sm:left-2 top-1/2 -translate-y-1/2 pointer-events-none ${
+                    filterPerson !== 'All' ? 'text-white/90' : 'text-slate-400'
+                  }`}
+                />
+              </div>
+            </div>
+
             {/* Desktop Table (Screen Only) */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden hidden md:block print:hidden">
                <div className="overflow-x-auto">
@@ -1757,29 +1845,33 @@ export const Dashboard: React.FC<DashboardProps> = ({
                      <tr>
                        <th className="p-4 print:p-1 border border-slate-200 print:border-black">روز</th>
                        <th className="p-4 print:p-1 border border-slate-200 print:border-black">تاریخ</th>
+                       {filterShiftType !== 'NIGHT' && (
                         <th className={`p-4 print:p-1 border border-slate-200 print:border-black transition-colors ${filterShiftType === 'DAY' ? 'bg-amber-100/80 text-amber-950 font-black border-amber-300 ring-1 ring-amber-400/40' : ''}`}>
                           <div className="flex items-center justify-center gap-1.5">
                             <Sun size={15} className="text-amber-500 shrink-0" />
                             <span>شیفت روز (۰۸ - ۱۹)</span>
                             {filterShiftType === 'DAY' && (
-                              <span className="text-[10px] bg-amber-500 text-white px-1.5 py-0.2 rounded-full font-black">فعال</span>
+                              <span className="text-[10px] bg-amber-500 text-white px-1.5 py-0.2 rounded-full font-black">فقط روز</span>
                             )}
                           </div>
                         </th>
+                       )}
+                       {filterShiftType !== 'DAY' && (
                         <th className={`p-4 print:p-1 border border-slate-200 print:border-black transition-colors ${filterShiftType === 'NIGHT' ? 'bg-indigo-100/80 text-indigo-950 font-black border-indigo-300 ring-1 ring-indigo-400/40' : ''}`}>
                           <div className="flex items-center justify-center gap-1.5">
                             <Moon size={15} className="text-indigo-500 shrink-0" />
                             <span>شیفت شب (۱۹ - ۰۸)</span>
                             {filterShiftType === 'NIGHT' && (
-                              <span className="text-[10px] bg-indigo-600 text-white px-1.5 py-0.2 rounded-full font-black">فعال</span>
+                              <span className="text-[10px] bg-indigo-600 text-white px-1.5 py-0.2 rounded-full font-black">فقط شب</span>
                             )}
                           </div>
                         </th>
+                       )}
                        <th className="p-4 print:p-1 border border-slate-200 print:border-black">سرپرست (On-Call)</th>
                      </tr>
                    </thead>
                    <tbody className="divide-y divide-slate-100 print:divide-black">
-                     {filteredSchedule.map((entry) => {
+                     {mobileFilteredSchedule.map((entry) => {
                        const isToday = entry.date === todayPersianDate;
                        const isFriday = entry.dayName === 'جمعه';
                        const isHoliday = entry.isHoliday;
@@ -1859,6 +1951,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                                </td>
                              );
                            })()}
+                           {filterShiftType !== 'NIGHT' && (
                            <td className="p-2 print:p-0.5 border border-slate-200 print:border-black">
                               <div className="print:hidden">
                                 <div className="flex items-center justify-between gap-1 group/day">
@@ -1987,6 +2080,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
                                 ))}
                               </div>
                            </td>
+                           )}
+                           {filterShiftType !== 'DAY' && (
                            <td className="p-2 print:p-0.5 border border-slate-200 print:border-black">
                               <div className="print:hidden">
                                 <div className="flex items-center justify-between gap-1 group/night">
@@ -2115,6 +2210,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                                 ))}
                               </div>
                            </td>
+                           )}
                            <td className="p-2 print:p-0.5 border border-slate-200 print:border-black">
                               <div className="print:hidden">
                                 <div className="flex items-center justify-between gap-1 group/super">
@@ -2144,18 +2240,36 @@ export const Dashboard: React.FC<DashboardProps> = ({
                          </tr>
                        );
                      })}
-                     {filteredSchedule.length === 0 && (
+                     {mobileFilteredSchedule.length === 0 && (
                        <tr>
-                         <td colSpan={5} className="p-8 text-center text-slate-500 bg-slate-50/50">
+                         <td colSpan={filterShiftType === 'ALL' ? 5 : 4} className="p-8 text-center text-slate-500 bg-slate-50/50">
                             <div className="flex flex-col items-center justify-center gap-2">
                                <CalendarRange size={32} className="text-slate-300" />
-                               <p className="font-bold text-sm text-slate-600">در بازه زمانی انتخاب شده رکوردی یافت نشد</p>
-                               <button 
-                                  onClick={handleClearFilter}
-                                  className="mt-1 text-xs font-bold text-blue-600 hover:text-blue-800 underline"
-                                >
-                                  بازگشت به نمایش کل ماه
-                               </button>
+                               <p className="font-bold text-sm text-slate-600">
+                                  {hidePastDaysMobile && filteredSchedule.length > 0
+                                    ? 'تمام شیفت‌های این ماه مربوط به روزهای گذشته است'
+                                    : 'در بازه زمانی یا فیلتر انتخاب شده رکوردی یافت نشد'}
+                               </p>
+                               <div className="flex items-center gap-3 mt-1">
+                                 {hidePastDaysMobile && (
+                                   <button
+                                     type="button"
+                                     onClick={() => setHidePastDaysMobile(false)}
+                                     className="text-xs font-extrabold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-lg transition cursor-pointer"
+                                   >
+                                     نمایش کل روزهای ماه
+                                   </button>
+                                 )}
+                                 {(filterPerson !== 'All' || filterShiftType !== 'ALL' || appliedFilter) && (
+                                   <button 
+                                     type="button"
+                                     onClick={handleClearFilter}
+                                     className="text-xs font-bold text-blue-600 hover:text-blue-800 underline cursor-pointer"
+                                   >
+                                     پاک کردن فیلترها
+                                   </button>
+                                 )}
+                               </div>
                             </div>
                          </td>
                        </tr>
@@ -2167,103 +2281,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
             {/* Mobile Cards */}
             <div className="md:hidden space-y-2.5 print:hidden">
-              {/* Ultra-Slim One-Tap Quick Access Bar (Mobile Only) */}
-              <div className="bg-white/95 rounded-xl border border-slate-200/90 px-2 py-1.5 shadow-2xs flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-                {/* 1. One-Tap "From Today Onward" Toggle */}
-                <button
-                  type="button"
-                  onClick={() => setHidePastDaysMobile((prev) => !prev)}
-                  className={`h-8 px-2.5 rounded-lg text-[11px] font-black flex items-center gap-1.5 whitespace-nowrap shrink-0 border transition active:scale-95 cursor-pointer ${
-                    hidePastDaysMobile
-                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
-                      : 'bg-slate-50/90 text-slate-700 border-slate-200/90 hover:bg-emerald-50/60 hover:border-emerald-300'
-                  }`}
-                  title="مخفی کردن روزهای گذشته ماه برای کاهش اسکرول"
-                >
-                  <CalendarCheck size={13} className={hidePastDaysMobile ? 'text-white shrink-0' : 'text-emerald-600 shrink-0'} />
-                  <span>از امروز به بعد</span>
-                  {hidePastDaysMobile && hiddenPastDaysCount > 0 && (
-                    <span className="bg-white/20 text-white px-1.5 py-0.2 rounded text-[10px] tabular-nums">
-                      {toPersianDigits(mobileFilteredSchedule.length)} روز
-                    </span>
-                  )}
-                </button>
-
-                <div className="h-4 w-px bg-slate-200 shrink-0" />
-
-                {/* 2. One-Tap Shift Type Quick Cycle (when filtering or quick switching Day/Night) */}
-                <button
-                  type="button"
-                  onClick={() =>
-                    setFilterShiftType((prev) =>
-                      prev === 'ALL' ? 'DAY' : prev === 'DAY' ? 'NIGHT' : 'ALL'
-                    )
-                  }
-                  className={`h-8 px-2 rounded-lg text-[11px] font-bold flex items-center gap-1 whitespace-nowrap shrink-0 border transition active:scale-95 cursor-pointer ${
-                    filterShiftType === 'DAY'
-                      ? 'bg-amber-500 text-white border-amber-500 font-black shadow-2xs'
-                      : filterShiftType === 'NIGHT'
-                        ? 'bg-indigo-600 text-white border-indigo-600 font-black shadow-2xs'
-                        : 'bg-slate-50/90 text-slate-600 border-slate-200/90 hover:bg-slate-100'
-                  }`}
-                  title="تغییر سریع نوع شیفت (همه / فقط روز / فقط شب)"
-                >
-                  {filterShiftType === 'DAY' ? (
-                    <>
-                      <Sun size={12} className="text-white shrink-0" />
-                      <span>فقط روز</span>
-                    </>
-                  ) : filterShiftType === 'NIGHT' ? (
-                    <>
-                      <Moon size={12} className="text-white shrink-0" />
-                      <span>فقط شب</span>
-                    </>
-                  ) : (
-                    <>
-                      <Layers size={12} className="text-slate-500 shrink-0" />
-                      <span>روز و شب</span>
-                    </>
-                  )}
-                </button>
-
-                <div className="h-4 w-px bg-slate-200 shrink-0" />
-
-                {/* 3. Compact Personnel Dropdown Menu */}
-                <div className="relative flex-1 min-w-[125px]">
-                  <Users
-                    size={13}
-                    className={`absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none ${
-                      filterPerson !== 'All' ? 'text-white' : 'text-slate-500'
-                    }`}
-                  />
-                  <select
-                    aria-label="فیلتر سریع پرسنل"
-                    value={filterPerson}
-                    onChange={(e) => setFilterPerson(e.target.value)}
-                    className={`w-full h-8 appearance-none rounded-lg pr-7 pl-6 text-[11px] font-bold border transition outline-none cursor-pointer truncate ${
-                      filterPerson !== 'All'
-                        ? 'bg-blue-600 text-white border-blue-600 font-black shadow-2xs'
-                        : 'bg-slate-50/90 text-slate-700 border-slate-200/90 hover:bg-slate-100'
-                    }`}
-                  >
-                    <option value="All" className="bg-white text-slate-800 font-bold">
-                      همه پرسنل
-                    </option>
-                    {shiftWorkers.map((person) => (
-                      <option key={`quick-opt-${person}`} value={person} className="bg-white text-slate-800 font-bold">
-                        {person}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown
-                    size={13}
-                    className={`absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none ${
-                      filterPerson !== 'All' ? 'text-white/90' : 'text-slate-400'
-                    }`}
-                  />
-                </div>
-              </div>
-
               {mobileFilteredSchedule.length === 0 && (
                  <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
                     <CalendarRange size={32} className="text-slate-300 mx-auto mb-2" />
@@ -3089,83 +3106,110 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
             {/* Body */}
             <div className="p-4 sm:p-5 space-y-4 max-h-[70vh] overflow-y-auto">
-              {/* Notice alert when saved */}
-              {quickEditNotice && (
-                <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-3 rounded-xl text-xs font-bold flex items-center gap-2 animate-in fade-in">
-                  <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
-                  <span>{quickEditNotice}</span>
-                </div>
-              )}
-
-              {(quickEditShift.field === 'nightShiftPerson' || quickEditShift.field === 'extraNightPerson') && (
-                <div className="bg-indigo-50/80 border border-indigo-200/80 text-indigo-900 px-3 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2">
-                  <Sparkles size={15} className="text-indigo-600 shrink-0" />
-                  <span>چرخش خودکار: با انتخاب این فرد برای شیفت شب، نام ایشان به صورت خودکار ۲ روز بعد در شیفت روز نیز ثبت می‌شود (قابل ویرایش دستی).</span>
-                </div>
-              )}
-
-              {quickEditShift.currentPerson ? (
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-600">
-                    {quickEditShift.field.startsWith('extra') ? 'پرسنل کمکی فعلی:' : 'پرسنل فعلی:'}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-black text-slate-900 bg-white border border-slate-200 px-2.5 py-1 rounded-lg shadow-2xs">
-                      {quickEditShift.currentPerson}
-                    </span>
-                    {quickEditShift.field.startsWith('extra') && (
-                      <button
-                        type="button"
-                        onClick={handleQuickRemoveExtra}
-                        className="flex items-center gap-1 text-xs font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 px-2.5 py-1 rounded-lg transition cursor-pointer"
-                        title="حذف این پرسنل کمکی از شیفت"
-                      >
-                        <Trash2 size={13} />
-                        <span>حذف کمکی</span>
-                      </button>
-                    )}
+              {/* If Month is Locked, show Lock Protection with 1-Click Unlock */}
+              {isLocked ? (
+                <div className="bg-rose-50/80 border border-rose-200 rounded-2xl p-5 text-center space-y-3">
+                  <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 border border-rose-200 flex items-center justify-center mx-auto">
+                    <Lock size={22} />
                   </div>
+                  <div className="space-y-1">
+                    <h4 className="font-black text-slate-900 text-sm sm:text-base">
+                      برنامه شیفت {monthName} قفل است
+                    </h4>
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      برای جلوگیری از تغییرات ناخواسته، ویرایش دستی شیفت‌های این ماه قفل شده است. جهت تغییر این شیفت، ابتدا قفل ماه را باز کنید.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onToggleLock()}
+                    className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center justify-center gap-2 shadow-sm transition cursor-pointer"
+                  >
+                    <Unlock size={15} />
+                    <span>باز کردن قفل ماه و ادامه ویرایش</span>
+                  </button>
                 </div>
-              ) : null}
+              ) : (
+                <>
+                  {/* Notice alert when saved */}
+                  {quickEditNotice && (
+                    <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-3 rounded-xl text-xs font-bold flex items-center gap-2 animate-in fade-in">
+                      <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                      <span>{quickEditNotice}</span>
+                    </div>
+                  )}
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-2">
-                  {quickEditShift.actionType === 'add' ? 'انتخاب همکار جهت افزودن به عنوان پرسنل کمکی:' : 'انتخاب همکار جدید جهت جایگزینی:'}
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {getQuickEditCandidates().map((name) => {
-                    const isCurrent = name === quickEditShift.currentPerson;
-                    const personColor = GET_PERSON_COLOR(name, personnelList);
-                    return (
-                      <button
-                        key={name}
-                        type="button"
-                        onClick={() => handleQuickSelectPerson(name)}
-                        className={`flex items-center justify-between p-2.5 rounded-xl border text-right transition-all cursor-pointer ${
-                          isCurrent
-                            ? 'bg-emerald-50 border-emerald-500 ring-2 ring-emerald-200 shadow-xs'
-                            : 'bg-white hover:bg-slate-50 border-slate-200 hover:border-slate-300'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span 
-                            className="w-3 h-3 rounded-full shrink-0 ring-1 ring-black/10"
-                            style={{ backgroundColor: personColor }}
-                          />
-                          <span className={`text-xs font-bold truncate ${isCurrent ? 'text-emerald-950 font-black' : 'text-slate-800'}`}>
-                            {name}
-                          </span>
-                        </div>
-                        {isCurrent && (
-                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded shrink-0">
-                            فعلی
-                          </span>
+                  {(quickEditShift.field === 'nightShiftPerson' || quickEditShift.field === 'extraNightPerson') && (
+                    <div className="bg-indigo-50/80 border border-indigo-200/80 text-indigo-900 px-3 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2">
+                      <Sparkles size={15} className="text-indigo-600 shrink-0" />
+                      <span>چرخش خودکار: با انتخاب این فرد برای شیفت شب، نام ایشان به صورت خودکار ۲ روز بعد در شیفت روز نیز ثبت می‌شود (قابل ویرایش دستی).</span>
+                    </div>
+                  )}
+
+                  {quickEditShift.currentPerson ? (
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-600">
+                        {quickEditShift.field.startsWith('extra') ? 'پرسنل کمکی فعلی:' : 'پرسنل فعلی:'}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-black text-slate-900 bg-white border border-slate-200 px-2.5 py-1 rounded-lg shadow-2xs">
+                          {quickEditShift.currentPerson}
+                        </span>
+                        {quickEditShift.field.startsWith('extra') && (
+                          <button
+                            type="button"
+                            onClick={handleQuickRemoveExtra}
+                            className="flex items-center gap-1 text-xs font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 px-2.5 py-1 rounded-lg transition cursor-pointer"
+                            title="حذف این پرسنل کمکی از شیفت"
+                          >
+                            <Trash2 size={13} />
+                            <span>حذف کمکی</span>
+                          </button>
                         )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-2">
+                      {quickEditShift.actionType === 'add' ? 'انتخاب همکار جهت افزودن به عنوان پرسنل کمکی:' : 'انتخاب همکار جدید جهت جایگزینی:'}
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {getQuickEditCandidates().map((name) => {
+                        const isCurrent = name === quickEditShift.currentPerson;
+                        const personColor = GET_PERSON_COLOR(name, personnelList);
+                        return (
+                          <button
+                            key={name}
+                            type="button"
+                            onClick={() => handleQuickSelectPerson(name)}
+                            className={`flex items-center justify-between p-2.5 rounded-xl border text-right transition-all cursor-pointer ${
+                              isCurrent
+                                ? 'bg-emerald-50 border-emerald-500 ring-2 ring-emerald-200 shadow-xs'
+                                : 'bg-white hover:bg-slate-50 border-slate-200 hover:border-slate-300'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span 
+                                className="w-3 h-3 rounded-full shrink-0 ring-1 ring-black/10"
+                                style={{ backgroundColor: personColor }}
+                              />
+                              <span className={`text-xs font-bold truncate ${isCurrent ? 'text-emerald-950 font-black' : 'text-slate-800'}`}>
+                                {name}
+                              </span>
+                            </div>
+                            {isCurrent && (
+                              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded shrink-0">
+                                فعلی
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
             {/* Footer */}
             <div className="p-3 sm:p-4 border-t border-slate-100 bg-slate-50/50 flex justify-end">
