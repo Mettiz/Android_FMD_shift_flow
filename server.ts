@@ -3,15 +3,6 @@ import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { 
-  getFirestore, 
-  doc, 
-  getDoc, 
-  setDoc, 
-  onSnapshot,
-  Firestore 
-} from 'firebase/firestore';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -177,19 +168,7 @@ async function startServer() {
   let stateVersion = 1;
   let stateRevision = 0;
   let sseClients: express.Response[] = [];
-  let isFirestoreConnected = false;
-
-  // Initialize Firestore backend connection
-  let db: Firestore | null = null;
-  if (firebaseConfig) {
-    try {
-      const fbApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-      db = getFirestore(fbApp, firebaseConfig.firestoreDatabaseId);
-      console.log(`[SyncServer] Connected to Firestore database: ${firebaseConfig.firestoreDatabaseId}`);
-    } catch (fbErr) {
-      console.error('[SyncServer] Failed to initialize Firestore:', fbErr);
-    }
-  }
+  let isFirestoreConnected = Boolean(firebaseConfig?.projectId && firebaseConfig?.firestoreDatabaseId);
 
   // 1. Try to load initial state from local persistent file cache
   try {
@@ -322,187 +301,112 @@ async function startServer() {
     }
   }
 
-  // Helper to write to Firestore with REST fallback and return true only when committed
+  // Helper to write to Firestore via HTTPS REST API (avoids Node.js gRPC idle stream disconnects)
   async function persistToFirestore(data: any, merge = true): Promise<boolean> {
     if (isFirestoreQuotaExhausted) return false;
     const cleanData = sanitizeForFirestore(data);
+    return await writeFirestoreViaREST(cleanData, merge);
+  }
 
-    // Prefer fast REST PATCH (or race/fallback with SDK) so commit confirmation is genuine HTTP 200
-    const restOk = await writeFirestoreViaREST(cleanData, merge);
-    if (restOk) return true;
+  // Helper to reconcile incoming cloud data with local server state and self-healing guard
+  function reconcileCloudState(remoteData: any, eventSourceLabel: string) {
+    if (!remoteData) return;
+    isFirestoreConnected = true;
+    const remoteUpdated = remoteData.updatedAt || '';
+    const localUpdated = currentState?.updatedAt || '';
 
-    if (!db || isFirestoreQuotaExhausted) return false;
-    try {
-      const docRef = doc(db, 'roster_state', 'current');
-      await Promise.race([
-        merge ? setDoc(docRef, cleanData, { merge: true }) : setDoc(docRef, cleanData),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Firestore SDK write timeout')), 4500))
-      ]);
-      isFirestoreConnected = true;
-      return true;
-    } catch (err: any) {
-      const errMsg = String(err?.message || err);
-      if (errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.includes('resource-exhausted') || err?.code === 'resource-exhausted' || err?.code === 8) {
-        console.warn('[SyncServer] Firestore free daily quota reached for today. Switched to local disk & memory persistence.');
-        markQuotaExhausted();
-      } else {
-        console.warn('[SyncServer] Firestore write notice:', errMsg);
+    if (!currentState || (remoteUpdated && localUpdated ? remoteUpdated > localUpdated : Boolean(remoteUpdated))) {
+      const prevHash = getSchedHash(currentState?.schedule);
+      const nextHash = getSchedHash(remoteData.schedule);
+      const remoteRevision = typeof remoteData._revision === 'number' ? remoteData._revision : 0;
+
+      const isUnauthorizedLegacyRevert =
+        currentState &&
+        prevHash !== 'empty' &&
+        prevHash !== LEGACY_STALE_SCHEDULE_HASH &&
+        nextHash === LEGACY_STALE_SCHEDULE_HASH &&
+        !remoteData._explicitReset;
+
+      const isUnhydratedLowerRevisionOverwrite =
+        currentState &&
+        prevHash !== 'empty' &&
+        nextHash !== prevHash &&
+        stateRevision > 0 &&
+        remoteRevision > 0 &&
+        remoteRevision < stateRevision &&
+        !remoteData._explicitReset;
+
+      if (isUnauthorizedLegacyRevert || isUnhydratedLowerRevisionOverwrite) {
+        const healedNow = nextMonotonicIsoTimestamp(currentState.updatedAt, remoteUpdated);
+        stateVersion += 1;
+        stateRevision = Math.max(stateRevision, remoteRevision) + 1;
+        currentState = {
+          ...currentState,
+          updatedAt: healedNow,
+          _version: stateVersion,
+          _revision: stateRevision,
+        };
+        persistToDisk(currentState);
+        recordSyncAudit({
+          event: 'auto_healed_revert',
+          offendingClientId: remoteData._originClientId || 'unknown',
+          offendingBuild: remoteData._clientBuild || 'legacy',
+          offendingUpdatedAt: remoteUpdated,
+          offendingRevision: remoteRevision,
+          offendingHash: nextHash,
+          restoredHash: prevHash,
+          healedUpdatedAt: healedNow,
+          healedRevision: stateRevision,
+        });
+        persistToFirestore(currentState, true).catch(() => {});
+        mirrorToWorkerRelay(currentState).catch(() => {});
+        broadcast({
+          type: 'update',
+          data: currentState,
+          version: stateVersion,
+          updatedAt: healedNow,
+        });
+        return;
       }
-      return false;
+
+      stateVersion = Math.max(stateVersion, typeof remoteData._version === 'number' ? remoteData._version : 0) + 1;
+      stateRevision = Math.max(stateRevision, remoteRevision);
+      currentState = {
+        ...remoteData,
+        _version: stateVersion,
+        _revision: stateRevision,
+      };
+      persistToDisk(currentState);
+      if (prevHash !== nextHash) {
+        recordSyncAudit({
+          event: eventSourceLabel,
+          clientId: remoteData._originClientId || 'unknown',
+          clientBuild: remoteData._clientBuild || 'legacy',
+          updatedAt: remoteUpdated,
+          prevUpdatedAt: localUpdated,
+          revision: stateRevision,
+          schedHash: nextHash,
+          prevHash,
+        });
+      }
+      broadcast({
+        type: 'update',
+        data: currentState,
+        version: stateVersion,
+        updatedAt: remoteUpdated,
+      });
     }
   }
 
-  // 2. Connect Firestore Real-Time Bridge
-  if (db) {
-    try {
-      const docRef = doc(db, 'roster_state', 'current');
-
-      // Fetch initial data from Firestore to ensure freshness
-      getDoc(docRef)
-        .then((snapshot) => {
-          if (snapshot.exists()) {
-            const cloudData = snapshot.data();
-            isFirestoreConnected = true;
-            const cloudUpdatedAt = cloudData.updatedAt || '';
-            const localUpdatedAt = currentState?.updatedAt || '';
-
-            if (!currentState || (cloudUpdatedAt && localUpdatedAt ? cloudUpdatedAt > localUpdatedAt : Boolean(cloudUpdatedAt))) {
-              stateVersion = Math.max(stateVersion, typeof cloudData._version === 'number' ? cloudData._version : 0) + 1;
-              stateRevision = Math.max(stateRevision, typeof cloudData._revision === 'number' ? cloudData._revision : 0);
-              currentState = { ...cloudData, _version: stateVersion, _revision: stateRevision };
-              persistToDisk(currentState);
-              console.log(`[SyncServer] Synced initial state from Firestore (updatedAt: ${cloudUpdatedAt})`);
-            }
-          }
-        })
-        .catch(async (err) => {
-          console.warn('[SyncServer] Initial Firestore fetch notice:', err);
-          const restData = await fetchFirestoreViaREST();
-          if (restData) {
-            const cloudUpdatedAt = restData.updatedAt || '';
-            const localUpdatedAt = currentState?.updatedAt || '';
-            if (!currentState || (cloudUpdatedAt && localUpdatedAt ? cloudUpdatedAt > localUpdatedAt : Boolean(cloudUpdatedAt))) {
-              stateVersion = Math.max(stateVersion, typeof restData._version === 'number' ? restData._version : 0) + 1;
-              stateRevision = Math.max(stateRevision, typeof restData._revision === 'number' ? restData._revision : 0);
-              currentState = { ...restData, _version: stateVersion, _revision: stateRevision };
-              persistToDisk(currentState);
-            }
-          }
-        });
-
-      // Listen for real-time changes in Firestore and broadcast to all connected clients
-      onSnapshot(
-        docRef,
-        { includeMetadataChanges: false },
-        (snapshot) => {
-          if (snapshot.exists()) {
-            isFirestoreConnected = true;
-            const remoteData = snapshot.data();
-            const remoteUpdated = remoteData.updatedAt || '';
-            const localUpdated = currentState?.updatedAt || '';
-
-            // Update ONLY if remote is strictly newer or if we had no state
-            if (!currentState || (remoteUpdated && localUpdated ? remoteUpdated > localUpdated : Boolean(remoteUpdated))) {
-              const prevHash = getSchedHash(currentState?.schedule);
-              const nextHash = getSchedHash(remoteData.schedule);
-              const remoteRevision = typeof remoteData._revision === 'number' ? remoteData._revision : 0;
-
-              // Self-healing guard: If an unhydrated or legacy client wrote the default 88aedc2d schedule
-              // or a lower revision over a newer schedule without _explicitReset, reject and restore currentState!
-              const isUnauthorizedLegacyRevert =
-                currentState &&
-                prevHash !== 'empty' &&
-                prevHash !== LEGACY_STALE_SCHEDULE_HASH &&
-                nextHash === LEGACY_STALE_SCHEDULE_HASH &&
-                !remoteData._explicitReset;
-
-              const isUnhydratedLowerRevisionOverwrite =
-                currentState &&
-                prevHash !== 'empty' &&
-                nextHash !== prevHash &&
-                stateRevision > 0 &&
-                remoteRevision > 0 &&
-                remoteRevision < stateRevision &&
-                !remoteData._explicitReset;
-
-              if (isUnauthorizedLegacyRevert || isUnhydratedLowerRevisionOverwrite) {
-                const healedNow = nextMonotonicIsoTimestamp(currentState.updatedAt, remoteUpdated);
-                stateVersion += 1;
-                stateRevision = Math.max(stateRevision, remoteRevision) + 1;
-                currentState = {
-                  ...currentState,
-                  updatedAt: healedNow,
-                  _version: stateVersion,
-                  _revision: stateRevision,
-                };
-                persistToDisk(currentState);
-                recordSyncAudit({
-                  event: 'auto_healed_revert',
-                  offendingClientId: remoteData._originClientId || 'unknown',
-                  offendingBuild: remoteData._clientBuild || 'legacy',
-                  offendingUpdatedAt: remoteUpdated,
-                  offendingRevision: remoteRevision,
-                  offendingHash: nextHash,
-                  restoredHash: prevHash,
-                  healedUpdatedAt: healedNow,
-                  healedRevision: stateRevision,
-                });
-                console.warn(`[SyncServer] Blocked & self-healed unauthorized schedule revert (${nextHash} -> ${prevHash}, rev ${remoteRevision} -> ${stateRevision})`);
-                persistToFirestore(currentState, true).catch(() => {});
-                mirrorToWorkerRelay(currentState).catch(() => {});
-                broadcast({
-                  type: 'update',
-                  data: currentState,
-                  version: stateVersion,
-                  updatedAt: healedNow,
-                });
-                return;
-              }
-
-              stateVersion = Math.max(stateVersion, typeof remoteData._version === 'number' ? remoteData._version : 0) + 1;
-              stateRevision = Math.max(stateRevision, remoteRevision);
-              currentState = {
-                ...remoteData,
-                _version: stateVersion,
-                _revision: stateRevision
-              };
-              persistToDisk(currentState);
-              if (prevHash !== nextHash) {
-                recordSyncAudit({
-                  event: 'firestore_snapshot',
-                  clientId: remoteData._originClientId || 'unknown',
-                  clientBuild: remoteData._clientBuild || 'legacy',
-                  updatedAt: remoteUpdated,
-                  prevUpdatedAt: localUpdated,
-                  revision: stateRevision,
-                  schedHash: nextHash,
-                  prevHash,
-                });
-              }
-              console.log(`[SyncServer] Real-time Firestore update received (updatedAt: ${remoteUpdated})`);
-
-              // Broadcast immediately to all active SSE clients (browser clients in Iran)
-              broadcast({
-                type: 'update',
-                data: currentState,
-                version: stateVersion,
-                updatedAt: remoteUpdated
-              });
-            }
-          }
-        },
-        (error) => {
-          isFirestoreConnected = false;
-          const errMsg = String(error?.message || error);
-          if (errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.includes('resource-exhausted') || (error as any)?.code === 'resource-exhausted' || (error as any)?.code === 8) {
-            isFirestoreQuotaExhausted = true;
-          }
-          console.warn('[SyncServer] Firestore onSnapshot listener notice:', errMsg);
+  // 2. Initial Firestore REST sync on startup
+  if (firebaseConfig?.projectId && firebaseConfig?.firestoreDatabaseId) {
+    fetchFirestoreViaREST()
+      .then((restData) => {
+        if (restData) {
+          reconcileCloudState(restData, 'firestore_init');
         }
-      );
-    } catch (bridgeErr) {
-      console.warn('[SyncServer] Failed to setup Firestore listener:', bridgeErr);
-    }
+      })
+      .catch(() => {});
   }
 
   // --- API & Android Package Endpoints ---
@@ -623,84 +527,9 @@ async function startServer() {
     if (!isFirestoreQuotaExhausted && (!currentState || nowMs - lastFirestoreFetchTime > 2000)) {
       try {
         lastFirestoreFetchTime = nowMs;
-        let cloudData: any = null;
-        if (db) {
-          try {
-            const snapshot = await Promise.race([
-              getDoc(doc(db, 'roster_state', 'current')),
-              new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 3500))
-            ]);
-            if (snapshot.exists()) {
-              cloudData = snapshot.data();
-              isFirestoreConnected = true;
-            }
-          } catch {}
-        }
-        if (!cloudData) {
-          cloudData = await fetchFirestoreViaREST();
-        }
+        const cloudData = await fetchFirestoreViaREST();
         if (cloudData) {
-          const cloudUpdated = cloudData.updatedAt || '';
-          const localUpdated = currentState?.updatedAt || '';
-          if (!currentState || (cloudUpdated && (!localUpdated || cloudUpdated > localUpdated))) {
-            const prevHash = getSchedHash(currentState?.schedule);
-            const nextHash = getSchedHash(cloudData.schedule);
-            const cloudRev = typeof cloudData._revision === 'number' ? cloudData._revision : 0;
-
-            const isUnauthorizedLegacyRevert =
-              currentState &&
-              prevHash !== 'empty' &&
-              prevHash !== LEGACY_STALE_SCHEDULE_HASH &&
-              nextHash === LEGACY_STALE_SCHEDULE_HASH &&
-              !cloudData._explicitReset;
-
-            const isUnhydratedLowerRevisionOverwrite =
-              currentState &&
-              prevHash !== 'empty' &&
-              nextHash !== prevHash &&
-              stateRevision > 0 &&
-              cloudRev > 0 &&
-              cloudRev < stateRevision &&
-              !cloudData._explicitReset;
-
-            if (isUnauthorizedLegacyRevert || isUnhydratedLowerRevisionOverwrite) {
-              const healedNow = nextMonotonicIsoTimestamp(currentState.updatedAt, cloudUpdated);
-              stateVersion += 1;
-              stateRevision = Math.max(stateRevision, cloudRev) + 1;
-              currentState = {
-                ...currentState,
-                updatedAt: healedNow,
-                _version: stateVersion,
-                _revision: stateRevision,
-              };
-              persistToDisk(currentState);
-              persistToFirestore(currentState, true).catch(() => {});
-              mirrorToWorkerRelay(currentState).catch(() => {});
-            } else {
-              stateVersion = Math.max(stateVersion, typeof cloudData._version === 'number' ? cloudData._version : 0) + 1;
-              stateRevision = Math.max(stateRevision, cloudRev);
-              currentState = { ...cloudData, _version: stateVersion, _revision: stateRevision };
-              persistToDisk(currentState);
-              if (prevHash !== nextHash) {
-                recordSyncAudit({
-                  event: 'firestore_poll',
-                  clientId: cloudData._originClientId || 'unknown',
-                  clientBuild: cloudData._clientBuild || 'legacy',
-                  updatedAt: cloudUpdated,
-                  prevUpdatedAt: localUpdated,
-                  revision: stateRevision,
-                  schedHash: nextHash,
-                  prevHash,
-                });
-              }
-              broadcast({
-                type: 'update',
-                data: currentState,
-                version: stateVersion,
-                updatedAt: cloudUpdated,
-              });
-            }
-          }
+          reconcileCloudState(cloudData, 'firestore_poll');
         }
       } catch (e) {
         console.warn('[SyncServer] Periodic Firestore check notice:', e);

@@ -4,6 +4,7 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import {
   getFirestore,
+  setLogLevel,
   doc,
   onSnapshot,
   setDoc,
@@ -83,8 +84,11 @@ export const LEGACY_STALE_SCHEDULE_HASH = '88aedc2d';
 
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
-// Initialize Firestore with explicit database ID from config
+// Initialize Firestore with explicit database ID from config and silence noisy internal stream idle logs
 export const db: Firestore = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+try {
+  setLogLevel('silent');
+} catch {}
 
 let isDirectFirestoreUsable = true;
 let isDirectFirestoreBlockedUntilMs = 0;
@@ -1121,7 +1125,16 @@ export function subscribeToCloudRoster(
 
   // 4. Firestore direct listener attached IMMEDIATELY (no testConnection gatekeeper!)
   let firestoreUnsubscribe: Unsubscribe | null = null;
-  if (!isFirestoreQuotaExhausted) {
+  let firestoreReconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const attachFirestoreListener = () => {
+    if (isCancelled || isFirestoreQuotaExhausted) return;
+    if (firestoreUnsubscribe) {
+      try {
+        firestoreUnsubscribe();
+      } catch {}
+      firestoreUnsubscribe = null;
+    }
     try {
       const docRef = doc(db, ROSTER_DOC_PATH, ROSTER_DOC_ID);
       firestoreUnsubscribe = onSnapshot(
@@ -1161,18 +1174,27 @@ export function subscribeToCloudRoster(
             updateSyncDetails({ isQuotaExhausted: true, firestoreConnected: false });
           } else {
             updateSyncDetails({ firestoreConnected: false });
+            if (!isCancelled && !isFirestoreQuotaExhausted) {
+              if (firestoreReconnectTimer) clearTimeout(firestoreReconnectTimer);
+              firestoreReconnectTimer = setTimeout(() => {
+                attachFirestoreListener();
+              }, 3000);
+            }
           }
         }
       );
     } catch {
       updateSyncDetails({ firestoreConnected: false });
     }
-  }
+  };
+
+  attachFirestoreListener();
 
   return () => {
     isCancelled = true;
     if (pollTimer) clearInterval(pollTimer);
     if (sseReconnectTimer) clearTimeout(sseReconnectTimer);
+    if (firestoreReconnectTimer) clearTimeout(firestoreReconnectTimer);
     if (bgWorker) {
       try {
         bgWorker.terminate();
