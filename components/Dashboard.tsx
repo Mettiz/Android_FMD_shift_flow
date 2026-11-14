@@ -443,6 +443,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
   }, [scheduleData, fullSchedule, viewMode, appliedFilter]);
 
   const [chartMetricMode, setChartMetricMode] = useState<'raw' | 'weighted' | 'shifts'>('raw');
+  const [hidePastDaysMobile, setHidePastDaysMobile] = useState(false);
+
+  // Automatically disable hidePastDaysMobile if user navigates to a past month where all dates are before today
+  React.useEffect(() => {
+    if (scheduleData.length > 0 && scheduleData.every((s) => s.date < todayPersianDate)) {
+      setHidePastDaysMobile(false);
+    }
+  }, [monthName, year, scheduleData, todayPersianDate]);
 
   const filteredSchedule = useMemo(() => {
     return baseScheduleForView.filter((s) => {
@@ -462,6 +470,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
       return true;
     });
   }, [baseScheduleForView, filterPerson, filterShiftType]);
+
+  const hiddenPastDaysCount = useMemo(() => {
+    return filteredSchedule.filter((s) => s.date < todayPersianDate).length;
+  }, [filteredSchedule, todayPersianDate]);
+
+  const mobileFilteredSchedule = useMemo(() => {
+    if (!hidePastDaysMobile) return filteredSchedule;
+    return filteredSchedule.filter((s) => s.date >= todayPersianDate);
+  }, [filteredSchedule, hidePastDaysMobile, todayPersianDate]);
 
   // Dedicated stats for individual selected person
   const selectedPersonStats = useMemo(() => {
@@ -2149,29 +2166,131 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
 
             {/* Mobile Cards */}
-            <div className="md:hidden space-y-3 print:hidden">
-              {filteredSchedule.length === 0 && (
+            <div className="md:hidden space-y-2.5 print:hidden">
+              {/* Ultra-Slim One-Tap Quick Access Bar (Mobile Only) */}
+              <div className="bg-white/95 rounded-xl border border-slate-200/90 px-2 py-1.5 shadow-2xs flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                {/* 1. One-Tap "From Today Onward" Toggle */}
+                <button
+                  type="button"
+                  onClick={() => setHidePastDaysMobile((prev) => !prev)}
+                  className={`h-8 px-2.5 rounded-lg text-[11px] font-black flex items-center gap-1.5 whitespace-nowrap shrink-0 border transition active:scale-95 cursor-pointer ${
+                    hidePastDaysMobile
+                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
+                      : 'bg-slate-50/90 text-slate-700 border-slate-200/90 hover:bg-emerald-50/60 hover:border-emerald-300'
+                  }`}
+                  title="مخفی کردن روزهای گذشته ماه برای کاهش اسکرول"
+                >
+                  <CalendarCheck size={13} className={hidePastDaysMobile ? 'text-white shrink-0' : 'text-emerald-600 shrink-0'} />
+                  <span>از امروز به بعد</span>
+                  {hidePastDaysMobile && hiddenPastDaysCount > 0 && (
+                    <span className="bg-white/20 text-white px-1.5 py-0.2 rounded text-[10px] tabular-nums">
+                      {toPersianDigits(mobileFilteredSchedule.length)} روز
+                    </span>
+                  )}
+                </button>
+
+                <div className="h-4 w-px bg-slate-200 shrink-0" />
+
+                {/* 2. One-Tap Shift Type Quick Cycle (when filtering or quick switching Day/Night) */}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFilterShiftType((prev) =>
+                      prev === 'ALL' ? 'DAY' : prev === 'DAY' ? 'NIGHT' : 'ALL'
+                    )
+                  }
+                  className={`h-8 px-2 rounded-lg text-[11px] font-bold flex items-center gap-1 whitespace-nowrap shrink-0 border transition active:scale-95 cursor-pointer ${
+                    filterShiftType === 'DAY'
+                      ? 'bg-amber-500 text-white border-amber-500 font-black shadow-2xs'
+                      : filterShiftType === 'NIGHT'
+                        ? 'bg-indigo-600 text-white border-indigo-600 font-black shadow-2xs'
+                        : 'bg-slate-50/90 text-slate-600 border-slate-200/90 hover:bg-slate-100'
+                  }`}
+                  title="تغییر سریع نوع شیفت (همه / فقط روز / فقط شب)"
+                >
+                  {filterShiftType === 'DAY' ? (
+                    <>
+                      <Sun size={12} className="text-white shrink-0" />
+                      <span>فقط روز</span>
+                    </>
+                  ) : filterShiftType === 'NIGHT' ? (
+                    <>
+                      <Moon size={12} className="text-white shrink-0" />
+                      <span>فقط شب</span>
+                    </>
+                  ) : (
+                    <>
+                      <Layers size={12} className="text-slate-500 shrink-0" />
+                      <span>روز و شب</span>
+                    </>
+                  )}
+                </button>
+
+                <div className="h-4 w-px bg-slate-200 shrink-0" />
+
+                {/* 3. Compact Personnel Dropdown Menu */}
+                <div className="relative flex-1 min-w-[125px]">
+                  <Users
+                    size={13}
+                    className={`absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none ${
+                      filterPerson !== 'All' ? 'text-white' : 'text-slate-500'
+                    }`}
+                  />
+                  <select
+                    aria-label="فیلتر سریع پرسنل"
+                    value={filterPerson}
+                    onChange={(e) => setFilterPerson(e.target.value)}
+                    className={`w-full h-8 appearance-none rounded-lg pr-7 pl-6 text-[11px] font-bold border transition outline-none cursor-pointer truncate ${
+                      filterPerson !== 'All'
+                        ? 'bg-blue-600 text-white border-blue-600 font-black shadow-2xs'
+                        : 'bg-slate-50/90 text-slate-700 border-slate-200/90 hover:bg-slate-100'
+                    }`}
+                  >
+                    <option value="All" className="bg-white text-slate-800 font-bold">
+                      همه پرسنل
+                    </option>
+                    {shiftWorkers.map((person) => (
+                      <option key={`quick-opt-${person}`} value={person} className="bg-white text-slate-800 font-bold">
+                        {person}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown
+                    size={13}
+                    className={`absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none ${
+                      filterPerson !== 'All' ? 'text-white/90' : 'text-slate-400'
+                    }`}
+                  />
+                </div>
+              </div>
+
+              {mobileFilteredSchedule.length === 0 && (
                  <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
                     <CalendarRange size={32} className="text-slate-300 mx-auto mb-2" />
                     <p className="font-bold text-sm text-slate-700">
-                       {filterPerson !== "All"
-                         ? `برای پرسنل «${filterPerson}» با فیلتر شیفت انتخابی رکوردی یافت نشد`
-                         : "در بازه زمانی انتخاب شده رکوردی یافت نشد"}
+                       {hidePastDaysMobile && filteredSchedule.length > 0
+                         ? 'تمام شیفت‌های این ماه مربوط به روزهای گذشته است'
+                         : filterPerson !== "All"
+                           ? `برای پرسنل «${filterPerson}» با فیلتر شیفت انتخابی رکوردی یافت نشد`
+                           : "در بازه زمانی انتخاب شده رکوردی یافت نشد"}
                     </p>
                     <button 
                        onClick={() => {
+                         setHidePastDaysMobile(false);
                          setFilterPerson('All');
                          setFilterShiftType('ALL');
                          handleClearFilter();
                        }}
                        className="mt-2 text-xs font-bold text-blue-600 hover:text-blue-800 underline cursor-pointer"
                     >
-                       نمایش کامل برنامه (حذف فیلترها)
+                       {hidePastDaysMobile && filteredSchedule.length > 0
+                         ? 'نمایش روزهای گذشته ماه'
+                         : 'نمایش کامل برنامه (حذف فیلترها)'}
                     </button>
                  </div>
               )}
 
-              {filteredSchedule.map(entry => {
+              {mobileFilteredSchedule.map(entry => {
                  const isToday = entry.date === todayPersianDate;
                  const isFriday = entry.dayName === 'جمعه';
                  const isHoliday = entry.isHoliday;
@@ -2267,9 +2386,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       )}
                     </div>
 
-                    {/* Side-by-Side 2-Column Shift Grid (Day | Night) */}
-                    <div className="grid grid-cols-2 gap-2">
-                      {/* Day Shift Column */}
+                    {/* Shift Grid: 2 columns when ALL, or single full-width column when DAY or NIGHT */}
+                    <div className={`grid ${filterShiftType === 'ALL' ? 'grid-cols-2' : 'grid-cols-1'} gap-2`}>
+                      {/* Day Shift Column (hidden when Only Night is selected) */}
+                      {filterShiftType !== 'NIGHT' && (
                       <div className={`${dayTileTone} border rounded-xl p-2.5 flex flex-col justify-between transition-all`}>
                         <div>
                           <div className="flex items-center justify-between gap-1 mb-1.5">
@@ -2376,8 +2496,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
                           </div>
                         )}
                       </div>
+                      )}
 
-                      {/* Night Shift Column */}
+                      {/* Night Shift Column (hidden when Only Day is selected) */}
+                      {filterShiftType !== 'DAY' && (
                       <div className={`${nightTileTone} border rounded-xl p-2.5 flex flex-col justify-between transition-all`}>
                         <div>
                           <div className="flex items-center justify-between gap-1 mb-1.5">
@@ -2484,6 +2606,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                           </div>
                         )}
                       </div>
+                      )}
                     </div>
 
                     {/* Compact Supervisor Strip */}
