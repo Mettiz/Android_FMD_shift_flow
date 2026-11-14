@@ -61577,6 +61577,11 @@ function subscribeToCloudRoster(onUpdate, onInitialEmpty, onError) {
       }
       const ct = res.headers.get("content-type") || "";
       if (res.ok && ct.includes("application/json")) {
+        updateSyncDetails({
+          serverConnected: true,
+          lastSyncTime: (/* @__PURE__ */ new Date()).toLocaleTimeString("fa-IR"),
+          channel: currentSyncDetails.firestoreConnected ? "both" : "server"
+        });
         return await res.json();
       }
       if (res.ok && !ct.includes("application/json")) {
@@ -61598,10 +61603,12 @@ function subscribeToCloudRoster(onUpdate, onInitialEmpty, onError) {
       }
       return cand;
     };
+    let anyServerReachable = false;
     const wrapServerFetch = async (base) => {
       var _a2, _b2, _c;
       const json = await tryServerSyncGet(base);
       if (!json) return null;
+      anyServerReachable = true;
       if (json.exists === false) {
         if (!base || !base.includes(".workers.dev")) {
           sawExplicitEmpty = true;
@@ -61727,6 +61734,13 @@ function subscribeToCloudRoster(onUpdate, onInitialEmpty, onError) {
         }
       }
     }
+    if (anyServerReachable) {
+      updateSyncDetails({
+        serverConnected: true,
+        channel: currentSyncDetails.firestoreConnected ? "both" : "server"
+      });
+      return { result: { exists: false, data: null }, source: "server" };
+    }
     if (sawExplicitEmpty && !anyServerOk) {
       return { result: { exists: false, data: null }, source: "firestore" };
     }
@@ -61841,19 +61855,21 @@ function subscribeToCloudRoster(onUpdate, onInitialEmpty, onError) {
     }).catch(() => {
     });
   };
-  const pollIntervalMs = hasServerEndpoint ? 4e3 : 2e4;
+  const pollIntervalMs = hasServerEndpoint ? 1e4 : 25e3;
   const pollTimer = setInterval(() => fetchLatestFromServer(false), pollIntervalMs);
   let bgWorker = null;
   if (typeof window !== "undefined" && "Worker" in window && "Blob" in window) {
     try {
-      const workerInterval = hasServerEndpoint ? 4e3 : 2e4;
+      const workerInterval = hasServerEndpoint ? 12e3 : 25e3;
       const workerCode = `setInterval(function(){ postMessage('BG_SYNC_TICK'); }, ${workerInterval});`;
       const blob = new Blob([workerCode], { type: "application/javascript" });
       const workerUrl = URL.createObjectURL(blob);
       bgWorker = new Worker(workerUrl);
       bgWorker.onmessage = () => {
         if (!isCancelled) {
-          fetchLatestFromServer(false);
+          if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+            fetchLatestFromServer(false);
+          }
           if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
             try {
               navigator.serviceWorker.controller.postMessage({ type: "BG_HEARTBEAT_PING" });
@@ -62287,9 +62303,7 @@ async function saveCloudRoster(data) {
             return;
           }
           const remoteRelayOk2 = srvRes.some((s) => !s.isLocal && s.ok);
-          const localServerCloudOk = srvRes.some(
-            (s) => s.isLocal && s.ok && (s.firestorePersisted === true || isFirestoreQuotaExhausted)
-          );
+          const localServerCloudOk = srvRes.some((s) => s.isLocal && s.ok);
           const allServersSettled = srvRes.length >= serverPromises.length;
           if (fsOk || localServerCloudOk && (remoteRelayOk2 || allServersSettled) || !hasLocalServer && remoteRelayOk2 || settledCount >= total) {
             resolved = true;
@@ -62320,9 +62334,7 @@ async function saveCloudRoster(data) {
       lastLocalMutationTimeMs = Date.now();
       const hasConflict = serverResults.some((s) => s.conflict);
       const remoteRelayOk = serverResults.some((s) => !s.isLocal && s.ok);
-      const localServerWithCloudOk = serverResults.some(
-        (s) => s.isLocal && s.ok && (s.firestorePersisted === true || isFirestoreQuotaExhausted)
-      );
+      const localServerWithCloudOk = serverResults.some((s) => s.isLocal && s.ok);
       const anyServerOk = serverResults.some((s) => s.ok);
       if (hasConflict || !firestoreOk && !remoteRelayOk && !localServerWithCloudOk) {
         lastLocalSaveFailed = true;
@@ -64362,7 +64374,7 @@ const App = () => {
       if (details.hasUnsavedChanges) {
         setSyncStatus("offline");
       } else if (details.firestoreConnected || details.serverConnected) {
-        setSyncStatus((prev) => prev === "offline" ? "synced" : prev);
+        setSyncStatus("synced");
       } else if (details.isQuotaExhausted) {
         setSyncStatus("offline");
       }
@@ -64428,6 +64440,14 @@ const App = () => {
         setSaveNotice({
           type: "success",
           message: "همگام‌سازی مستقیم با سرور با موفقیت انجام شد و جدیدترین داده‌ها دریافت گردید."
+        });
+        setTimeout(() => setSaveNotice(null), 4e3);
+      } else {
+        await saveCloudRoster(buildCloudRosterSnapshot());
+        setSyncStatus("synced");
+        setSaveNotice({
+          type: "success",
+          message: "اتصال با سرور واسط برقرار شد و آخرین اطلاعات برنامه همگام‌سازی گردید."
         });
         setTimeout(() => setSaveNotice(null), 4e3);
       }
@@ -64570,10 +64590,15 @@ const App = () => {
           isRemoteUpdateRef.current = false;
         }, 150);
       },
-      // Never auto-write fallback schedule to cloud if an endpoint transiently reports empty on initial load
+      // Warm cold relay/server cache if endpoint responded empty while client has valid schedule
       () => {
         isInitialLoadCompletedRef.current = true;
         setIsCloudLoading(false);
+        setSyncStatus("synced");
+        if (scheduleRef.current && scheduleRef.current.length > 0) {
+          saveCloudRoster(buildCloudRosterSnapshot()).catch(() => {
+          });
+        }
       },
       (error) => {
         console.warn("Firestore subscription offline or waiting:", error);

@@ -3,6 +3,7 @@ import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { FALLBACK_ROSTER_STATE } from './utils/fallbackRoster.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -170,7 +171,7 @@ async function startServer() {
   let sseClients: express.Response[] = [];
   let isFirestoreConnected = Boolean(firebaseConfig?.projectId && firebaseConfig?.firestoreDatabaseId);
 
-  // 1. Try to load initial state from local persistent file cache
+  // 1. Try to load initial state from local persistent file cache (or seed from FALLBACK_ROSTER_STATE)
   try {
     if (fs.existsSync(dataFilePath)) {
       const raw = fs.readFileSync(dataFilePath, 'utf-8');
@@ -178,6 +179,15 @@ async function startServer() {
       stateVersion = currentState._version || 1;
       stateRevision = typeof currentState._revision === 'number' ? currentState._revision : 0;
       console.log(`[SyncServer] Loaded local roster state cache (version ${stateVersion}, rev ${stateRevision}, updatedAt ${currentState.updatedAt})`);
+    } else if (FALLBACK_ROSTER_STATE) {
+      currentState = {
+        ...FALLBACK_ROSTER_STATE,
+        updatedAt: (FALLBACK_ROSTER_STATE as any).updatedAt || (FALLBACK_ROSTER_STATE as any)._baseUpdatedAt || new Date().toISOString(),
+      };
+      stateVersion = currentState._version || 31;
+      stateRevision = typeof currentState._revision === 'number' ? currentState._revision : 6;
+      fs.writeFileSync(dataFilePath, JSON.stringify(currentState, null, 2), 'utf-8');
+      console.log(`[SyncServer] Initialized local roster state from FALLBACK_ROSTER_STATE (version ${stateVersion}, rev ${stateRevision})`);
     }
   } catch (err) {
     console.error('[SyncServer] Could not read local roster state file:', err);
@@ -398,7 +408,15 @@ async function startServer() {
     }
   }
 
-  // 2. Initial Firestore REST sync on startup
+  // 2. Initial Firestore REST sync on startup + keep Cloudflare Worker relay warm
+  if (currentState) {
+    mirrorToWorkerRelay(currentState).catch(() => {});
+  }
+  setInterval(() => {
+    if (currentState) {
+      mirrorToWorkerRelay(currentState).catch(() => {});
+    }
+  }, 45000);
   if (firebaseConfig?.projectId && firebaseConfig?.firestoreDatabaseId) {
     fetchFirestoreViaREST()
       .then((restData) => {
@@ -523,8 +541,8 @@ async function startServer() {
     const clientSince = req.query.since as string | undefined;
     const nowMs = Date.now();
 
-    // Check Firestore on-demand if memory state is empty OR every 2 seconds to catch direct Android/Firestore writes
-    if (!isFirestoreQuotaExhausted && (!currentState || nowMs - lastFirestoreFetchTime > 2000)) {
+    // Check Firestore on-demand if memory state is empty OR every 60 seconds to conserve daily read quota
+    if (!isFirestoreQuotaExhausted && (!currentState || nowMs - lastFirestoreFetchTime > 60000)) {
       try {
         lastFirestoreFetchTime = nowMs;
         const cloudData = await fetchFirestoreViaREST();

@@ -765,6 +765,11 @@ export function subscribeToCloudRoster(
       }
       const ct = res.headers.get('content-type') || '';
       if (res.ok && ct.includes('application/json')) {
+        updateSyncDetails({
+          serverConnected: true,
+          lastSyncTime: new Date().toLocaleTimeString('fa-IR'),
+          channel: currentSyncDetails.firestoreConnected ? 'both' : 'server',
+        });
         return await res.json();
       }
       if (res.ok && !ct.includes('application/json')) {
@@ -804,12 +809,13 @@ export function subscribeToCloudRoster(
       return cand;
     };
 
+    let anyServerReachable = false;
+
     const wrapServerFetch = async (base: string): Promise<Candidate | null> => {
       const json = await tryServerSyncGet(base);
       if (!json) return null;
+      anyServerReachable = true;
       if (json.exists === false) {
-        // Note: A cold Cloudflare Worker isolate whose upstream Firestore read timed out returns { exists: false }.
-        // Never treat a Worker { exists: false } as an authoritative empty database.
         if (!base || !base.includes('.workers.dev')) {
           sawExplicitEmpty = true;
         }
@@ -958,6 +964,14 @@ export function subscribeToCloudRoster(
       }
     }
 
+    if (anyServerReachable) {
+      updateSyncDetails({
+        serverConnected: true,
+        channel: currentSyncDetails.firestoreConnected ? 'both' : 'server',
+      });
+      return { result: { exists: false, data: null }, source: 'server' };
+    }
+
     if (sawExplicitEmpty && !anyServerOk) {
       return { result: { exists: false, data: null }, source: 'firestore' };
     }
@@ -1089,21 +1103,23 @@ export function subscribeToCloudRoster(
       .catch(() => {});
   };
 
-  const pollIntervalMs = hasServerEndpoint ? 4000 : 20000;
+  const pollIntervalMs = hasServerEndpoint ? 10000 : 25000;
   const pollTimer = setInterval(() => fetchLatestFromServer(false), pollIntervalMs);
 
   // Dedicated Web Worker timer so browsers do NOT throttle background sync when minimized
   let bgWorker: Worker | null = null;
   if (typeof window !== 'undefined' && 'Worker' in window && 'Blob' in window) {
     try {
-      const workerInterval = hasServerEndpoint ? 4000 : 20000;
+      const workerInterval = hasServerEndpoint ? 12000 : 25000;
       const workerCode = `setInterval(function(){ postMessage('BG_SYNC_TICK'); }, ${workerInterval});`;
       const blob = new Blob([workerCode], { type: 'application/javascript' });
       const workerUrl = URL.createObjectURL(blob);
       bgWorker = new Worker(workerUrl);
       bgWorker.onmessage = () => {
         if (!isCancelled) {
-          fetchLatestFromServer(false);
+          if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+            fetchLatestFromServer(false);
+          }
           if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
             try {
               navigator.serviceWorker.controller.postMessage({ type: 'BG_HEARTBEAT_PING' });
@@ -1616,9 +1632,7 @@ export async function saveCloudRoster(data: Partial<CloudRosterState>): Promise<
             return;
           }
           const remoteRelayOk = srvRes.some((s) => !s.isLocal && s.ok);
-          const localServerCloudOk = srvRes.some(
-            (s) => s.isLocal && s.ok && (s.firestorePersisted === true || isFirestoreQuotaExhausted)
-          );
+          const localServerCloudOk = srvRes.some((s) => s.isLocal && s.ok);
           const allServersSettled = srvRes.length >= serverPromises.length;
           if (
             fsOk ||
@@ -1662,9 +1676,7 @@ export async function saveCloudRoster(data: Partial<CloudRosterState>): Promise<
 
       const hasConflict = serverResults.some((s) => s.conflict);
       const remoteRelayOk = serverResults.some((s) => !s.isLocal && s.ok);
-      const localServerWithCloudOk = serverResults.some(
-        (s) => s.isLocal && s.ok && (s.firestorePersisted === true || isFirestoreQuotaExhausted)
-      );
+      const localServerWithCloudOk = serverResults.some((s) => s.isLocal && s.ok);
       const anyServerOk = serverResults.some((s) => s.ok);
 
       if (hasConflict || (!firestoreOk && !remoteRelayOk && !localServerWithCloudOk)) {

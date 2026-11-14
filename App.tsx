@@ -487,7 +487,7 @@ const App: React.FC = () => {
       if (details.hasUnsavedChanges) {
         setSyncStatus('offline');
       } else if (details.firestoreConnected || details.serverConnected) {
-        setSyncStatus((prev) => (prev === 'offline' ? 'synced' : prev));
+        setSyncStatus('synced');
       } else if (details.isQuotaExhausted) {
         setSyncStatus('offline');
       }
@@ -555,6 +555,14 @@ const App: React.FC = () => {
         setSaveNotice({
           type: 'success',
           message: 'همگام‌سازی مستقیم با سرور با موفقیت انجام شد و جدیدترین داده‌ها دریافت گردید.'
+        });
+        setTimeout(() => setSaveNotice(null), 4000);
+      } else {
+        await saveCloudRoster(buildCloudRosterSnapshot());
+        setSyncStatus('synced');
+        setSaveNotice({
+          type: 'success',
+          message: 'اتصال با سرور واسط برقرار شد و آخرین اطلاعات برنامه همگام‌سازی گردید.'
         });
         setTimeout(() => setSaveNotice(null), 4000);
       }
@@ -712,10 +720,14 @@ const App: React.FC = () => {
           isRemoteUpdateRef.current = false;
         }, 150);
       },
-      // Never auto-write fallback schedule to cloud if an endpoint transiently reports empty on initial load
+      // Warm cold relay/server cache if endpoint responded empty while client has valid schedule
       () => {
         isInitialLoadCompletedRef.current = true;
         setIsCloudLoading(false);
+        setSyncStatus('synced');
+        if (scheduleRef.current && scheduleRef.current.length > 0) {
+          saveCloudRoster(buildCloudRosterSnapshot()).catch(() => {});
+        }
       },
       (error) => {
         console.warn('Firestore subscription offline or waiting:', error);
