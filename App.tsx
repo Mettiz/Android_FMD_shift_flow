@@ -210,7 +210,11 @@ const App: React.FC = () => {
       .then(() => setSyncStatus('synced'))
       .catch((e) => {
         console.warn('Process save error:', e);
-        setSyncStatus('synced');
+        setSyncStatus('offline');
+        setSaveNotice({
+          type: 'error',
+          message: 'خطا در ثبت تغییرات پروسه در سرور ابری. لطفاً اتصال اینترنت را بررسی کرده و دکمه تلاش مجدد را بزنید.'
+        });
       });
   };
 
@@ -227,7 +231,14 @@ const App: React.FC = () => {
     setSyncStatus('syncing');
     saveCloudRoster(buildCloudRosterSnapshot({ processDefinitions: updated }))
       .then(() => setSyncStatus('synced'))
-      .catch(() => setSyncStatus('synced'));
+      .catch((e) => {
+        console.warn('Process definitions save error:', e);
+        setSyncStatus('offline');
+        setSaveNotice({
+          type: 'error',
+          message: 'خطا در ذخیره کتابخانه پروسه‌ها در سرور ابری. لطفاً اتصال اینترنت را بررسی کنید.'
+        });
+      });
   };
 
   // --- PROCESS SCHEDULE DISPLAY TOGGLE (Dashboard Visibility) ---
@@ -308,7 +319,11 @@ const App: React.FC = () => {
       .then(() => setSyncStatus('synced'))
       .catch((e) => {
         console.error(e);
-        setSyncStatus('synced');
+        setSyncStatus('offline');
+        setSaveNotice({
+          type: 'error',
+          message: 'خطا در ثبت وضعیت انتشار بازه زمانی در سرور ابری. لطفاً دوباره تلاش کنید.'
+        });
       });
   };
 
@@ -324,17 +339,35 @@ const App: React.FC = () => {
     }
     setSyncStatus('syncing');
     saveCloudRoster(buildCloudRosterSnapshot({ showProcessSchedule: enabled }))
-      .then(() => setSyncStatus('synced'))
-      .catch(() => setSyncStatus('synced'));
-
-    setSaveNotice({
-      type: 'success',
-      message: enabled
-        ? 'برنامه و جدول پروسه‌ها در داشبورد فعال شد.'
-        : 'برنامه پروسه‌ها از داشبورد برداشته شد (کلیه اطلاعات محفوظ هستند).'
-    });
-    setTimeout(() => setSaveNotice(null), 3500);
+      .then(() => {
+        setSyncStatus('synced');
+        setSaveNotice({
+          type: 'success',
+          message: enabled
+            ? 'برنامه و جدول پروسه‌ها در داشبورد فعال و در سرور ذخیره شد.'
+            : 'برنامه پروسه‌ها از داشبورد برداشته شد و در سرور ثبت گردید.'
+        });
+        setTimeout(() => setSaveNotice(null), 3500);
+      })
+      .catch(() => {
+        setSyncStatus('offline');
+        setSaveNotice({
+          type: 'error',
+          message: 'خطا در همگام‌سازی تغییر نمایش پروسه‌ها با سرور ابری.'
+        });
+      });
   };
+
+  // --- IN-APP CONFIRMATION DIALOG & INLINE ERRORS (IFRAME-SAFE) ---
+  const [confirmDialog, setConfirmDialog] = useState<{
+    title: string;
+    message: string;
+    confirmLabel: string;
+    tone: 'warning' | 'danger' | 'indigo';
+    onConfirm: () => void;
+  } | null>(null);
+  const [passwordModalError, setPasswordModalError] = useState<string | null>(null);
+  const [changePwdError, setChangePwdError] = useState<string | null>(null);
 
   // --- CHANGE PASSWORD MODAL STATE ---
   const [isChangePwdOpen, setChangePwdOpen] = useState(false);
@@ -346,6 +379,7 @@ const App: React.FC = () => {
 
   const handleUnlockSettings = () => {
     if (settingsPassword === adminPassword) {
+        setPasswordModalError(null);
         setIsOwner(true);
         setIsSettingsUnlocked(true);
         setShowAiAssistant(true);
@@ -362,7 +396,7 @@ const App: React.FC = () => {
         }
         setIntendedTab('dashboard');
     } else {
-        alert('رمز عبور اشتباه است.');
+        setPasswordModalError('رمز عبور وارد شده اشتباه است.');
     }
   };
 
@@ -380,28 +414,37 @@ const App: React.FC = () => {
   const handleClosePasswordModal = () => {
       setIsPasswordModalOpen(false);
       setSettingsPassword('');
+      setPasswordModalError(null);
       setIntendedTab('dashboard');
   };
 
   const handleChangePassword = () => {
       if (pwdForm.current !== adminPassword) {
-          alert('رمز عبور فعلی اشتباه است.');
+          setChangePwdError('رمز عبور فعلی اشتباه است.');
           return;
       }
       if (pwdForm.new.length < 4) {
-          alert('رمز عبور باید حداقل ۴ کاراکتر باشد.');
+          setChangePwdError('رمز عبور باید حداقل ۴ کاراکتر باشد.');
           return;
       }
       if (pwdForm.new !== pwdForm.confirm) {
-          alert('تکرار رمز عبور با رمز جدید مطابقت ندارد.');
+          setChangePwdError('تکرار رمز عبور با رمز جدید مطابقت ندارد.');
           return;
       }
 
+      setChangePwdError(null);
       adminPasswordRef.current = pwdForm.new;
       setAdminPassword(pwdForm.new);
       localStorage.setItem(STORAGE_KEYS.PASSWORD, pwdForm.new);
-      saveCloudRoster(buildCloudRosterSnapshot({ adminPassword: pwdForm.new })).catch(console.error);
-      alert('رمز عبور با موفقیت تغییر کرد.');
+      saveCloudRoster(buildCloudRosterSnapshot({ adminPassword: pwdForm.new }))
+        .then(() => {
+          setSaveNotice({ type: 'success', message: 'رمز عبور مدیریت با موفقیت تغییر کرد و در سرور ذخیره شد.' });
+          setTimeout(() => setSaveNotice(null), 4000);
+        })
+        .catch(() => {
+          setSyncStatus('offline');
+          setSaveNotice({ type: 'error', message: 'رمز عبور در مرورگر تغییر کرد اما ذخیره ابری ناموفق بود.' });
+        });
       setChangePwdOpen(false);
       setPwdForm({ current: '', new: '', confirm: '' });
   };
@@ -413,13 +456,16 @@ const App: React.FC = () => {
     firestoreConnected: false,
     lastSyncTime: null,
     channel: 'offline',
+    hasUnsavedChanges: false,
   });
   const [isForceSyncing, setIsForceSyncing] = useState(false);
 
   useEffect(() => {
     const unsub = subscribeSyncStatus((details) => {
       setSyncDetails(details);
-      if (details.firestoreConnected || details.serverConnected) {
+      if (details.hasUnsavedChanges) {
+        setSyncStatus('offline');
+      } else if (details.firestoreConnected || details.serverConnected) {
         setSyncStatus((prev) => (prev === 'offline' ? 'synced' : prev));
       } else if (details.isQuotaExhausted) {
         setSyncStatus('offline');
@@ -431,6 +477,11 @@ const App: React.FC = () => {
   const handleForceSync = async () => {
     setIsForceSyncing(true);
     try {
+      // If local edits failed to reach cloud earlier, retry uploading them instead of discarding them
+      if (syncDetails.hasUnsavedChanges) {
+        await handleManualSaveChanges();
+        return;
+      }
       const cloudData = await fetchLatestCloudRosterNow();
       if (cloudData) {
         if (cloudData.schedule && Array.isArray(cloudData.schedule)) {
@@ -504,13 +555,12 @@ const App: React.FC = () => {
   const isInitialLoadCompletedRef = useRef(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Safety fallback: Never keep the user waiting more than 1.5 seconds if network is lagging
+  // Safety fallback: Never keep the user waiting longer than 3.5s if network is lagging
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsCloudLoading(false);
       isInitialLoadCompletedRef.current = true;
-      setSyncStatus(prev => (prev === 'syncing' ? 'synced' : prev));
-    }, 1500);
+    }, 3500);
     return () => clearTimeout(timer);
   }, []);
 
@@ -638,17 +688,9 @@ const App: React.FC = () => {
           isRemoteUpdateRef.current = false;
         }, 150);
       },
-      // If Firestore doc does not exist yet, seed it with current local state
+      // If Firestore doc does not exist yet, seed it with current live refs
       () => {
-        saveCloudRoster({
-          schedule,
-          personnelList,
-          unlockedMonths,
-          publishedRange,
-          adminPassword,
-          dailyProcesses,
-          processDefinitions,
-        })
+        saveCloudRoster(buildCloudRosterSnapshot())
           .then(() => {
             setSyncStatus('synced');
             isInitialLoadCompletedRef.current = true;
@@ -697,8 +739,8 @@ const App: React.FC = () => {
         clearTimeout(saveTimeoutRef.current);
       }
 
-      // 1. Ensure distinct non-duplicate colors for all personnel
-      const distinctPersonnel = ensureUniquePersonnelColors(personnelList);
+      // 1. Ensure distinct non-duplicate colors using live personnelListRef
+      const distinctPersonnel = ensureUniquePersonnelColors(personnelListRef.current);
       personnelListRef.current = distinctPersonnel;
       setPersonnelList(distinctPersonnel);
 
@@ -923,11 +965,13 @@ const App: React.FC = () => {
   };
 
   const handleSaveStagingFinal = async () => {
+    setLocalScheduleFingerprint(scheduleRef.current);
+    const savePromise = handleManualSaveChanges();
     setIsStagingPreview(false);
     isStagingPreviewRef.current = false;
     setStagingMeta(null);
     setBackupBeforeStaging(null);
-    await handleManualSaveChanges();
+    await savePromise;
   };
 
   const handleCancelStaging = () => {
@@ -998,8 +1042,9 @@ const App: React.FC = () => {
   const handleAddPersonnel = (role: 'Shift' | 'Supervisor') => {
     const trimmedName = newPersonName.trim();
     if (!trimmedName) return;
-    if (personnelList.some(p => p.name.trim() === trimmedName)) {
-        alert('این نام قبلا ثبت شده است.');
+    if (personnelListRef.current.some(p => p.name.trim() === trimmedName)) {
+        setSaveNotice({ type: 'error', message: 'این نام قبلا ثبت شده است.' });
+        setTimeout(() => setSaveNotice(null), 3500);
         return;
     }
     
@@ -1194,7 +1239,8 @@ const App: React.FC = () => {
       const currentSched = scheduleRef.current;
       if (currentSched.length === 0) return;
 
-      const lastEntry = currentSched[currentSched.length - 1];
+      const sortedSched = [...currentSched].sort((a, b) => a.date.localeCompare(b.date));
+      const lastEntry = sortedSched[sortedSched.length - 1];
       const lastDateParts = lastEntry.date.split('/');
       const lastYear = parseInt(lastDateParts[0]);
       const lastMonth = parseInt(lastDateParts[1]);
@@ -1209,31 +1255,38 @@ const App: React.FC = () => {
       const nextMonthName = MONTHS.find(m => m.code === nextMonthCode)?.name || 'نامشخص';
       const daysInNextMonth = getDaysInPersianMonth(nextMonthCode);
 
-      if (confirm(`آیا می‌خواهید برنامه برای ${nextMonthName} ${nextYear} تولید شود؟`)) {
-          // Check if already exists (partially or fully)
-          const exists = currentSched.some(s => s.date.startsWith(`${nextYear}/${nextMonthCode}`));
-          if (exists) {
-              alert('بخشی از برنامه این ماه قبلا تولید شده است.');
-              return;
-          }
-
-          const weekDays = ['شنبه', 'یک‌شنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'];
-          const startDayIndex = (weekDays.indexOf(lastEntry.dayName) + 1) % 7;
-
-          const newMonthData = generateNextMonth(
-                 currentSched, 
-                 nextYear, 
-                 nextMonthCode, 
-                 startDayIndex, 
-                 personnelListRef.current,
-                 daysInNextMonth
-          );
-          
-          const updated = [...currentSched, ...newMonthData];
-          setSchedule(updated);
-          syncUpdatedSchedule(updated);
-          alert(`برنامه ${nextMonthName} ${nextYear} با موفقیت تولید شد.`);
+      const exists = sortedSched.some(s => s.date.startsWith(`${nextYear}/${nextMonthCode}`));
+      if (exists) {
+          setSaveNotice({ type: 'error', message: 'بخشی از برنامه این ماه قبلا تولید شده است.' });
+          setTimeout(() => setSaveNotice(null), 4000);
+          return;
       }
+
+      setConfirmDialog({
+          title: `تولید برنامه ${nextMonthName} ${toPersianDigits(nextYear)}`,
+          message: `آیا می‌خواهید برنامه شیفت برای ماه ${nextMonthName} ${toPersianDigits(nextYear)} به‌صورت هوشمند تولید و در سرور ابری ذخیره شود؟`,
+          confirmLabel: 'تولید و ذخیره',
+          tone: 'indigo',
+          onConfirm: () => {
+              const latestSched = [...scheduleRef.current].sort((a, b) => a.date.localeCompare(b.date));
+              const latestLast = latestSched[latestSched.length - 1];
+              const weekDays = ['شنبه', 'یک‌شنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'];
+              const startDayIndex = (weekDays.indexOf(latestLast.dayName) + 1) % 7;
+
+              const newMonthData = generateNextMonth(
+                  latestSched,
+                  nextYear,
+                  nextMonthCode,
+                  startDayIndex,
+                  personnelListRef.current,
+                  daysInNextMonth
+              );
+
+              const updated = [...latestSched, ...newMonthData].sort((a, b) => a.date.localeCompare(b.date));
+              setSchedule(updated);
+              syncUpdatedSchedule(updated, `برنامه ${nextMonthName} ${toPersianDigits(nextYear)} با موفقیت تولید و در سرور ذخیره شد.`);
+          }
+      });
   };
 
   // Calculate info for the manual button
@@ -1270,7 +1323,7 @@ const App: React.FC = () => {
        setCurrentYear(newYear);
   };
 
-  const syncUpdatedSchedule = (newSchedule: ShiftEntry[]) => {
+  const syncUpdatedSchedule = (newSchedule: ShiftEntry[], successToast?: string) => {
     scheduleRef.current = newSchedule;
     setLocalScheduleFingerprint(newSchedule);
 
@@ -1294,8 +1347,21 @@ const App: React.FC = () => {
     scheduleSyncTimeoutRef.current = setTimeout(() => {
       scheduleSyncTimeoutRef.current = null;
       saveCloudRoster(buildCloudRosterSnapshot({ schedule: scheduleRef.current }))
-        .then(() => setSyncStatus('synced'))
-        .catch(() => setSyncStatus('synced'));
+        .then(() => {
+          setSyncStatus('synced');
+          if (successToast) {
+            setSaveNotice({ type: 'success', message: successToast });
+            setTimeout(() => setSaveNotice(null), 4000);
+          }
+        })
+        .catch((err) => {
+          console.error('Schedule cloud sync error:', err);
+          setSyncStatus('offline');
+          setSaveNotice({
+            type: 'error',
+            message: 'خطا در همگام‌سازی برنامه با سرور ابری؛ تغییرات فعلاً فقط در همین مرورگر ثبت شده است. لطفاً اتصال اینترنت را بررسی کرده و روی تلاش مجدد کلیک کنید.'
+          });
+        });
     }, 25);
   };
 
@@ -1460,37 +1526,66 @@ const App: React.FC = () => {
         console.error(e);
       }
       if (!isStagingPreviewRef.current) {
-        saveCloudRoster(buildCloudRosterSnapshot({ unlockedMonths: newLocked })).catch(console.error);
+        setSyncStatus('syncing');
+        saveCloudRoster(buildCloudRosterSnapshot({ unlockedMonths: newLocked }))
+          .then(() => setSyncStatus('synced'))
+          .catch((e) => {
+            console.error(e);
+            setSyncStatus('offline');
+            setSaveNotice({
+              type: 'error',
+              message: 'خطا در ذخیره وضعیت قفل ماه در سرور ابری.'
+            });
+          });
       }
   };
 
   const handleRegenerate = () => {
-      if (confirm('آیا از چیدمان مجدد این ماه اطمینان دارید؟ تمام تغییرات دستی این ماه حذف خواهد شد.')) {
-          const monthCode = currentMonth.code;
-          const yearStr = String(currentYear);
-          const filteredSchedule = scheduleRef.current.filter(s => !s.date.startsWith(`${yearStr}/${monthCode}`));
-          
-          let startDayIndex = 6; 
-          if (filteredSchedule.length > 0) {
-               const lastEntry = filteredSchedule[filteredSchedule.length - 1];
-               const weekDays = ['شنبه', 'یک‌شنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'];
-               startDayIndex = (weekDays.indexOf(lastEntry.dayName) + 1) % 7;
+      const monthCode = currentMonth.code;
+      const monthLabel = `${currentMonth.name} ${toPersianDigits(currentYear)}`;
+      const yearStr = String(currentYear);
+      setConfirmDialog({
+          title: `چیدمان مجدد ${monthLabel}`,
+          message: `آیا از چیدمان مجدد برنامه شیفت ${monthLabel} اطمینان دارید؟ تمام تغییرات دستی این ماه جایگزین و در سرور ابری ذخیره خواهد شد.`,
+          confirmLabel: 'تایید و آپدیت برنامه',
+          tone: 'warning',
+          onConfirm: () => {
+              const filteredSchedule = scheduleRef.current.filter(s => !s.date.startsWith(`${yearStr}/${monthCode}`));
+              const monthStartPrefix = `${yearStr}/${monthCode}/01`;
+              const priorSchedule = [...filteredSchedule]
+                .filter(s => s.date < monthStartPrefix)
+                .sort((a, b) => a.date.localeCompare(b.date));
+
+              let startDayIndex = 6;
+              if (priorSchedule.length > 0) {
+                   const lastEntry = priorSchedule[priorSchedule.length - 1];
+                   const weekDays = ['شنبه', 'یک‌شنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'];
+                   const idx = weekDays.indexOf(lastEntry.dayName);
+                   if (idx !== -1) startDayIndex = (idx + 1) % 7;
+              } else {
+                   const weekdayMap = ['یک‌شنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه', 'شنبه'];
+                   const firstDayName = getDayNameForJalali(currentYear, parseInt(monthCode, 10), 1);
+                   const weekDays = ['شنبه', 'یک‌شنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'];
+                   const idx = weekDays.indexOf(firstDayName);
+                   if (idx !== -1) startDayIndex = idx;
+                   else if (weekdayMap.length) startDayIndex = 6;
+              }
+
+              const daysInMonth = getDaysInPersianMonth(monthCode);
+              const newData = generateNextMonth(
+                  priorSchedule,
+                  currentYear,
+                  monthCode,
+                  startDayIndex,
+                  personnelListRef.current,
+                  daysInMonth
+              );
+
+              const updatedSchedule = [...filteredSchedule, ...newData].sort((a, b) => a.date.localeCompare(b.date));
+              setSchedule(updatedSchedule);
+              syncUpdatedSchedule(updatedSchedule, `برنامه ${monthLabel} با موفقیت آپدیت و در سرور ابری ذخیره شد.`);
           }
-
-          const daysInMonth = getDaysInPersianMonth(monthCode);
-          const newData = generateNextMonth(
-              filteredSchedule,
-              currentYear,
-              monthCode,
-              startDayIndex,
-              personnelListRef.current,
-              daysInMonth
-          );
-
-          const updatedSchedule = [...filteredSchedule, ...newData];
-          setSchedule(updatedSchedule);
-          syncUpdatedSchedule(updatedSchedule);
-      }
+      });
   };
 
   const handleApplyAiGeneratedMonth = (
@@ -1620,6 +1715,7 @@ const App: React.FC = () => {
       }
 
       // Immediately persist imported data to cloud as a single atomic snapshot
+      setSyncStatus('syncing');
       saveCloudRoster(buildCloudRosterSnapshot({
         schedule: targetSchedule,
         personnelList: targetPersonnel,
@@ -1628,38 +1724,61 @@ const App: React.FC = () => {
         dailyProcesses: targetDailyProcesses,
         processDefinitions: targetProcessDefs,
         showProcessSchedule: targetShowProcess,
-      })).catch(console.error);
+      }))
+        .then(() => {
+          setSyncStatus('synced');
+          setSaveNotice({
+            type: 'success',
+            message: 'داده‌های جدید با موفقیت جایگزین و در سرور ابری ذخیره شد.'
+          });
+          setTimeout(() => setSaveNotice(null), 4500);
+        })
+        .catch((err) => {
+          console.error('Import cloud sync error:', err);
+          setSyncStatus('offline');
+          setSaveNotice({
+            type: 'error',
+            message: 'فایل بارگذاری شد اما ذخیره در سرور ابری با خطا مواجه شد. لطفاً اتصال اینترنت را بررسی کرده و دوباره ذخیره کنید.'
+          });
+        });
 
       setActiveTab('dashboard');
   };
   
-  const handleReset = async () => {
-      if (!confirm('آیا از بازنشانی کلیه اطلاعات به حالت پیش‌فرض مطمئن هستید؟')) return;
-      const defaultDaily = generateFullBioprocessCampaign('1405/05/26');
-      setSchedule(SCHEDULE_DATA);
-      setPersonnelList(INITIAL_STAFF);
-      setUnlockedMonths([]);
-      setPublishedRange(null);
-      setDailyProcesses(defaultDaily);
-      setProcessDefinitions(DEFAULT_PROCESS_DEFINITIONS);
-      setShowProcessSchedule(true);
-      localStorage.clear();
-      try {
-        await resetCloudRoster({
-          schedule: SCHEDULE_DATA,
-          personnelList: INITIAL_STAFF,
-          unlockedMonths: [],
-          publishedRange: null,
-          adminPassword: '1234',
-          dailyProcesses: defaultDaily,
-          processDefinitions: DEFAULT_PROCESS_DEFINITIONS,
-          showProcessSchedule: true,
-          updatedAt: new Date().toISOString(),
-        });
-      } catch (e) {
-        console.error('Failed to reset cloud roster:', e);
-      }
-      window.location.reload();
+  const handleReset = () => {
+      setConfirmDialog({
+          title: 'بازنشانی کلیه اطلاعات',
+          message: 'هشدار: با تایید این مرحله، تمام برنامه شیفت‌ها، پرسنل و تنظیمات به حالت پیش‌فرض کارخانه بازمی‌گردد. آیا مطمئن هستید؟',
+          confirmLabel: 'بازنشانی کامل',
+          tone: 'danger',
+          onConfirm: async () => {
+              const defaultDaily = generateFullBioprocessCampaign('1405/05/26');
+              setSchedule(SCHEDULE_DATA);
+              setPersonnelList(INITIAL_STAFF);
+              setUnlockedMonths([]);
+              setPublishedRange(null);
+              setDailyProcesses(defaultDaily);
+              setProcessDefinitions(DEFAULT_PROCESS_DEFINITIONS);
+              setShowProcessSchedule(true);
+              localStorage.clear();
+              try {
+                await resetCloudRoster({
+                  schedule: SCHEDULE_DATA,
+                  personnelList: INITIAL_STAFF,
+                  unlockedMonths: [],
+                  publishedRange: null,
+                  adminPassword: '1234',
+                  dailyProcesses: defaultDaily,
+                  processDefinitions: DEFAULT_PROCESS_DEFINITIONS,
+                  showProcessSchedule: true,
+                  updatedAt: new Date().toISOString(),
+                });
+              } catch (e) {
+                console.error('Failed to reset cloud roster:', e);
+              }
+              window.location.reload();
+          }
+      });
   };
   
   // Step 1: Validate
@@ -2017,6 +2136,41 @@ const App: React.FC = () => {
 
       {/* Content */}
       <main className="main-content max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
+        {/* Global Save / Sync Status Notification (visible across BOTH Dashboard & Settings) */}
+        {saveNotice && (
+          <div className={`mb-4 p-3.5 sm:p-4 rounded-xl shadow-md flex flex-wrap items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2 no-print ${
+            saveNotice.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'
+          }`}>
+            <div className="flex items-center gap-2.5 font-bold text-xs sm:text-sm">
+              {saveNotice.type === 'success' ? (
+                <CheckCircle2 size={18} className="shrink-0 text-emerald-100" />
+              ) : (
+                <AlertCircle size={18} className="shrink-0 text-rose-100" />
+              )}
+              <span>{saveNotice.message}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {saveNotice.type === 'error' && (
+                <button
+                  type="button"
+                  onClick={handleManualSaveChanges}
+                  disabled={isSavingChanges}
+                  className="bg-white/95 hover:bg-white text-rose-700 font-black text-xs px-3 py-1.5 rounded-lg shadow-xs transition cursor-pointer whitespace-nowrap"
+                >
+                  {isSavingChanges ? 'در حال ارسال...' : 'تلاش مجدد ذخیره ابری'}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setSaveNotice(null)}
+                className="text-white/80 hover:text-white p-1 cursor-pointer"
+                aria-label="بستن اعلان"
+              >
+                <X size={18} />
+              </button>
+            </div>
+          </div>
+        )}
         {activeTab === 'dashboard' || !isOwner ? (
           <Dashboard 
             scheduleData={currentMonthData}
@@ -2106,9 +2260,16 @@ const App: React.FC = () => {
                                  />
                              </div>
 
+                             {changePwdError && (
+                               <div className="bg-rose-50 border border-rose-200 text-rose-700 rounded-lg px-3 py-2 text-xs font-bold flex items-center gap-1.5">
+                                 <AlertCircle size={14} className="shrink-0" />
+                                 <span>{changePwdError}</span>
+                               </div>
+                             )}
+
                              <div className="flex gap-2 mt-4 pt-2">
                                  <button 
-                                    onClick={() => setChangePwdOpen(false)}
+                                    onClick={() => { setChangePwdOpen(false); setChangePwdError(null); }}
                                     className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg text-sm font-bold transition"
                                  >
                                      انصراف
@@ -2205,28 +2366,7 @@ const App: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Success / Error Notification */}
-                {saveNotice && (
-                    <div className={`p-4 rounded-xl shadow-md flex items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2 ${
-                        saveNotice.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'
-                    }`}>
-                        <div className="flex items-center gap-2.5 font-bold text-sm">
-                            {saveNotice.type === 'success' ? (
-                                <CheckCircle2 size={20} className="shrink-0 text-emerald-100" />
-                            ) : (
-                                <AlertCircle size={20} className="shrink-0 text-red-100" />
-                            )}
-                            <span>{saveNotice.message}</span>
-                        </div>
-                        <button 
-                            type="button"
-                            onClick={() => setSaveNotice(null)} 
-                            className="text-white/80 hover:text-white p-1 cursor-pointer"
-                        >
-                            <X size={18} />
-                        </button>
-                    </div>
-                )}
+                {/* Notice banner moved to top of <main> so it is visible across all tabs */}
 
                 {/* --- TAB 1: تنظیمات جنرال --- */}
                 {settingsSubTab === 'general' && (
@@ -3157,10 +3297,16 @@ const App: React.FC = () => {
                          className="w-full bg-slate-50 border border-slate-300 text-slate-900 placeholder-slate-400 text-center rounded-xl px-3 py-2.5 text-base focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none dir-ltr tracking-widest font-black transition"
                          placeholder="****"
                          value={settingsPassword}
-                         onChange={e => setSettingsPassword(e.target.value)}
+                         onChange={e => { setSettingsPassword(e.target.value); if (passwordModalError) setPasswordModalError(null); }}
                          onKeyDown={e => e.key === 'Enter' && handleUnlockSettings()}
                          autoFocus
                       />
+                      {passwordModalError && (
+                        <div className="bg-rose-50 border border-rose-200 text-rose-700 rounded-xl px-3 py-2 text-xs font-bold flex items-center justify-center gap-1.5">
+                          <AlertCircle size={14} className="shrink-0" />
+                          <span>{passwordModalError}</span>
+                        </div>
+                      )}
                       <div className="flex gap-2">
                           <button 
                              onClick={handleClosePasswordModal}
@@ -3178,6 +3324,61 @@ const App: React.FC = () => {
                   </div>
               </div>
           </div>
+      )}
+
+      {/* In-App Iframe-Safe Confirmation Modal */}
+      {confirmDialog && (
+        <div
+          className="fixed inset-0 z-50 bg-black/45 backdrop-blur-[2px] flex items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={() => setConfirmDialog(null)}
+        >
+          <div
+            className="bg-white p-6 rounded-2xl shadow-2xl border border-slate-200 max-w-sm w-full animate-in zoom-in-95 text-right"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3 mb-4">
+              <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border ${
+                confirmDialog.tone === 'danger'
+                  ? 'bg-rose-50 text-rose-600 border-rose-200'
+                  : confirmDialog.tone === 'warning'
+                  ? 'bg-amber-50 text-amber-600 border-amber-200'
+                  : 'bg-indigo-50 text-indigo-600 border-indigo-200'
+              }`}>
+                <AlertTriangle size={22} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="font-black text-slate-900 text-base">{confirmDialog.title}</h3>
+                <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">{confirmDialog.message}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setConfirmDialog(null)}
+                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer"
+              >
+                انصراف
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const action = confirmDialog.onConfirm;
+                  setConfirmDialog(null);
+                  action();
+                }}
+                className={`flex-1 text-white px-3 py-2.5 rounded-xl text-xs font-black transition shadow-md cursor-pointer ${
+                  confirmDialog.tone === 'danger'
+                    ? 'bg-rose-600 hover:bg-rose-700'
+                    : confirmDialog.tone === 'warning'
+                    ? 'bg-amber-600 hover:bg-amber-700'
+                    : 'bg-indigo-600 hover:bg-indigo-700'
+                }`}
+              >
+                {confirmDialog.confirmLabel}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       {/* Floating Gemini AI Assistant (Manager Only) */}
       {isOwner && showAiAssistant && (

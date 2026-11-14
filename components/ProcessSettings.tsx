@@ -36,6 +36,7 @@ export const ProcessSettings: React.FC<ProcessSettingsProps> = ({
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [pendingConfirm, setPendingConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
   // Form State
   const [formData, setFormData] = useState<Partial<ProcessDefinition>>({
@@ -87,11 +88,14 @@ export const ProcessSettings: React.FC<ProcessSettingsProps> = ({
       onOpenUnlockModal();
       return;
     }
-    if (confirm('آیا از حذف این پروسه از کتابخانه مطمئن هستید؟')) {
-      const updated = processDefinitions.filter(p => p.id !== id);
-      onSaveDefinitions(updated);
-      showToast('پروسه از کتابخانه حذف شد.');
-    }
+    setPendingConfirm({
+      message: 'آیا از حذف این پروسه از کتابخانه مطمئن هستید؟',
+      onConfirm: () => {
+        const updated = processDefinitions.filter(p => p.id !== id);
+        onSaveDefinitions(updated);
+        showToast('پروسه از کتابخانه حذف شد.');
+      },
+    });
   };
 
   const handleResetToDefault = () => {
@@ -99,16 +103,19 @@ export const ProcessSettings: React.FC<ProcessSettingsProps> = ({
       onOpenUnlockModal();
       return;
     }
-    if (confirm('آیا می‌خواهید کتابخانه پروسه‌ها به تنظیمات استاندارد اولیه کارخانه تب برفکی (FMD) بازنشانی شود؟')) {
-      onSaveDefinitions(DEFAULT_PROCESS_DEFINITIONS);
-      showToast('کتابخانه پروسه‌ها به حالت استاندارد بازنشانی شد.');
-    }
+    setPendingConfirm({
+      message: 'آیا می‌خواهید کتابخانه پروسه‌ها به تنظیمات استاندارد اولیه کارخانه تب برفکی (FMD) بازنشانی شود؟',
+      onConfirm: () => {
+        onSaveDefinitions(DEFAULT_PROCESS_DEFINITIONS);
+        showToast('کتابخانه پروسه‌ها به حالت استاندارد بازنشانی شد.');
+      },
+    });
   };
 
   const handleSubmitForm = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name?.trim()) {
-      alert('لطفاً نام پروسه را وارد کنید.');
+      showToast('لطفاً نام پروسه را وارد کنید.');
       return;
     }
 
@@ -205,6 +212,33 @@ export const ProcessSettings: React.FC<ProcessSettingsProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Inline Confirmation Banner */}
+      {pendingConfirm && (
+        <div className="bg-amber-50 border border-amber-300 text-amber-950 px-4 py-3 rounded-xl text-xs font-bold flex flex-wrap items-center justify-between gap-2 shadow-xs">
+          <span>{pendingConfirm.message}</span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setPendingConfirm(null)}
+              className="px-3 py-1.5 rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 cursor-pointer"
+            >
+              انصراف
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const action = pendingConfirm.onConfirm;
+                setPendingConfirm(null);
+                action();
+              }}
+              className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white cursor-pointer"
+            >
+              تایید
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Toast Notification */}
       {toastMessage && (

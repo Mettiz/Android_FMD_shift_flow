@@ -1228,11 +1228,7 @@ export const DataManagement: React.FC<DataManagementProps> = ({
               <button
                 type="button"
                 id="btn-factory-reset"
-                onClick={() => {
-                  if (confirm('هشدار: با این کار تمام داده‌ها به حالت اولیه کارخانه بازمی‌گردد. آیا مطمئن هستید؟')) {
-                    onReset();
-                  }
-                }}
+                onClick={() => onReset()}
                 className="flex items-center gap-1.5 px-3 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-xl text-xs font-bold transition cursor-pointer"
               >
                 <Trash2 size={14} />

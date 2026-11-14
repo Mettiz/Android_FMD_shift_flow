@@ -126,6 +126,7 @@ export interface SyncStatusDetails {
   lastSyncTime: string | null;
   channel: 'server' | 'firestore' | 'both' | 'offline';
   isQuotaExhausted?: boolean;
+  hasUnsavedChanges?: boolean;
 }
 
 let currentSyncDetails: SyncStatusDetails = {
@@ -134,6 +135,7 @@ let currentSyncDetails: SyncStatusDetails = {
   lastSyncTime: null,
   channel: 'server',
   isQuotaExhausted: false,
+  hasUnsavedChanges: false,
 };
 
 export const CLIENT_ID = 'client_' + Math.random().toString(36).substring(2, 9);
@@ -160,6 +162,22 @@ let currentInstanceScheduleFingerprint = '';
 let lastLocalMutationTimeMs = 0;
 let lastLocalMutationUpdatedAt = '';
 let lastKnownCloudUpdatedAt = '';
+let activePendingMutations = 0;
+let lastLocalSaveFailed = false;
+let writeQueuePromise: Promise<void> = Promise.resolve();
+
+function nextMonotonicTimestamp(...existingIsos: Array<string | undefined | null>): string {
+  let maxMs = Date.now();
+  for (const iso of existingIsos) {
+    if (iso && typeof iso === 'string') {
+      const parsed = Date.parse(iso);
+      if (Number.isFinite(parsed) && parsed >= maxMs) {
+        maxMs = parsed + 1;
+      }
+    }
+  }
+  return new Date(maxMs).toISOString();
+}
 
 export function setLocalScheduleFingerprint(schedule: ShiftEntry[]) {
   const fp = getScheduleFingerprint(schedule);
@@ -516,11 +534,25 @@ export function subscribeToCloudRoster(
       return;
     }
 
+    // Never let background/remote snapshots overwrite an actively in-flight local save
+    if (source !== 'broadcast' && activePendingMutations > 0) {
+      return;
+    }
+
+    // If our last local save failed to reach remote cloud, never silently revert user's local edits to older remote state
+    if (
+      source !== 'broadcast' &&
+      lastLocalSaveFailed &&
+      (!data.updatedAt || !lastLocalMutationUpdatedAt || data.updatedAt <= lastLocalMutationUpdatedAt)
+    ) {
+      return;
+    }
+
     const incomingFp = getScheduleFingerprint(data.schedule);
     const incomingMeta = getMetaHash(data);
     const incomingVersion = typeof data._version === 'number' ? data._version : 0;
 
-    // Never allow a strictly older cloud snapshot to revert newer local/cloud state
+    // Never allow an older or equal-to-mutation snapshot to revert newer local/cloud state
     if (
       (hasReceivedAnyData || lastLocalMutationTimeMs > 0) &&
       data.updatedAt &&
@@ -530,11 +562,23 @@ export function subscribeToCloudRoster(
       return;
     }
 
-    // Protect recent local mutations against stale edge-cache reads or lagging snapshots
+    if (
+      source !== 'broadcast' &&
+      lastLocalMutationUpdatedAt &&
+      data.updatedAt &&
+      data.updatedAt <= lastLocalMutationUpdatedAt &&
+      Boolean(incomingFp) &&
+      incomingFp !== currentInstanceScheduleFingerprint
+    ) {
+      return;
+    }
+
+    // Protect recent local mutations for 15s against stale edge-cache reads (e.g. Worker TTL) unless strictly newer from another client
     if (
       source !== 'broadcast' &&
       lastLocalMutationTimeMs > 0 &&
-      Date.now() - lastLocalMutationTimeMs < 5000
+      Date.now() - lastLocalMutationTimeMs < 15000 &&
+      (!data.updatedAt || !lastLocalMutationUpdatedAt || data.updatedAt <= lastLocalMutationUpdatedAt)
     ) {
       return;
     }
@@ -646,43 +690,98 @@ export function subscribeToCloudRoster(
     return null;
   };
 
-  // 1. Direct Server API + Firestore SDK + Firestore REST fallback fetch
-  const fetchFromEndpoints = async (): Promise<{ result: any; source: 'server' | 'firestore' }> => {
+  // 1. Parallel Freshness-First Fetch across Local Server, Worker Relay & Firestore REST (picks newest updatedAt)
+  const fetchFromEndpoints = async (checkAllSources = true): Promise<{ result: any; source: 'server' | 'firestore' }> => {
+    type Candidate = { result: any; source: 'server' | 'firestore'; updatedAt: string; version: number };
+    const tasks: Promise<Candidate | null>[] = [];
+    let sawExplicitEmpty = false;
+
+    const wrapServerFetch = async (base: string): Promise<Candidate | null> => {
+      const json = await tryServerSyncGet(base);
+      if (!json) return null;
+      if (json.exists === false) {
+        sawExplicitEmpty = true;
+        return null;
+      }
+      if (json.exists && json.data) {
+        return {
+          result: json,
+          source: 'server',
+          updatedAt: json.updatedAt || json.data?.updatedAt || '',
+          version: typeof json.version === 'number' ? json.version : (json.data?._version || 0),
+        };
+      }
+      return null;
+    };
+
     if (!isNativeAndroid) {
       if (!isStaticHost) {
-        const localJson = await tryServerSyncGet('');
-        if (localJson) return { result: localJson, source: 'server' };
+        tasks.push(wrapServerFetch(''));
       }
       const customUrl = getCustomServerUrl();
-      if (customUrl) {
-        const customJson = await tryServerSyncGet(customUrl);
-        if (customJson) return { result: customJson, source: 'server' };
+      if (customUrl && (checkAllSources || isStaticHost || deadEndpointUrls.has('__local__'))) {
+        tasks.push(wrapServerFetch(customUrl));
       }
     } else {
       for (const base of getActiveServerUrls()) {
-        const remoteJson = await tryServerSyncGet(base);
-        if (remoteJson) return { result: remoteJson, source: 'server' };
+        tasks.push(wrapServerFetch(base));
       }
     }
 
-    // Firestore REST API (lightweight HTTPS fetch — works even when gRPC WebChannel lags)
-    if (!isFirestoreQuotaExhausted) {
-      try {
-        const restData = await fetchFirestoreDocREST(6000);
-        if (restData) {
-          return {
-            result: {
-              exists: true,
-              modified: true,
-              updatedAt: restData.updatedAt,
-              data: restData,
-            },
-            source: 'firestore',
-          };
-        }
-      } catch {}
+    if (!isFirestoreQuotaExhausted && (checkAllSources || !currentSyncDetails.serverConnected)) {
+      tasks.push(
+        fetchFirestoreDocREST(6000)
+          .then((restData): Candidate | null => {
+            if (!restData) {
+              sawExplicitEmpty = true;
+              return null;
+            }
+            return {
+              result: {
+                exists: true,
+                modified: true,
+                updatedAt: restData.updatedAt,
+                data: restData,
+              },
+              source: 'firestore',
+              updatedAt: restData.updatedAt || '',
+              version: typeof restData._version === 'number' ? restData._version : 0,
+            };
+          })
+          .catch(() => null)
+      );
+    }
 
-      // Firestore SDK getDocFromServer fallback
+    const settled = await Promise.allSettled(tasks);
+    const validCandidates: Candidate[] = [];
+    let anyServerOk = false;
+    let anyFirestoreOk = false;
+
+    for (const item of settled) {
+      if (item.status === 'fulfilled' && item.value) {
+        validCandidates.push(item.value);
+        if (item.value.source === 'server') anyServerOk = true;
+        if (item.value.source === 'firestore') anyFirestoreOk = true;
+      }
+    }
+
+    if (validCandidates.length > 0) {
+      validCandidates.sort((a, b) => {
+        if (a.updatedAt !== b.updatedAt) {
+          return b.updatedAt.localeCompare(a.updatedAt);
+        }
+        return b.version - a.version;
+      });
+      const best = validCandidates[0];
+      updateSyncDetails({
+        serverConnected: anyServerOk || currentSyncDetails.serverConnected,
+        firestoreConnected: anyFirestoreOk || currentSyncDetails.firestoreConnected,
+      });
+      return { result: best.result, source: best.source };
+    }
+
+    // Firestore SDK getDocFromServer fallback if REST & relay failed
+    if (!isFirestoreQuotaExhausted) {
       try {
         const timeoutPromise = new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error('Firestore fetch timeout')), 6000)
@@ -726,13 +825,17 @@ export function subscribeToCloudRoster(
       }
     }
 
+    if (sawExplicitEmpty) {
+      return { result: { exists: false, data: null }, source: 'firestore' };
+    }
+
     throw new Error('All remote endpoints unreachable');
   };
 
   const doFetchInitial = (attempt = 1) => {
     if (isCancelled) return;
     const reqStartedAt = Date.now();
-    fetchFromEndpoints()
+    fetchFromEndpoints(true)
       .then(({ result: resData, source }) => {
         if (isCancelled || lastLocalMutationTimeMs > reqStartedAt) return;
         if (resData && resData.exists && resData.data) {
@@ -745,7 +848,6 @@ export function subscribeToCloudRoster(
       })
       .catch((err) => {
         if (isCancelled) return;
-        // If onSnapshot already connected in the meantime, do NOT mark offline
         if (currentSyncDetails.firestoreConnected || currentSyncDetails.serverConnected) {
           return;
         }
@@ -822,19 +924,17 @@ export function subscribeToCloudRoster(
   }
 
   // 3. Smart Background Polling:
-  // - If an active custom/local `/api/sync` server exists: poll server every 4s.
-  // - If ONLY Firestore exists (e.g. GitHub Pages): rely on onSnapshot and only poll REST every 20s if Firestore isn't connected yet (saves quota!).
-  const fetchLatestFromServer = () => {
-    if (isCancelled) return;
+  const fetchLatestFromServer = (checkAllSources = false) => {
+    if (isCancelled || activePendingMutations > 0) return;
     const activeServers = getActiveServerUrls();
     const canUseLocalServer = !isNativeAndroid && !isStaticHost && !deadEndpointUrls.has('__local__');
-    if (currentSyncDetails.firestoreConnected && activeServers.length === 0 && !canUseLocalServer) {
+    if (!checkAllSources && currentSyncDetails.firestoreConnected && activeServers.length === 0 && !canUseLocalServer) {
       return;
     }
     const reqStartedAt = Date.now();
-    fetchFromEndpoints()
+    fetchFromEndpoints(checkAllSources)
       .then(({ result: resData, source }) => {
-        if (isCancelled || !resData || lastLocalMutationTimeMs > reqStartedAt) return;
+        if (isCancelled || !resData || lastLocalMutationTimeMs > reqStartedAt || activePendingMutations > 0) return;
         updateSyncDetails({
           serverConnected: source === 'server' ? true : currentSyncDetails.serverConnected,
           firestoreConnected: source === 'firestore' ? true : currentSyncDetails.firestoreConnected,
@@ -848,7 +948,7 @@ export function subscribeToCloudRoster(
   };
 
   const pollIntervalMs = hasServerEndpoint ? 4000 : 20000;
-  const pollTimer = setInterval(fetchLatestFromServer, pollIntervalMs);
+  const pollTimer = setInterval(() => fetchLatestFromServer(false), pollIntervalMs);
 
   // Dedicated Web Worker timer so browsers do NOT throttle background sync when minimized
   let bgWorker: Worker | null = null;
@@ -861,7 +961,7 @@ export function subscribeToCloudRoster(
       bgWorker = new Worker(workerUrl);
       bgWorker.onmessage = () => {
         if (!isCancelled) {
-          fetchLatestFromServer();
+          fetchLatestFromServer(false);
           if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
             try {
               navigator.serviceWorker.controller.postMessage({ type: 'BG_HEARTBEAT_PING' });
@@ -872,9 +972,9 @@ export function subscribeToCloudRoster(
     } catch {}
   }
 
-  // Immediate sync when tab becomes active / device unlocked
+  // Immediate full freshness check when tab becomes active / device unlocked
   const handleVisibilityOrFocus = () => {
-    fetchLatestFromServer();
+    fetchLatestFromServer(true);
   };
   if (typeof window !== 'undefined') {
     window.addEventListener('focus', handleVisibilityOrFocus);
@@ -960,85 +1060,108 @@ export function subscribeToCloudRoster(
 }
 
 /**
- * Fetches latest roster state on-demand from Server API, Firestore REST, or Firestore SDK
+ * Fetches latest roster state on-demand across all active endpoints (Local Server, Relay Worker, Firestore REST/SDK)
+ * and picks whichever has the newest updatedAt timestamp.
  */
 export async function fetchLatestCloudRosterNow(): Promise<CloudRosterState | null> {
   const isAndroid = isStandaloneAndroidRuntime();
   const isStaticHost = isStaticHostingOrigin();
   const customUrl = getCustomServerUrl();
 
-  if (!isAndroid) {
-    if (!isStaticHost && !deadEndpointUrls.has('__local__')) {
-      try {
-        const res = await fetch(`/api/sync?_t=${Date.now()}`, { cache: 'no-store' });
-        const ct = res.headers.get('content-type') || '';
-        if (res.ok && ct.includes('application/json')) {
-          const json = await res.json();
-          if (json?.exists && json?.data) {
-            updateSyncDetails({ serverConnected: true, lastSyncTime: new Date().toLocaleTimeString('fa-IR') });
-            return json.data as CloudRosterState;
-          }
-        } else if (res.status === 404 || res.status === 402) {
-          deadEndpointUrls.add('__local__');
-        }
-      } catch {}
-    }
+  const candidateFetches: Promise<{ data: CloudRosterState; source: 'server' | 'firestore'; updatedAt: string } | null>[] = [];
 
-    if (customUrl && !deadEndpointUrls.has(customUrl)) {
-      try {
-        const res = await fetch(`${customUrl}/api/sync?_t=${Date.now()}`, { cache: 'no-store' });
-        const ct = res.headers.get('content-type') || '';
-        if (res.ok && ct.includes('application/json')) {
-          const json = await res.json();
-          if (json?.exists && json?.data) {
-            updateSyncDetails({ serverConnected: true, lastSyncTime: new Date().toLocaleTimeString('fa-IR') });
-            return json.data as CloudRosterState;
-          }
-        } else if (res.status === 402 || res.status === 404 || res.status === 410) {
-          deadEndpointUrls.add(customUrl);
+  const fetchServerCandidate = async (base: string) => {
+    const key = base || '__local__';
+    if (deadEndpointUrls.has(key)) return null;
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 6500);
+      const url = base ? `${base}/api/sync?_t=${Date.now()}` : `/api/sync?_t=${Date.now()}`;
+      const res = await fetch(url, { cache: 'no-store', signal: controller.signal });
+      clearTimeout(timer);
+      const ct = res.headers.get('content-type') || '';
+      if (res.ok && ct.includes('application/json')) {
+        const json = await res.json();
+        if (json?.exists && json?.data) {
+          updateSyncDetails({ serverConnected: true, lastSyncTime: new Date().toLocaleTimeString('fa-IR') });
+          return {
+            data: json.data as CloudRosterState,
+            source: 'server' as const,
+            updatedAt: json.updatedAt || json.data?.updatedAt || '',
+          };
         }
-      } catch {}
+      } else if (res.status === 402 || res.status === 404 || res.status === 410) {
+        deadEndpointUrls.add(key);
+      }
+    } catch {}
+    return null;
+  };
+
+  if (!isAndroid) {
+    if (!isStaticHost) {
+      candidateFetches.push(fetchServerCandidate(''));
+    }
+    if (customUrl) {
+      candidateFetches.push(fetchServerCandidate(customUrl));
     }
   } else {
     for (const base of getActiveServerUrls()) {
-      try {
-        const res = await fetch(`${base}/api/sync?_t=${Date.now()}`, { cache: 'no-store' });
-        const ct = res.headers.get('content-type') || '';
-        if (res.ok && ct.includes('application/json')) {
-          const json = await res.json();
-          if (json?.exists && json?.data) {
-            updateSyncDetails({ serverConnected: true, lastSyncTime: new Date().toLocaleTimeString('fa-IR') });
-            return json.data as CloudRosterState;
-          }
-        } else if (res.status === 402 || res.status === 404 || res.status === 410) {
-          deadEndpointUrls.add(base);
-        }
-      } catch {}
+      candidateFetches.push(fetchServerCandidate(base));
     }
   }
 
   if (!isFirestoreQuotaExhausted) {
-    try {
-      const restData = await fetchFirestoreDocREST(7000);
-      if (restData) {
-        updateSyncDetails({
-          firestoreConnected: true,
-          lastSyncTime: new Date().toLocaleTimeString('fa-IR'),
-          channel: currentSyncDetails.serverConnected ? 'both' : 'firestore',
-        });
-        return restData;
-      }
-    } catch {}
+    candidateFetches.push(
+      fetchFirestoreDocREST(7000)
+        .then((restData) => {
+          if (!restData) return null;
+          updateSyncDetails({
+            firestoreConnected: true,
+            lastSyncTime: new Date().toLocaleTimeString('fa-IR'),
+            channel: currentSyncDetails.serverConnected ? 'both' : 'firestore',
+          });
+          return {
+            data: restData,
+            source: 'firestore' as const,
+            updatedAt: restData.updatedAt || '',
+          };
+        })
+        .catch(() => null)
+    );
+  }
 
+  const settled = await Promise.allSettled(candidateFetches);
+  const valid = settled
+    .filter((r): r is PromiseFulfilledResult<{ data: CloudRosterState; source: 'server' | 'firestore'; updatedAt: string } | null> => r.status === 'fulfilled' && Boolean(r.value))
+    .map((r) => r.value!);
+
+  if (valid.length > 0) {
+    valid.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    const best = valid[0].data;
+    if (best.updatedAt && (!lastKnownCloudUpdatedAt || best.updatedAt > lastKnownCloudUpdatedAt)) {
+      lastKnownCloudUpdatedAt = best.updatedAt;
+    }
+    lastLocalSaveFailed = false;
+    updateSyncDetails({ hasUnsavedChanges: false });
+    return best;
+  }
+
+  if (!isFirestoreQuotaExhausted) {
     try {
       const snap = await getDocFromServer(doc(db, ROSTER_DOC_PATH, ROSTER_DOC_ID));
       if (snap.exists()) {
+        const cloudData = snap.data() as CloudRosterState;
         updateSyncDetails({
           firestoreConnected: true,
           lastSyncTime: new Date().toLocaleTimeString('fa-IR'),
           channel: currentSyncDetails.serverConnected ? 'both' : 'firestore',
+          hasUnsavedChanges: false,
         });
-        return snap.data() as CloudRosterState;
+        if (cloudData.updatedAt && (!lastKnownCloudUpdatedAt || cloudData.updatedAt > lastKnownCloudUpdatedAt)) {
+          lastKnownCloudUpdatedAt = cloudData.updatedAt;
+        }
+        lastLocalSaveFailed = false;
+        return cloudData;
       }
     } catch {}
   }
@@ -1060,13 +1183,14 @@ function cleanFirestoreData<T>(obj: T): T {
 }
 
 /**
- * Saves or updates roster data with Dual Sync across BOTH Web Browser and Native Android App:
- * 1. Updates in-memory schedule fingerprint & broadcasts to same-browser tabs immediately.
- * 2. Writes directly to Firestore SDK + Firestore REST API fallback.
- * 3. POSTs to Direct Server API (/api/sync) if an active server is configured.
+ * Saves or updates roster data with serialized Dual Sync across BOTH Web Browser and Native Android App:
+ * 1. Serializes writes via writeQueuePromise so rapid edits cannot overwrite each other out of order.
+ * 2. Uses monotonic timestamps immune to device clock skew.
+ * 3. Awaits ALL active remote channels (Firestore REST/SDK + Server + Relay Worker) via Promise.allSettled
+ *    and verifies genuine durable commit before reporting success.
  */
 export async function saveCloudRoster(data: Partial<CloudRosterState>): Promise<void> {
-  const now = new Date().toISOString();
+  const now = nextMonotonicTimestamp(lastKnownCloudUpdatedAt, lastLocalMutationUpdatedAt);
   lastLocalMutationTimeMs = Date.now();
   lastLocalMutationUpdatedAt = now;
   lastKnownCloudUpdatedAt = now;
@@ -1087,102 +1211,175 @@ export async function saveCloudRoster(data: Partial<CloudRosterState>): Promise<
     } catch {}
   }
 
-  // 1. Broadcast to other tabs in the same browser immediately (0ms latency)
+  // Broadcast to other tabs in the same browser immediately (0ms latency)
   broadcastLocalStateChange(payload);
 
-  // 2. Direct Firestore write (SDK + REST fallback)
-  const writePromises: Promise<any>[] = [];
-  if (!isFirestoreQuotaExhausted) {
-    writePromises.push(
-      setDoc(doc(db, ROSTER_DOC_PATH, ROSTER_DOC_ID), payload, { merge: true })
-        .then(() => {
+  const runWrite = async (): Promise<void> => {
+    activePendingMutations++;
+    lastLocalMutationTimeMs = Date.now();
+
+    try {
+      // 1. Direct Firestore Write (prefer direct HTTP REST PATCH for genuine 200 confirmation, with SDK fallback)
+      const writeToFirestore = async (): Promise<boolean> => {
+        if (isFirestoreQuotaExhausted) return false;
+        try {
+          const restOk = await writeFirestoreDocREST(payload, true);
+          if (restOk) {
+            isDirectFirestoreUsable = true;
+            updateSyncDetails({
+              firestoreConnected: true,
+              lastSyncTime: new Date().toLocaleTimeString('fa-IR'),
+              channel: currentSyncDetails.serverConnected ? 'both' : 'firestore',
+            });
+            return true;
+          }
+        } catch {}
+
+        if (isFirestoreQuotaExhausted) return false;
+        try {
+          await Promise.race([
+            setDoc(doc(db, ROSTER_DOC_PATH, ROSTER_DOC_ID), payload, { merge: true }),
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error('Firestore SDK write timeout')), 6500)
+            ),
+          ]);
           isDirectFirestoreUsable = true;
           updateSyncDetails({
             firestoreConnected: true,
             lastSyncTime: new Date().toLocaleTimeString('fa-IR'),
             channel: currentSyncDetails.serverConnected ? 'both' : 'firestore',
           });
-        })
-        .catch(async (err) => {
+          return true;
+        } catch (err: any) {
           const msg = String(err?.message || err);
           if (msg.includes('Missing or insufficient permissions') || err?.code === 'permission-denied') {
             handleFirestoreError(err, OperationType.WRITE, `${ROSTER_DOC_PATH}/${ROSTER_DOC_ID}`);
           }
-          // Try lightweight REST write if SDK fails
-          const ok = await writeFirestoreDocREST(payload, true);
-          if (!ok) throw err;
-        })
-    );
-  }
-
-  // 3. Direct Server Sync POST (only to active non-dead server endpoints; avoid duplicate relay writes on *.pages.dev)
-  const isAndroid = isStandaloneAndroidRuntime();
-  const isStaticHost = isStaticHostingOrigin();
-  const isPagesHost = isCloudflarePagesOrigin();
-  const customUrl = getCustomServerUrl();
-  const targetUrls: string[] = [];
-  if (isAndroid) {
-    targetUrls.push(...getActiveServerUrls().map((base) => `${base}/api/sync`));
-  } else {
-    if (!isStaticHost && !deadEndpointUrls.has('__local__')) {
-      targetUrls.push('/api/sync');
-    }
-    if (
-      customUrl &&
-      !deadEndpointUrls.has(customUrl) &&
-      (!isPagesHost || deadEndpointUrls.has('__local__') || customUrl !== DEFAULT_VERCEL_SYNC_URL)
-    ) {
-      targetUrls.push(`${customUrl}/api/sync`);
-    }
-  }
-
-  for (const url of targetUrls) {
-    writePromises.push(
-      fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: payload, clientId: CLIENT_ID }),
-      }).then(async (r) => {
-        if (r.status === 402 || r.status === 404 || r.status === 410) {
-          const base = url.replace(/\/api\/sync$/, '') || '__local__';
-          deadEndpointUrls.add(base);
-          throw new Error(`Server unavailable (${r.status})`);
-        }
-        if (!r.ok) throw new Error(`Server returned ${r.status}`);
-        const json = await r.json();
-        if (json?.updatedAt && typeof json.updatedAt === 'string') {
-          if (!lastKnownCloudUpdatedAt || json.updatedAt > lastKnownCloudUpdatedAt) {
-            lastKnownCloudUpdatedAt = json.updatedAt;
+          if (
+            msg.includes('RESOURCE_EXHAUSTED') ||
+            msg.includes('resource-exhausted') ||
+            err?.code === 'resource-exhausted' ||
+            err?.code === 8
+          ) {
+            isFirestoreQuotaExhausted = true;
+            updateSyncDetails({ isQuotaExhausted: true, firestoreConnected: false });
           }
-          if (!lastLocalMutationUpdatedAt || json.updatedAt > lastLocalMutationUpdatedAt) {
-            lastLocalMutationUpdatedAt = json.updatedAt;
-          }
+          return false;
         }
+      };
+
+      // 2. Direct Server & Relay POST endpoints
+      const isAndroid = isStandaloneAndroidRuntime();
+      const isStaticHost = isStaticHostingOrigin();
+      const isPagesHost = isCloudflarePagesOrigin();
+      const customUrl = getCustomServerUrl();
+      const targetUrls: string[] = [];
+
+      if (isAndroid) {
+        targetUrls.push(...getActiveServerUrls().map((base) => `${base}/api/sync`));
+      } else {
+        if (!isStaticHost && !deadEndpointUrls.has('__local__')) {
+          targetUrls.push('/api/sync');
+        }
+        if (
+          customUrl &&
+          !deadEndpointUrls.has(customUrl) &&
+          (!isPagesHost || deadEndpointUrls.has('__local__') || customUrl !== DEFAULT_VERCEL_SYNC_URL)
+        ) {
+          targetUrls.push(`${customUrl}/api/sync`);
+        }
+      }
+
+      const postToServer = async (url: string): Promise<{ isLocal: boolean; ok: boolean; firestorePersisted?: boolean }> => {
+        const isLocal = url === '/api/sync';
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 9000);
+        try {
+          const r = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: payload, clientId: CLIENT_ID }),
+            signal: controller.signal,
+          });
+          if (r.status === 402 || r.status === 404 || r.status === 410) {
+            const base = url.replace(/\/api\/sync$/, '') || '__local__';
+            deadEndpointUrls.add(base);
+            return { isLocal, ok: false };
+          }
+          if (!r.ok) {
+            return { isLocal, ok: false };
+          }
+          const json = await r.json();
+          if (json?.updatedAt && typeof json.updatedAt === 'string') {
+            if (!lastKnownCloudUpdatedAt || json.updatedAt > lastKnownCloudUpdatedAt) {
+              lastKnownCloudUpdatedAt = json.updatedAt;
+            }
+            if (!lastLocalMutationUpdatedAt || json.updatedAt > lastLocalMutationUpdatedAt) {
+              lastLocalMutationUpdatedAt = json.updatedAt;
+            }
+            if (typeof localStorage !== 'undefined') {
+              try {
+                localStorage.setItem('shiftflow_updated_at', json.updatedAt);
+              } catch {}
+            }
+          }
+          updateSyncDetails({
+            serverConnected: true,
+            lastSyncTime: new Date().toLocaleTimeString('fa-IR'),
+            channel: currentSyncDetails.firestoreConnected ? 'both' : 'server',
+          });
+          return {
+            isLocal,
+            ok: true,
+            firestorePersisted: typeof json?.firestorePersisted === 'boolean' ? json.firestorePersisted : undefined,
+          };
+        } catch {
+          return { isLocal, ok: false };
+        } finally {
+          clearTimeout(timer);
+        }
+      };
+
+      const [firestoreOk, ...serverResults] = await Promise.all([
+        writeToFirestore(),
+        ...targetUrls.map(postToServer),
+      ]);
+
+      lastLocalMutationTimeMs = Date.now();
+
+      const remoteRelayOk = serverResults.some((s) => !s.isLocal && s.ok);
+      const localServerWithCloudOk = serverResults.some(
+        (s) => s.isLocal && s.ok && (s.firestorePersisted === true || isFirestoreQuotaExhausted)
+      );
+      const anyServerOk = serverResults.some((s) => s.ok);
+
+      if (!firestoreOk && !remoteRelayOk && !localServerWithCloudOk) {
+        lastLocalSaveFailed = true;
         updateSyncDetails({
-          serverConnected: true,
-          lastSyncTime: new Date().toLocaleTimeString('fa-IR'),
-          channel: currentSyncDetails.firestoreConnected ? 'both' : 'server',
+          hasUnsavedChanges: true,
+          ...(!anyServerOk ? { serverConnected: false, firestoreConnected: false, channel: 'offline' } : {}),
         });
-        return json;
-      })
-    );
-  }
+        throw new Error('Cloud persistence did not complete across remote endpoints');
+      }
 
-  if (writePromises.length > 0) {
-    await Promise.race([
-      Promise.any(writePromises),
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Cloud sync save timeout')), 6000)
-      ),
-    ]);
-  }
+      lastLocalSaveFailed = false;
+      updateSyncDetails({ hasUnsavedChanges: false });
+    } finally {
+      activePendingMutations = Math.max(0, activePendingMutations - 1);
+    }
+  };
+
+  // Serialize writes so rapid successive edits always arrive in exact order
+  const chained = writeQueuePromise.then(runWrite, runWrite);
+  writeQueuePromise = chained.catch(() => {});
+  return chained;
 }
 
 /**
  * Overwrites entire cloud roster with fresh initial data across both channels.
  */
 export async function resetCloudRoster(data: CloudRosterState): Promise<void> {
-  const now = new Date().toISOString();
+  const now = nextMonotonicTimestamp(lastKnownCloudUpdatedAt, lastLocalMutationUpdatedAt);
   lastLocalMutationTimeMs = Date.now();
   lastLocalMutationUpdatedAt = now;
   lastKnownCloudUpdatedAt = now;
@@ -1198,41 +1395,51 @@ export async function resetCloudRoster(data: CloudRosterState): Promise<void> {
 
   broadcastLocalStateChange(payload);
 
-  if (isDirectFirestoreUsable && !isFirestoreQuotaExhausted) {
-    try {
-      await setDoc(doc(db, ROSTER_DOC_PATH, ROSTER_DOC_ID), payload);
-    } catch {
-      await writeFirestoreDocREST(payload, false).catch(() => {});
+  activePendingMutations++;
+  try {
+    const ops: Promise<any>[] = [];
+    if (!isFirestoreQuotaExhausted) {
+      ops.push(
+        writeFirestoreDocREST(payload, false).catch(() =>
+          setDoc(doc(db, ROSTER_DOC_PATH, ROSTER_DOC_ID), payload).catch(() => false)
+        )
+      );
     }
-  }
 
-  const isAndroid = isStandaloneAndroidRuntime();
-  const isStaticHost = isStaticHostingOrigin();
-  const isPagesHost = isCloudflarePagesOrigin();
-  const customUrl = getCustomServerUrl();
-  const targetUrls: string[] = [];
-  if (isAndroid) {
-    targetUrls.push(...getActiveServerUrls().map((base) => `${base}/api/sync/reset`));
-  } else {
-    if (!isStaticHost && !deadEndpointUrls.has('__local__')) {
-      targetUrls.push('/api/sync/reset');
+    const isAndroid = isStandaloneAndroidRuntime();
+    const isStaticHost = isStaticHostingOrigin();
+    const isPagesHost = isCloudflarePagesOrigin();
+    const customUrl = getCustomServerUrl();
+    const targetUrls: string[] = [];
+    if (isAndroid) {
+      targetUrls.push(...getActiveServerUrls().map((base) => `${base}/api/sync/reset`));
+    } else {
+      if (!isStaticHost && !deadEndpointUrls.has('__local__')) {
+        targetUrls.push('/api/sync/reset');
+      }
+      if (
+        customUrl &&
+        !deadEndpointUrls.has(customUrl) &&
+        (!isPagesHost || deadEndpointUrls.has('__local__') || customUrl !== DEFAULT_VERCEL_SYNC_URL)
+      ) {
+        targetUrls.push(`${customUrl}/api/sync/reset`);
+      }
     }
-    if (
-      customUrl &&
-      !deadEndpointUrls.has(customUrl) &&
-      (!isPagesHost || deadEndpointUrls.has('__local__') || customUrl !== DEFAULT_VERCEL_SYNC_URL)
-    ) {
-      targetUrls.push(`${customUrl}/api/sync/reset`);
-    }
-  }
 
-  await Promise.allSettled(
-    targetUrls.map((url) =>
-      fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: payload }),
-      })
-    )
-  );
+    for (const url of targetUrls) {
+      ops.push(
+        fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: payload }),
+        })
+      );
+    }
+
+    await Promise.allSettled(ops);
+    lastLocalSaveFailed = false;
+  } finally {
+    activePendingMutations = Math.max(0, activePendingMutations - 1);
+    lastLocalMutationTimeMs = Date.now();
+  }
 }

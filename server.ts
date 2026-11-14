@@ -41,6 +41,65 @@ function sanitizeForFirestore<T>(obj: T): T {
   );
 }
 
+function nextMonotonicIsoTimestamp(...existingIsos: Array<string | undefined | null>): string {
+  let maxMs = Date.now();
+  for (const iso of existingIsos) {
+    if (iso && typeof iso === 'string') {
+      const parsed = Date.parse(iso);
+      if (Number.isFinite(parsed) && parsed >= maxMs) {
+        maxMs = parsed + 1;
+      }
+    }
+  }
+  return new Date(maxMs).toISOString();
+}
+
+function decodeFirestoreRestValue(val: any): any {
+  if (!val || typeof val !== 'object') return val;
+  if ('stringValue' in val) return val.stringValue;
+  if ('booleanValue' in val) return val.booleanValue;
+  if ('integerValue' in val) return parseInt(val.integerValue, 10);
+  if ('doubleValue' in val) return Number(val.doubleValue);
+  if ('nullValue' in val) return null;
+  if ('timestampValue' in val) return val.timestampValue;
+  if ('arrayValue' in val) {
+    const list = val.arrayValue?.values || [];
+    return list.map(decodeFirestoreRestValue);
+  }
+  if ('mapValue' in val) {
+    const res: any = {};
+    const fields = val.mapValue?.fields || {};
+    for (const [k, v] of Object.entries(fields)) {
+      res[k] = decodeFirestoreRestValue(v);
+    }
+    return res;
+  }
+  return val;
+}
+
+function encodeFirestoreRestValue(val: any): any {
+  if (val === null || val === undefined) return { nullValue: null };
+  if (typeof val === 'string') return { stringValue: val };
+  if (typeof val === 'boolean') return { booleanValue: val };
+  if (typeof val === 'number') {
+    if (Number.isInteger(val)) return { integerValue: String(val) };
+    return { doubleValue: val };
+  }
+  if (Array.isArray(val)) {
+    return { arrayValue: { values: val.map(encodeFirestoreRestValue) } };
+  }
+  if (typeof val === 'object') {
+    const fields: any = {};
+    for (const [k, v] of Object.entries(val)) {
+      if (v !== undefined) {
+        fields[k] = encodeFirestoreRestValue(v);
+      }
+    }
+    return { mapValue: { fields } };
+  }
+  return { stringValue: String(val) };
+}
+
 async function startServer() {
   const app = express();
 
@@ -98,13 +157,15 @@ async function startServer() {
     });
   }
 
-  // Helper to persist state to local file
+  // Helper to persist state to local file sequentially without out-of-order overwrites
+  let diskWriteQueue = Promise.resolve();
   function persistToDisk(data: any) {
-    fs.writeFile(dataFilePath, JSON.stringify(data, null, 2), (err) => {
-      if (err) {
+    const serialized = JSON.stringify(data, null, 2);
+    diskWriteQueue = diskWriteQueue
+      .then(() => fs.promises.writeFile(dataFilePath, serialized, 'utf-8'))
+      .catch((err) => {
         console.error('[SyncServer] Error writing to data file:', err);
-      }
-    });
+      });
   }
 
   const quotaFilePath = path.resolve(dataDir, 'firestore-quota.json');
@@ -131,40 +192,104 @@ async function startServer() {
     } catch {}
   }
 
-  let lastFirestoreWriteTime = 0;
-  let pendingFirestoreWriteTimer: any = null;
+  function getFirestoreRestUrl(): string | null {
+    if (!firebaseConfig?.projectId || !firebaseConfig?.firestoreDatabaseId) return null;
+    const apiKey = firebaseConfig.apiKey ? `?key=${encodeURIComponent(firebaseConfig.apiKey)}` : '';
+    return `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(firebaseConfig.projectId)}/databases/${encodeURIComponent(firebaseConfig.firestoreDatabaseId)}/documents/roster_state/current${apiKey}`;
+  }
 
-  // Helper to write to Firestore with error handling & rate-limiting to preserve quota
-  async function persistToFirestore(data: any, merge = true, immediate = false) {
-    if (!db || isFirestoreQuotaExhausted) return;
-
-    const now = Date.now();
-    if (!immediate && now - lastFirestoreWriteTime < 8000) {
-      if (pendingFirestoreWriteTimer) clearTimeout(pendingFirestoreWriteTimer);
-      pendingFirestoreWriteTimer = setTimeout(() => {
-        persistToFirestore(data, merge, true);
-      }, 8000);
-      return;
-    }
-
+  async function fetchFirestoreViaREST(): Promise<any | null> {
+    if (isFirestoreQuotaExhausted) return null;
+    const baseUrl = getFirestoreRestUrl();
+    if (!baseUrl) return null;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 4500);
     try {
-      lastFirestoreWriteTime = now;
-      const docRef = doc(db, 'roster_state', 'current');
-      const cleanData = sanitizeForFirestore(data);
-      if (merge) {
-        await setDoc(docRef, cleanData, { merge: true });
-      } else {
-        await setDoc(docRef, cleanData);
+      const res = await fetch(baseUrl, { headers: { Accept: 'application/json' }, cache: 'no-store', signal: controller.signal });
+      if (res.status === 429) {
+        markQuotaExhausted();
+        return null;
+      }
+      if (!res.ok) return null;
+      const docJson: any = await res.json();
+      if (!docJson?.fields) return null;
+      const out: any = {};
+      for (const [k, v] of Object.entries(docJson.fields)) {
+        out[k] = decodeFirestoreRestValue(v);
       }
       isFirestoreConnected = true;
+      return out;
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  async function writeFirestoreViaREST(cleanData: Record<string, any>, merge = true): Promise<boolean> {
+    if (isFirestoreQuotaExhausted) return false;
+    const baseUrl = getFirestoreRestUrl();
+    if (!baseUrl) return false;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 4500);
+    try {
+      const fields: Record<string, any> = {};
+      for (const [k, v] of Object.entries(cleanData)) {
+        if (v !== undefined) fields[k] = encodeFirestoreRestValue(v);
+      }
+      let url = baseUrl;
+      if (merge) {
+        const sep = url.includes('?') ? '&' : '?';
+        const mask = Object.keys(fields).map((k) => `updateMask.fieldPaths=${encodeURIComponent(k)}`).join('&');
+        if (mask) url += `${sep}${mask}`;
+      }
+      const res = await fetch(url, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fields }),
+        signal: controller.signal,
+      });
+      if (res.status === 429) {
+        markQuotaExhausted();
+        return false;
+      }
+      if (!res.ok) return false;
+      isFirestoreConnected = true;
+      return true;
+    } catch {
+      return false;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  // Helper to write to Firestore with REST fallback and return true only when committed
+  async function persistToFirestore(data: any, merge = true): Promise<boolean> {
+    if (isFirestoreQuotaExhausted) return false;
+    const cleanData = sanitizeForFirestore(data);
+
+    // Prefer fast REST PATCH (or race/fallback with SDK) so commit confirmation is genuine HTTP 200
+    const restOk = await writeFirestoreViaREST(cleanData, merge);
+    if (restOk) return true;
+
+    if (!db || isFirestoreQuotaExhausted) return false;
+    try {
+      const docRef = doc(db, 'roster_state', 'current');
+      await Promise.race([
+        merge ? setDoc(docRef, cleanData, { merge: true }) : setDoc(docRef, cleanData),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Firestore SDK write timeout')), 4500))
+      ]);
+      isFirestoreConnected = true;
+      return true;
     } catch (err: any) {
       const errMsg = String(err?.message || err);
       if (errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.includes('resource-exhausted') || err?.code === 'resource-exhausted' || err?.code === 8) {
         console.warn('[SyncServer] Firestore free daily quota reached for today. Switched to local disk & memory persistence.');
         markQuotaExhausted();
       } else {
-        console.warn('[SyncServer] Firestore write notice:', err);
+        console.warn('[SyncServer] Firestore write notice:', errMsg);
       }
+      return false;
     }
   }
 
@@ -179,19 +304,29 @@ async function startServer() {
           if (snapshot.exists()) {
             const cloudData = snapshot.data();
             isFirestoreConnected = true;
-            // Compare timestamps: take whichever is newer
             const cloudUpdatedAt = cloudData.updatedAt || '';
             const localUpdatedAt = currentState?.updatedAt || '';
 
             if (!currentState || (cloudUpdatedAt && localUpdatedAt ? cloudUpdatedAt > localUpdatedAt : Boolean(cloudUpdatedAt))) {
-              currentState = { ...cloudData, _version: ++stateVersion };
+              stateVersion = Math.max(stateVersion, typeof cloudData._version === 'number' ? cloudData._version : 0) + 1;
+              currentState = { ...cloudData, _version: stateVersion };
               persistToDisk(currentState);
               console.log(`[SyncServer] Synced initial state from Firestore (updatedAt: ${cloudUpdatedAt})`);
             }
           }
         })
-        .catch((err) => {
+        .catch(async (err) => {
           console.warn('[SyncServer] Initial Firestore fetch notice:', err);
+          const restData = await fetchFirestoreViaREST();
+          if (restData) {
+            const cloudUpdatedAt = restData.updatedAt || '';
+            const localUpdatedAt = currentState?.updatedAt || '';
+            if (!currentState || (cloudUpdatedAt && localUpdatedAt ? cloudUpdatedAt > localUpdatedAt : Boolean(cloudUpdatedAt))) {
+              stateVersion = Math.max(stateVersion, typeof restData._version === 'number' ? restData._version : 0) + 1;
+              currentState = { ...restData, _version: stateVersion };
+              persistToDisk(currentState);
+            }
+          }
         });
 
       // Listen for real-time changes in Firestore and broadcast to all connected clients
@@ -205,9 +340,9 @@ async function startServer() {
             const remoteUpdated = remoteData.updatedAt || '';
             const localUpdated = currentState?.updatedAt || '';
 
-            // Update if remote is strictly newer or if we had no state
+            // Update ONLY if remote is strictly newer or if we had no state
             if (!currentState || (remoteUpdated && localUpdated ? remoteUpdated > localUpdated : Boolean(remoteUpdated))) {
-              stateVersion++;
+              stateVersion = Math.max(stateVersion, typeof remoteData._version === 'number' ? remoteData._version : 0) + 1;
               currentState = {
                 ...remoteData,
                 _version: stateVersion
@@ -342,18 +477,27 @@ async function startServer() {
     const nowMs = Date.now();
 
     // Check Firestore on-demand if memory state is empty OR every 2 seconds to catch direct Android/Firestore writes
-    if (db && !isFirestoreQuotaExhausted && (!currentState || nowMs - lastFirestoreFetchTime > 2000)) {
+    if (!isFirestoreQuotaExhausted && (!currentState || nowMs - lastFirestoreFetchTime > 2000)) {
       try {
         lastFirestoreFetchTime = nowMs;
-        const snapshot = await getDoc(doc(db, 'roster_state', 'current'));
-        if (snapshot.exists()) {
-          const cloudData = snapshot.data();
-          isFirestoreConnected = true;
+        let cloudData: any = null;
+        if (db) {
+          try {
+            const snapshot = await getDoc(doc(db, 'roster_state', 'current'));
+            if (snapshot.exists()) {
+              cloudData = snapshot.data();
+              isFirestoreConnected = true;
+            }
+          } catch {}
+        }
+        if (!cloudData) {
+          cloudData = await fetchFirestoreViaREST();
+        }
+        if (cloudData) {
           const cloudUpdated = cloudData.updatedAt || '';
           const localUpdated = currentState?.updatedAt || '';
-          const isDifferentTimestamp = cloudUpdated && cloudUpdated !== localUpdated;
-          if (!currentState || (isDifferentTimestamp && (!localUpdated || cloudUpdated > localUpdated))) {
-            stateVersion++;
+          if (!currentState || (cloudUpdated && (!localUpdated || cloudUpdated > localUpdated))) {
+            stateVersion = Math.max(stateVersion, typeof cloudData._version === 'number' ? cloudData._version : 0) + 1;
             currentState = { ...cloudData, _version: stateVersion };
             persistToDisk(currentState);
             broadcast({
@@ -401,10 +545,10 @@ async function startServer() {
     try {
       const incoming = req.body;
       const dataToMerge = incoming.data || incoming;
-      const clientId = incoming.clientId || incoming.data?.clientId;
+      const clientId = incoming.clientId || incoming.data?.clientId || dataToMerge?._originClientId;
 
-      const now = new Date().toISOString();
-      stateVersion++;
+      const now = nextMonotonicIsoTimestamp(currentState?.updatedAt, dataToMerge?.updatedAt);
+      stateVersion = Math.max(stateVersion, typeof dataToMerge?._version === 'number' ? dataToMerge._version : 0) + 1;
 
       currentState = {
         ...(currentState || {}),
@@ -425,15 +569,14 @@ async function startServer() {
         updatedAt: now
       });
 
-      // 3. Persist to Firestore cloud database immediately for instant cross-instance & Android sync
-      persistToFirestore(currentState, true, true).catch((e) => {
-        console.warn('[SyncServer] Background Firestore write notice:', e);
-      });
+      // 3. Await Firestore cloud write before returning 200 so a new browser opening immediately gets the latest state
+      const firestorePersisted = await persistToFirestore(currentState, true);
 
       res.json({
         success: true,
         version: stateVersion,
         updatedAt: now,
+        firestorePersisted,
         data: currentState
       });
     } catch (err: any) {
@@ -448,8 +591,8 @@ async function startServer() {
       const incoming = req.body;
       const fullData = incoming.data || incoming;
 
-      const now = new Date().toISOString();
-      stateVersion++;
+      const now = nextMonotonicIsoTimestamp(currentState?.updatedAt, fullData?.updatedAt);
+      stateVersion = Math.max(stateVersion, typeof fullData?._version === 'number' ? fullData._version : 0) + 1;
 
       currentState = {
         ...fullData,
@@ -466,14 +609,13 @@ async function startServer() {
         updatedAt: now
       });
 
-      persistToFirestore(currentState, false).catch((e) => {
-        console.warn('[SyncServer] Reset Firestore notice:', e);
-      });
+      const firestorePersisted = await persistToFirestore(currentState, false);
 
       res.json({
         success: true,
         version: stateVersion,
-        updatedAt: now
+        updatedAt: now,
+        firestorePersisted
       });
     } catch (err: any) {
       console.error('[SyncServer] Error resetting state:', err);
