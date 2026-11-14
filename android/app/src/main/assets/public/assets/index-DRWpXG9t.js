@@ -1,4 +1,3 @@
-const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["./pdf.worker-BPvb6uQc.js","./icons-8ajZD7WD.js","./recharts-vendor-DTgsReb6.js","./xlsx-vendor-Di7XI5Ta.js","./firebase-vendor-Df9SvP5l.js"])))=>i.map(i=>d[i]);
 var __defProp = Object.defineProperty;
 var __typeError = (msg) => {
   throw TypeError(msg);
@@ -19,10 +18,10 @@ var __privateWrapper = (obj, member, setter, getter) => ({
   }
 });
 var _Util_static, getExtremumOnCurve_fn, getExtremum_fn, _XfaLayer_static, createElement_fn, _started, _regex, _toolbar, _colorPicker, _editor, _buttons, _altText, _comment, _commentButtonDivider, _signatureDescriptionButton, _l10nRemove, _EditorToolbar_static, pointerDown_fn, _EditorToolbar_instances, focusIn_fn, focusOut_fn, addListenersToElement_fn, divider_get, _buttons2, _toolbar2, _uiManager, _FloatingToolbar_instances, render_fn, getLastPoint_fn, makeButton_fn, _pointerId, _pointerIds, _moveTimestamp, _pointerType, _id, _baseId, _id2, _cache, _ImageManager_instances, get_fn, _commands, _locked, _maxSize, _position, _KeyboardManager_static, parseShortcut_fn, codeToKey_fn, _abortController, _activeEditor, _allEditableAnnotations, _allEditors, _allLayers, _savedAllLayers, _savedEditorsByPage, _altTextManager, _annotationStorage, _changedExistingAnnotations, _commandManager, _commentManager, _copyPasteAC, _currentDrawingSession, _currentPageIndex, _deletedAnnotationsElementIds, _draggingEditors, _editorTypes, _editorsToRescale, _enableHighlightFloatingButton, _enableUpdatedAddImage, _enableNewAltTextWhenAddingImage, _filterFactory, _focusMainContainerTimeoutId, _focusManagerAC, _highlightColors, _highlightWhenShiftUp, _floatingToolbar, _idManager, _isEnabled, _isPointerDown, _isWaiting, _keyboardManagerAC, _lastActiveElement, _mainHighlightColorPicker, _missingCanvases, _mlManager, _mode, _selectedEditors, _selectedTextNode, _signatureManager, _pageColors, _showAllStates, _pdfDocument, _previousStates, _translation, _translationTimeoutId, _container, _viewer, _viewerAlert, _updateModeCapability, _AnnotationEditorUIManager_instances, getAnchorElementForSelection_fn, getLayerForTextLayer_fn, displayFloatingToolbar_fn, selectionChange_fn, onSelectEnd_fn, addSelectionListener_fn, addFocusManager_fn, removeFocusManager_fn, addKeyboardManager_fn, removeKeyboardManager_fn, addCopyPasteListeners_fn, removeCopyPasteListeners_fn, addDragAndDropListeners_fn, dispatchUpdateStates_fn, dispatchUpdateUI_fn, enableAll_fn, disableAll_fn, addEditorToLayer_fn, lastSelectedEditor_get, isEmpty_fn, selectEditors_fn, _altText2, _altTextDecorative, _altTextButton, _altTextButtonLabel, _altTextTooltip, _altTextTooltipTimeout, _altTextWasFromKeyBoard, _badge, _editor2, _guessedText, _textWithDisclaimer, _useNewAltTextFlow, _l10nNewButton, _AltText_instances, label_get, setState_fn, _commentStandaloneButton, _commentToolbarButton, _commentWasFromKeyBoard, _editor3, _initialText, _richText, _text, _date, _deleted, _popupPosition, _Comment_instances, render_fn2, _container2, _isPinching, _isPinchingStopped, _isPinchingDisabled, _onPinchStart, _onPinching, _onPinchEnd, _onPanning, _ownsGesture, _pointerDownAC, _signal, _touchIds, _touchInfo, _touchManagerAC, _touchMoveAC, _unconfirmedPinch, _TouchManager_instances, onTouchStart_fn, armPointerDown_fn, pruneTouchIds_fn, getTrackedTouches_fn, setTouchInfo_fn, onTouchMove_fn, onTouchEnd_fn, endGesture_fn, _accessibilityData, _allResizerDivs, _altText3, _comment2, _commentStandaloneButton2, _disabled, _dragPointerId, _dragPointerType, _resizersDiv, _lastPointerCoords, _savedDimensions, _fakeAnnotation, _focusAC, _focusedResizerName, _hasBeenClicked, _initialRect, _isEditing, _isInEditMode, _isResizerEnabledForKeyboard, _moveInDOMTimeout, _prevDragX, _prevDragY, _telemetryTimeouts, _touchManager, _isDraggable, _zIndex, _AnnotationEditor_instances, translate_fn, _AnnotationEditor_static, rotatePoint_fn, getRotationMatrix_fn, createResizers_fn, resizerPointerdown_fn, resize_fn, addResizeToUndoStack_fn, resizerPointermove_fn, touchPinchStartCallback_fn, touchPinchCallback_fn, touchPinchEndCallback_fn, selectOnPointerEvent_fn, setUpDragSession_fn, addFocusListeners_fn, addTouchManager_fn, resizerKeydown_fn, resizerBlur_fn, resizerFocus_fn, setResizerTabIndex_fn, stopResizing_fn, _modified, _modifiedIds, _editorsMap, _storage, _AnnotationStorage_instances, setModified_fn, _serializable, _bboxes, _coords, _baseTransformStack, _clipBox, _pendingBBox, _canvasWidth, _canvasHeight, _bboxesCoords, _bboxes2, _CanvasBBoxTracker_instances, initializeBBoxes_fn, _simple, _incremental, _namedDependencies, _pendingDependencies, _fontBBoxTrustworthy, _debugMetadata, _recordDebugMetadataDepenencyAfterRestore, _bboxTracker, _dependencyTracker, _opIdx, _ignoreBBoxes, _nestingLevel, _savesLevel, _canvasWidth2, _canvasHeight2, _capacity, _count, _coords2, _CoordsArray, _nativeFontFaces, _systemFonts, _styleSheet, _FontLoader_instances, getStyleSheet_fn, testFontLoaded_fn, _compiledPaths, _fontData, _buffer, _view, _CssFontInfo_instances, readString_fn, _buffer2, _view2, _SystemFontInfo_instances, readString_fn2, _buffer3, _view3, _FontInfo_instances, readBoolean_fn, readArray_fn, readString_fn3, getBufferOffset_fn, _buffer4, _listeners, _deferred, _actions, _callbackCapabilities, _callbackId, _comObj, _messageAC, _sourceName, _streamControllers, _streamId, _streamSinks, _targetName, _MessageHandler_instances, onMessage_fn, createStreamSink_fn, processStreamMessage_fn, deleteStreamController_fn, _errorStr, _enableHWA, _baseUrl, __cache, __defs, _docId, _document, __hcmCache, _id3, _DOMFilterFactory_instances, cache_get, hcmCache_get, defs_get, createTables_fn, createUrl_fn, addLuminosityConversion_fn, addGrayConversion_fn, createFilter_fn, appendFeFunc_fn, addTransferMapConversion_fn, addTransferMapAlphaConversion_fn, getRGB_fn, getRGBA_fn, resetDefsColor_fn, getOpaqueTextColor_fn, _a, _initPromise, _device, _meshPipeline, _preferredFormat, _WebGPU_instances, initGPU_fn, _maps, _SCALE_MATRIX, _knockoutGroupLevel, _knockoutElementDepth, _knockoutTempCanvasEntry, _knockoutSavedCtx, _knockoutSavedSMaskCtx, _knockoutSavedGCO, _knockoutElementAlpha, _knockoutFilterCache, _knockoutElementGroupMeta, _groupStackMeta, _CanvasGraphics_instances, restoreInitialState_fn, drawFilter_fn, createKnockoutMaskCanvas_fn, getOrCreatePooledEntry_fn, compositeKnockoutSurface_fn, beginKnockoutElement_fn, endKnockoutElement_fn, getScaledPath_fn, transferColor_fn, convertGroupToGray_fn, destroyKnockoutPools_fn, _PDFStreamReader, _PDFStreamRangeReader, _PDFDataTransportStream_instances, onReceiveData_fn, _endRequests, _endRequests2, _pendingRequests, _PDFNetworkStream_instances, onProgress_fn, onStateChange_fn, _endRequests3, _PDFNetworkStreamReader_instances, onHeadersReceived_fn, onDone_fn, onError_fn, onProgress_fn2, _endRequests4, _PDFNetworkStreamRangeReader_instances, onHeadersReceived_fn2, onDone_fn2, onError_fn2, _port, _src, _map, _data, _isDisplay, _isPrint, _userSet, _visible, _cachedGetHash, _groups, _initialHash, _order, _rawData, _OptionalContentConfig_instances, evaluateVisibilityExpression_fn, _pageNumberToId, _prevPageNumbers, _pagesNumber, _clipboard, _savedData, _PagesMapper_instances, ensureInit_fn, buildIdToPageNumber_fn, updatePrevPageNumbers_fn, buildCopyLevels_fn, _objs, _b, _capability, _container3, _disableProcessItems, _fontInspectorEnabled, _imagesHandler, _lang, _layoutTextParams, _pageHeight, _pageWidth, _pixelRatio, _reader, _rootContainer, _rotation, _scale, _styleCache, _textContentItemsStr, _textContentSource, _textDivs, _textDivProperties, _transform, _ascentCache, _canvasContexts, _canvasCtxFonts, _minFontSize, _pendingTextLayers, _TextLayer_instances, processItems_fn, appendText_fn, layout_fn, _TextLayer_static, getCtx_fn, quantizeFontSize_fn, ensureCtxFont_fn, ensureMinFontSizeComputed_fn, getAscent_fn, _docId2, _capability2, _listener, _pendingCleanup, _pagesMapper, _idCounter, _PDFPageProxy_instances, tryCleanup_fn, _capability3, _messageHandler, _port2, _webWorker, _fakeWorkerId, _isWorkerDisabled, _workerPorts, _PDFWorker_instances, resolve_fn, initializeFromPort_fn, initialize_fn, setupFakeWorker_fn, _PDFWorker_static, mainThreadWorkerMessageHandler_get, _fullReader, _methodPromises, _networkStream, _pageCache, _pagePromises, _pageRefCache, _passwordCapability, _printToPDF, _WorkerTransport_instances, cacheSimpleMethod_fn, onProgress_fn3, _rAF, _canvasInUse, _button, _buttonSwatch, _defaultColor, _dropdown, _dropdownWasFromKeyboard, _isMainColorPicker, _editor4, _eventBus, _openDropdownAC, _uiManager2, _l10nColor, _ColorPicker_instances, getDropdownRoot_fn, colorSelect_fn, keyDown_fn, openDropdown_fn, pointerDown_fn2, isDropdownVisible_get, _input, _hasAlpha, _editor5, _uiManager3, _l10nColor2, _updates, _hasBorder, _popupElement, _AnnotationElement_instances, setRectEdited_fn, _LinkAnnotationElement_instances, setInternalLink_fn, bindAttachment_fn, bindSetOCGState_fn, _PopupAnnotationElement_instances, createPopup_fn, _commentManager2, _boundKeyDown, _boundHide, _boundShow, _boundToggle, _color, _container4, _contentsObj, _dateObj, _elements, _parent, _parentRect, _pinned, _popup, _popupAbortController, _position2, _commentButton, _commentButtonPosition, _popupPosition2, _rect, _richText2, _titleObj, _updates2, _wasVisible, _firstElement, _commentText, _PopupElement_instances, addEventListeners_fn, setCommentButtonPosition_fn, updateCommentButtonPosition_fn, updateColor_fn, html_get, fontSize_get, fontColor_get, makePopupContent_fn, keyDown_fn2, setPosition_fn, toggle_fn, show_fn, hide_fn, _line, _square, _circle, _polyline, _polylinesGroupElement, _polylines, _InkAnnotationElement_instances, getTransform_fn, _trigger, _FileAttachmentAnnotationElement_instances, download_fn, _abortController2, _contentUrl, _media, _MediaAnnotationElement_instances, load_fn, revokeContentUrl_fn, _accessibilityManager, _annotationCanvasMap, _annotationStorage2, _editableAnnotations, _structTreeLayer, _linkService, _elements2, _hasAriaAttributesFromStructTree, _AnnotationLayer_instances, addElementsToDOM_fn, setAnnotationCanvasMap_fn, _content, _editorDivId, _editModeAC, _fontSize, _FreeTextEditor_instances, updateFontSize_fn, updateColor_fn2, extractText_fn, setEditorDimensions_fn, _FreeTextEditor_static, getNodeContent_fn, setContent_fn, serializeContent_fn, deserializeContent_fn, hasElementChanged_fn, _svgProperties, _internalDiv, _mustBeCommitted, _currentDraw, _currentDrawingAC, _currentDrawingOptions, _currentClipPathId, _DrawingEditor_instances, createDrawOutlines_fn, createDrawing_fn, createFocusOutline_fn, updateFocusOutline_fn, toggleFocusOutlineClass_fn, updateVisibility_fn, rotationAngle_get, cleanDrawLayer_fn, addToDrawLayer_fn, convertToParentSpace_fn, convertToDrawSpace_fn, updateBbox_fn, rotateBox_fn, _box, _bottom, _innerMargin, _isLTR, _top, _last, _lastX, _lastY, _min, _min_dist, _scaleFactor, _thickness, _points, _MIN_DIST, _MIN_DIFF, _MIN, _FreeDrawOutliner_instances, getLastCoords_fn, toSVGPathTwoPoints_fn, toSVGPathStart_fn, toSVGPathEnd_fn, getOutlineTwoPoints_fn, getOutlineStart_fn, getOutlineEnd_fn, _box2, _bbox, _innerMargin2, _isLTR2, _points2, _scaleFactor2, _outline, _FreeDrawOutline_instances, computeMinMax_fn, _box3, _firstPoint, _lastPoint, _verticalEdges, _intervals, _HighlightOutliner_instances, getOutlines_fn, binarySearch_fn, insert_fn, remove_fn, breakEdge_fn, _box4, _boxes, _outlines, _outliner, _thickness2, _EXTRA_THICKNESS, _anchorNode, _anchorOffset, _focusNode, _focusOffset, _methodOfCreation, _text2, _HighlightEditor_instances, relativeToBox_fn, keydown_fn, setCaret_fn, hasElementChanged_fn2, _last2, _tip, _line2, _lines, _rotation2, _thickness3, _points3, _lastSVGPath, _lastIndex, _outlines2, _parentWidth, _parentHeight, _InkDrawOutliner_instances, normalizePoint_fn, add_fn, toSVGPathWithTip_fn, _bbox2, _currentRotation, _innerMargin3, _lines2, _parentWidth2, _parentHeight2, _parentScale, _rotation3, _thickness4, _InkDrawOutline_instances, getMarginComponents_fn, getBBoxWithNoMargin_fn, computeBbox_fn, updateThickness_fn, _InkEditor_instances, hasElementChanged_fn3, _PARAMETERS, _SignatureExtractor_static, neighborIndexToId_fn, _neighborIdToIndex, clockwiseNonZero_fn, counterClockwiseNonZero_fn, findContours_fn, douglasPeuckerHelper_fn, douglasPeucker_fn, bilateralFilter_fn, getHistogram_fn, toUint8_fn, guessThreshold_fn, getGrayPixels_fn, _isExtracted, _description, _signatureData, _signatureUUID, _bitmap, _bitmapId, _bitmapPromise, _bitmapUrl, _bitmapFile, _bitmapFileName, _canvas, _missingCanvas, _resizeTimeoutId, _isSvg, _hasBeenAddedInUndoStack, _StampEditor_instances, getBitmapFetched_fn, getBitmapDone_fn, getBitmap_fn, createCanvas_fn, scaleBitmap_fn, drawBitmap_fn, serializeBitmap_fn, hasElementChanged_fn4, _accessibilityManager2, _allowClick, _annotationLayer, _clickAC, _editorFocusTimeoutId, _editors, _hadPointerDown, _isDisabling, _isEnabling, _drawingAC, _focusedElement, _textLayer, _textSelectionAC, _textLayerDblClickAC, _lastPointerDownTimestamp, _uiManager4, _editorTypes2, _AnnotationEditorLayer_instances, allEditorsIterator_get, textLayerPointerDown_fn, currentEditorType_get, createNewEditor_fn, getCenterPoint_fn, cleanup_fn, _parent2, _mapping, _textLayer2, _filterFactory2, _pageColors2, _textLayerObserver, _toUpdate, _id4, _selectionId, _selectionChangeAC, _selections, _isSelecting, _textLayerSet, _textLayers, _DrawLayer_static, cleanupTextLayerSelection_fn, hasSelection_fn, getOrderedTextLayers_fn, selectionChange_fn2, setBox_fn, _DrawLayer_instances, createSVG_fn, createClipPath_fn, updateProperties_fn, _coordinates, _coordinatesByElement, _getPageCanvas, _minSize, _pageWidth2, _pageHeight2, _activeImage, _TextLayerImages_instances, createImagePlaceholder_fn;
-import { r as requireReact, g as getDefaultExportFromCjs, S as Sun, M as Moon, C as CircleCheck, a as reactExports, b as Calendar, c as Clock, A as ArrowLeft, F as FlaskConical, d as ChevronLeft, e as React, L as Lock, X, f as Check, h as Sparkles, P as Plus, i as ShieldAlert, j as Layers, D as Dna, k as Pen, l as ChevronUp, m as ChevronDown, T as Trash2, n as ArrowRight, o as Scale, p as TriangleAlert, Z as Zap, q as ListFilter, s as ChartNoAxesColumn, I as Info, t as TrendingUp, u as TrendingDown, v as CalendarRange, w as CalendarCheck, x as ChevronRight, y as Crown, z as RefreshCw, B as LockOpen, E as Funnel, G as FileText, H as Printer, U as Users, J as ShieldCheck, K as SquarePen, N as UserPlus, O as Activity, Q as Trophy, V as Search, W as Bot, Y as Maximize2, _ as Minimize2, $ as MessageSquare, a0 as SlidersHorizontal, a1 as Eye, a2 as User, a3 as Send, a4 as FileDown, a5 as Calculator, a6 as CircleAlert, a7 as Columns2, a8 as FileSpreadsheet, a9 as Save, aa as LoaderCircle, ab as CircleCheckBig, ac as FileCheck, ad as Download, ae as Upload, af as FileType, ag as RotateCcw, ah as Copy, ai as ExternalLink, aj as BellRing, ak as Bell, al as Smartphone, am as UserCheck, an as Coffee, ao as ArrowRightLeft, ap as Share2, aq as Vibrate, ar as Volume2, as as Globe, at as Radio, au as WifiOff, av as Server, aw as CloudUpload, ax as Cloud, ay as LogOut, az as KeyRound, aA as CalendarPlus, aB as ArrowUp, aC as ArrowDown, aD as UserCog, aE as Table } from "./icons-8ajZD7WD.js";
-import { r as requireReactDom, R as ResponsiveContainer, B as BarChart, C as CartesianGrid, X as XAxis, Y as YAxis, T as Tooltip, a as ReferenceLine, b as Bar, P as PieChart, c as Pie, d as Cell, S as Sector, e as reactDomExports } from "./recharts-vendor-DTgsReb6.js";
+import { r as requireReact, g as getDefaultExportFromCjs, S as Sun, M as Moon, C as CircleCheck, a as reactExports, b as Clock, c as Calendar, A as ArrowLeft, F as FlaskConical, d as ChevronLeft, e as React, L as Lock, X, f as Check, h as Sparkles, P as Plus, i as ShieldAlert, j as Layers, D as Dna, k as Pen, l as ChevronUp, m as ChevronDown, T as Trash2, n as ArrowRight, o as Scale, p as TriangleAlert, Z as Zap, q as ListFilter, s as ChartNoAxesColumn, I as Info, t as TrendingUp, u as TrendingDown, v as CalendarRange, w as LockOpen, x as CalendarCheck, y as ChevronRight, z as RefreshCw, B as Crown, E as Funnel, G as FileText, H as Printer, U as Users, J as ShieldCheck, K as SquarePen, N as UserPlus, O as Activity, Q as Trophy, V as Search, W as Bot, Y as Maximize2, _ as Minimize2, $ as MessageSquare, a0 as SlidersHorizontal, a1 as Eye, a2 as User, a3 as Send, a4 as FileDown, a5 as Calculator, a6 as CircleAlert, a7 as Columns2, a8 as FileSpreadsheet, a9 as Save, aa as LoaderCircle, ab as CircleCheckBig, ac as FileCheck, ad as Download, ae as Upload, af as FileType, ag as RotateCcw, ah as Copy, ai as ExternalLink, aj as BellRing, ak as Bell, al as Smartphone, am as UserCheck, an as Coffee, ao as ArrowRightLeft, ap as Share2, aq as Vibrate, ar as Volume2, as as Globe, at as Radio, au as WifiOff, av as Server, aw as CloudUpload, ax as Cloud, ay as LogOut, az as KeyRound, aA as CalendarPlus, aB as ArrowUp, aC as ArrowDown, aD as UserCog, aE as Table } from "./icons-BXkc-39B.js";
+import { r as requireReactDom, R as ResponsiveContainer, B as BarChart, C as CartesianGrid, X as XAxis, Y as YAxis, T as Tooltip, a as ReferenceLine, b as Bar, P as PieChart, c as Pie, d as Cell, S as Sector, e as reactDomExports } from "./recharts-vendor-BRQScK2Z.js";
 import { u as utils, w as writeFileSync, r as readSync } from "./xlsx-vendor-Di7XI5Ta.js";
-import { g as getApps, a as getApp, i as initializeApp, b as getFirestore, d as doc, o as onSnapshot, c as getDocFromServer, s as setDoc } from "./firebase-vendor-Df9SvP5l.js";
+import { g as getApps, a as getApp, i as initializeApp, b as getFirestore, s as setLogLevel, d as doc, o as onSnapshot, c as getDocFromServer, e as setDoc } from "./firebase-vendor-BNQoB22-.js";
 (function polyfill() {
   const relList = document.createElement("link").relList;
   if (relList && relList.supports && relList.supports("modulepreload")) {
@@ -10701,7 +10700,7 @@ function requireReactDomClient_production() {
     r: requestFormReset,
     D: prefetchDNS,
     C: preconnect,
-    L: preload2,
+    L: preload,
     m: preloadModule,
     X: preinitScript,
     S: preinitStyle,
@@ -10733,7 +10732,7 @@ function requireReactDomClient_production() {
     previousDispatcher.C(href, crossOrigin);
     preconnectAs("preconnect", href, crossOrigin);
   }
-  function preload2(href, as, options2) {
+  function preload(href, as, options2) {
     previousDispatcher.L(href, as, options2);
     var ownerDocument = globalDocument;
     if (ownerDocument && href && as) {
@@ -11939,7 +11938,7 @@ const ShiftUserCard = ({
   type,
   className = "",
   originalName,
-  showIcon = false,
+  showIcon = true,
   badgeLabel,
   size = "md"
 }) => {
@@ -11947,8 +11946,6 @@ const ShiftUserCard = ({
   const isNight = type === "Night";
   const displayName = name ? name.trim() : "---";
   const displayOriginal = originalName ? originalName.trim() : null;
-  const familyName = name ? name.replace(/^(مهندس|خانم|آقای|دکتر)\s*/, "").trim() : "";
-  const firstLetter = familyName ? familyName.charAt(0) : name ? name.charAt(0) : "";
   let styles = {
     wrapper: "",
     avatar: "",
@@ -11956,25 +11953,22 @@ const ShiftUserCard = ({
   };
   if (isDay) {
     styles = {
-      wrapper: "bg-orange-50/80 hover:bg-orange-100 text-orange-900",
-      // Warm transparent background
-      avatar: "bg-white text-orange-600 shadow-sm ring-1 ring-orange-200",
+      wrapper: "bg-orange-50/80 hover:bg-orange-100/90 text-orange-950 border border-orange-200/70",
+      avatar: "bg-white text-amber-500 shadow-2xs ring-1 ring-orange-200",
       subText: "text-orange-600/70",
-      indicator: "bg-orange-500"
-      // Small color strip
+      indicator: "bg-amber-500"
     };
   } else if (isNight) {
     styles = {
-      wrapper: "bg-slate-100 hover:bg-slate-200 text-slate-800",
-      // Cool slate background
-      avatar: "bg-white text-slate-600 shadow-sm ring-1 ring-slate-300",
-      subText: "text-slate-500",
-      indicator: "bg-slate-600"
+      wrapper: "bg-indigo-50/60 hover:bg-indigo-100/75 text-slate-800 border border-indigo-200/70",
+      avatar: "bg-white text-indigo-600 shadow-2xs ring-1 ring-indigo-200",
+      subText: "text-indigo-500",
+      indicator: "bg-indigo-600"
     };
   } else {
     styles = {
-      wrapper: "bg-emerald-50/80 hover:bg-emerald-100 text-emerald-900",
-      avatar: "bg-white text-emerald-600 shadow-sm ring-1 ring-emerald-200",
+      wrapper: "bg-emerald-50/80 hover:bg-emerald-100/90 text-emerald-950 border border-emerald-200/70",
+      avatar: "bg-white text-emerald-600 shadow-2xs ring-1 ring-emerald-200",
       subText: "text-emerald-600/70",
       indicator: "bg-emerald-500"
     };
@@ -11982,20 +11976,20 @@ const ShiftUserCard = ({
   const Icon = isDay ? Sun : isNight ? Moon : CircleCheck;
   const isCompact = size === "sm";
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `
-      relative flex items-center ${isCompact ? "gap-2 px-3 py-1.5" : "gap-3 px-4 py-3"} w-full transition-all duration-200
-      ${styles.wrapper} rounded-lg cursor-default ${className}
+      relative flex items-center ${isCompact ? "gap-2 px-2.5 py-1.5" : "gap-2.5 px-3 py-2.5"} w-full transition-all duration-200
+      ${styles.wrapper} rounded-xl cursor-default ${className}
     `, children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `absolute right-0 top-1.5 bottom-1.5 w-1 rounded-l-full ${styles.indicator} opacity-50` }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `absolute right-0 top-1.5 bottom-1.5 w-1 rounded-l-full ${styles.indicator} opacity-60` }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `
-        ${isCompact ? "w-7 h-7 min-w-[28px] text-xs" : "w-9 h-9 min-w-[36px] text-sm"} rounded-full flex items-center justify-center 
-        font-bold ml-1 ${styles.avatar}
-      `, children: showIcon ? /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { size: isCompact ? 14 : 18 }) : firstLetter }),
+        ${isCompact ? "w-7 h-7 min-w-[28px]" : "w-8 h-8 min-w-[32px]"} rounded-lg flex items-center justify-center 
+        shrink-0 ${styles.avatar}
+      `, children: /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { size: isCompact ? 14 : 16, className: showIcon ? "" : "" }) }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col items-start z-10 min-w-0 flex-1", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1.5 flex-wrap w-full", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `${isCompact ? "text-xs" : "text-sm"} font-bold tracking-tight truncate text-right`, children: displayName }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `${isCompact ? "text-xs" : "text-[13px] sm:text-sm"} font-extrabold tracking-tight truncate text-right`, children: displayName }),
         badgeLabel && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[9px] font-black bg-white/90 text-slate-700 px-1.5 py-0.2 rounded-full border border-slate-200 shadow-2xs whitespace-nowrap", children: badgeLabel })
       ] }),
-      displayOriginal && displayOriginal !== displayName && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[9px] text-red-400/80 line-through decoration-red-300 truncate w-full text-right", title: `تغییر یافته از: ${originalName}`, children: displayOriginal })
+      displayOriginal && displayOriginal !== displayName && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[9px] text-red-500/85 line-through decoration-red-300 truncate w-full text-right", title: `تغییر یافته از: ${originalName}`, children: displayOriginal })
     ] })
   ] });
 };
@@ -12181,161 +12175,171 @@ const TodayHero = ({
       `today-extra-night-${extraIdx}`
     ))
   ] }) : null;
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { id: "today-hero-section", className: "bg-white rounded-2xl shadow-md border border-slate-100 overflow-hidden relative no-print scroll-mt-20", children: [
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { id: "today-hero-section", className: "bg-white rounded-2xl shadow-xs border border-slate-200/90 overflow-hidden relative no-print scroll-mt-20 divide-y divide-slate-100", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-blue-500" }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-4 sm:p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-4 md:gap-6", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col items-center md:items-start gap-1.5 sm:gap-2 w-full md:w-auto md:min-w-[200px]", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between md:justify-start w-full md:w-auto gap-2", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1.5 text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full text-[11px] font-bold border border-emerald-200/70", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-2 h-2 rounded-full bg-emerald-500" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "وضعیت زنده" })
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: `md:hidden text-[11px] font-black px-2.5 py-1 rounded-full border flex items-center gap-1 ${liveShiftNow === "DAY" ? "bg-amber-50 text-amber-800 border-amber-200" : "bg-indigo-50 text-indigo-800 border-indigo-200"}`, children: [
-            liveShiftNow === "DAY" ? /* @__PURE__ */ jsxRuntimeExports.jsx(Sun, { size: 12, className: "text-amber-500" }) : /* @__PURE__ */ jsxRuntimeExports.jsx(Moon, { size: 12, className: "text-indigo-600" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: liveShiftNow === "DAY" ? "نوبت روز فعال" : "نوبت شب فعال" })
-          ] })
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-3.5 sm:p-4 pt-4 sm:pt-4.5 flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center justify-between md:justify-start gap-3 min-w-0", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3 min-w-0", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-2xs relative", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Clock, { size: 20 }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "absolute -top-1 -right-1 w-3 h-3 rounded-full bg-emerald-400 ring-2 ring-white animate-pulse" })
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-row md:flex-col items-center md:items-start justify-between w-full md:w-auto gap-2 mt-1", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-2xl sm:text-3xl md:text-4xl font-black text-slate-800 tracking-tight text-right", children: currentWeekdayStr || "سه‌شنبه" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2.5 sm:gap-4 text-slate-500 font-medium", dir: "ltr", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1.5 sm:gap-2", children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx(Calendar, { size: 16, className: "text-emerald-500 shrink-0 self-center" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col items-center justify-center leading-tight", children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm sm:text-lg font-black text-slate-800 tracking-tight text-center tabular-nums", children: toPersianDigits$2(currentDateStr) }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[10px] sm:text-xs font-semibold text-slate-500 tracking-wider tabular-nums text-center mt-0.5", children: currentGregorianDateStr })
-              ] })
-            ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-px h-7 sm:h-8.5 bg-slate-200 mx-0.5 sm:mx-1" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1.5 sm:gap-2", children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx(Clock, { size: 16, className: "text-blue-500 shrink-0" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm sm:text-lg font-bold text-slate-700 tabular-nums", children: toPersianDigits$2(currentTimeStr) })
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "min-w-0", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 flex-wrap", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-sm sm:text-base md:text-lg font-black text-slate-900 tracking-tight leading-snug", children: "وضعیت زنده شیفت امروز" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: `inline-flex items-center gap-1 text-[10.5px] sm:text-[11px] font-black px-2.5 py-0.5 rounded-full border whitespace-nowrap ${liveShiftNow === "DAY" ? "bg-amber-50 text-amber-800 border-amber-200/90" : "bg-indigo-50 text-indigo-800 border-indigo-200/90"}`, children: [
+              liveShiftNow === "DAY" ? /* @__PURE__ */ jsxRuntimeExports.jsx(Sun, { size: 12, className: "text-amber-500 shrink-0" }) : /* @__PURE__ */ jsxRuntimeExports.jsx(Moon, { size: 12, className: "text-indigo-600 shrink-0" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: liveShiftNow === "DAY" ? "نوبت روز فعال" : "نوبت شب فعال" })
             ] })
-          ] })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-[11px] sm:text-xs text-slate-500 font-medium mt-0.5", children: "برنامه کشیک و پرسنل حاضر در شیفت جاری" })
         ] })
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "hidden md:block w-px h-24 bg-slate-100" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 w-full", children: [
-        todayEntry ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "md:hidden space-y-2.5", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-2 gap-2", children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `rounded-xl p-2.5 border transition-colors ${liveShiftNow === "DAY" ? "bg-orange-50/90 border-orange-300 ring-1 ring-amber-400/50" : "bg-orange-50/60 border-orange-200/80"}`, children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between gap-1 mb-1.5", children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "inline-flex items-center gap-1 text-[11px] font-black text-amber-800", children: [
-                    /* @__PURE__ */ jsxRuntimeExports.jsx(Sun, { size: 13, className: "text-amber-500 shrink-0" }),
-                    /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "روز" })
-                  ] }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[10px] font-bold text-amber-700/80 tabular-nums", children: "۰۸–۱۹" })
-                ] }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-black text-slate-900 text-xs sm:text-sm leading-snug break-words", children: todayEntry.dayShiftPerson }),
-                todayEntry.originalDayShiftPerson && todayEntry.originalDayShiftPerson !== todayEntry.dayShiftPerson && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-[10px] text-red-500 line-through decoration-red-300 mt-0.5", children: todayEntry.originalDayShiftPerson }),
-                todayEntry.extraDayPersons && todayEntry.extraDayPersons.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-1.5 pt-1.5 border-t border-orange-200/70 space-y-1", children: todayEntry.extraDayPersons.map((extraPerson, extraIdx) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-[10px] font-bold text-orange-900 bg-white/90 border border-orange-200 rounded-md px-1.5 py-0.5 truncate", children: [
-                  "+ ",
-                  extraPerson
-                ] }, `m-today-d-${extraIdx}`)) })
-              ] }),
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `rounded-xl p-2.5 border transition-colors ${liveShiftNow === "NIGHT" ? "bg-indigo-50/95 border-indigo-300 ring-1 ring-indigo-400/50" : "bg-slate-100/80 border-slate-200/90"}`, children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between gap-1 mb-1.5", children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "inline-flex items-center gap-1 text-[11px] font-black text-indigo-800", children: [
-                    /* @__PURE__ */ jsxRuntimeExports.jsx(Moon, { size: 13, className: "text-indigo-600 shrink-0" }),
-                    /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "شب" })
-                  ] }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[10px] font-bold text-indigo-700/80 tabular-nums", children: "۱۹–۰۸" })
-                ] }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-black text-slate-900 text-xs sm:text-sm leading-snug break-words", children: todayEntry.nightShiftPerson }),
-                todayEntry.originalNightShiftPerson && todayEntry.originalNightShiftPerson !== todayEntry.nightShiftPerson && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-[10px] text-red-500 line-through decoration-red-300 mt-0.5", children: todayEntry.originalNightShiftPerson }),
-                todayEntry.extraNightPersons && todayEntry.extraNightPersons.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-1.5 pt-1.5 border-t border-indigo-200/70 space-y-1", children: todayEntry.extraNightPersons.map((extraPerson, extraIdx) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-[10px] font-bold text-indigo-900 bg-white/90 border border-indigo-200 rounded-md px-1.5 py-0.5 truncate", children: [
-                  "+ ",
-                  extraPerson
-                ] }, `m-today-n-${extraIdx}`)) })
-              ] })
-            ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              ShiftUserCard,
-              {
-                name: todayEntry.onCallPerson,
-                type: "Supervisor",
-                showIcon: true,
-                size: "sm",
-                badgeLabel: "سرپرست امروز"
-              }
-            )
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "hidden md:grid md:grid-cols-3 gap-4", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col gap-1 items-stretch", children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs font-bold text-slate-400 pr-1 text-right", children: "سرپرست" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx(ShiftUserCard, { name: todayEntry.onCallPerson, type: "Supervisor", showIcon: true })
-            ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col gap-1 items-stretch", children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between pr-1", children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs font-bold text-slate-400 text-right", children: "شیفت روز (۰۸ - ۱۹)" }),
-                todayEntry.extraDayPersons && todayEntry.extraDayPersons.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-[10px] font-black text-orange-700 bg-orange-100 px-2 py-0.5 rounded-full", children: [
-                  todayEntry.extraDayPersons.length + 1,
-                  " نفره"
-                ] })
-              ] }),
-              dayShiftCards
-            ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col gap-1 items-stretch", children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between pr-1", children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs font-bold text-slate-400 text-right", children: "شیفت شب (۱۹ - ۰۸)" }),
-                todayEntry.extraNightPersons && todayEntry.extraNightPersons.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-[10px] font-black text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded-full", children: [
-                  todayEntry.extraNightPersons.length + 1,
-                  " نفره"
-                ] })
-              ] }),
-              nightShiftCards
-            ] })
-          ] })
-        ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col items-center justify-center text-center py-4 bg-slate-50 rounded-xl border border-dashed border-slate-200 h-full", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(Calendar, { size: 40, className: "text-slate-300 mb-2" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-slate-500 font-medium", children: [
-            "برای تاریخ امروز (",
-            toPersianDigits$2(currentDateStr),
-            ") شیفتی در دیتابیس ثبت نشده است."
-          ] }),
-          onNavigateToToday && /* @__PURE__ */ jsxRuntimeExports.jsxs(
-            "button",
-            {
-              onClick: onNavigateToToday,
-              className: "mt-2 text-xs font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg flex items-center gap-1 transition",
-              children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "مشاهده تقویم و شیفت‌های شهریور" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx(ArrowLeft, { size: 14 })
-              ]
-            }
-          )
+      ] }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-3 gap-2 md:gap-4 w-full md:w-auto md:min-w-[440px] lg:min-w-[500px] bg-slate-50/90 border border-slate-200/90 rounded-xl px-2.5 py-2.5 md:px-4 md:py-3 text-center items-center shrink-0", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col items-center justify-center border-l border-slate-200/80 pl-2 md:pl-4 min-w-0 text-center", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[10px] md:text-xs font-bold text-slate-400 mb-0.5 md:mb-1", children: "روز هفته" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm sm:text-base md:text-xl lg:text-2xl font-black text-slate-800 truncate w-full text-center", children: currentWeekdayStr || "سه‌شنبه" })
         ] }),
-        todayProcesses.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-4 pt-3.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2.5 bg-gradient-to-l from-emerald-50/70 to-teal-50/70 p-3 rounded-xl border border-emerald-200/60", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2.5", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0", children: /* @__PURE__ */ jsxRuntimeExports.jsx(FlaskConical, { size: 15 }) }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md", children: "پروسه بیوراکتور و تولید فعال امروز:" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-xs sm:text-sm font-black text-slate-850 mt-0.5 flex items-center gap-2 flex-wrap", children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: todayProcesses[0].title }),
-                todayProcesses[0].vessel && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[11px] text-slate-600 bg-white px-2 py-0.5 rounded-md border border-slate-200 font-medium", children: todayProcesses[0].vessel }),
-                todayProcesses.length > 1 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-[10px] bg-emerald-200 text-emerald-900 font-black px-1.5 py-0.5 rounded-full", children: [
-                  "+",
-                  toPersianDigits$2(todayProcesses.length - 1),
-                  " پروسه دیگر"
-                ] })
-              ] })
-            ] })
-          ] }),
-          onOpenProcessModal && /* @__PURE__ */ jsxRuntimeExports.jsxs(
-            "button",
-            {
-              type: "button",
-              onClick: () => onOpenProcessModal(currentDateStr),
-              className: "flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition shadow-2xs active:scale-95 cursor-pointer",
-              children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "مشاهده و ویرایش فرآیند" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx(ChevronLeft, { size: 14 })
-              ]
-            }
-          )
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col items-center justify-center border-l border-slate-200/80 px-1.5 md:px-3 min-w-0 text-center", dir: "ltr", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs sm:text-sm md:text-base lg:text-lg font-black text-slate-800 tabular-nums tracking-tight text-center leading-tight w-full", children: toPersianDigits$2(currentDateStr) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-10 md:w-16 h-px bg-slate-200/90 my-1" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs sm:text-sm md:text-base lg:text-lg font-black text-slate-600 tabular-nums tracking-tight text-center leading-tight w-full", children: currentGregorianDateStr })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col items-center justify-center pr-1.5 md:pr-3 min-w-0 text-center", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[10px] md:text-xs font-bold text-slate-400 mb-0.5 md:mb-1", children: "ساعت" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm sm:text-base md:text-xl lg:text-2xl font-black text-slate-800 tabular-nums text-center w-full", dir: "ltr", children: toPersianDigits$2(currentTimeStr) })
         ] })
       ] })
-    ] })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "p-3.5 sm:p-4 bg-slate-50/35", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "w-full", children: [
+      todayEntry ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "md:hidden space-y-2.5", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-2 gap-2", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `rounded-xl p-2.5 border transition-colors ${liveShiftNow === "DAY" ? "bg-orange-50/90 border-orange-300 ring-1 ring-amber-400/50" : "bg-orange-50/60 border-orange-200/80"}`, children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between gap-1 mb-1.5", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "inline-flex items-center gap-1 text-[11px] font-black text-amber-800", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(Sun, { size: 13, className: "text-amber-500 shrink-0" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "روز" })
+                ] }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[10px] font-bold text-amber-700/80 tabular-nums", children: "۰۸–۱۹" })
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-black text-slate-900 text-xs sm:text-sm leading-snug break-words", children: todayEntry.dayShiftPerson }),
+              todayEntry.originalDayShiftPerson && todayEntry.originalDayShiftPerson !== todayEntry.dayShiftPerson && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-[10px] text-red-500 line-through decoration-red-300 mt-0.5", children: todayEntry.originalDayShiftPerson }),
+              todayEntry.extraDayPersons && todayEntry.extraDayPersons.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-1.5 pt-1.5 border-t border-orange-200/70 space-y-1", children: todayEntry.extraDayPersons.map((extraPerson, extraIdx) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-[10px] font-bold text-orange-900 bg-white/90 border border-orange-200 rounded-md px-1.5 py-0.5 truncate", children: [
+                "+ ",
+                extraPerson
+              ] }, `m-today-d-${extraIdx}`)) })
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `rounded-xl p-2.5 border transition-colors ${liveShiftNow === "NIGHT" ? "bg-indigo-50/95 border-indigo-300 ring-1 ring-indigo-400/50" : "bg-indigo-50/60 border-indigo-200/80"}`, children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between gap-1 mb-1.5", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "inline-flex items-center gap-1 text-[11px] font-black text-indigo-800", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(Moon, { size: 13, className: "text-indigo-600 shrink-0" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "شب" })
+                ] }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[10px] font-bold text-indigo-700/80 tabular-nums", children: "۱۹–۰۸" })
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-black text-slate-900 text-xs sm:text-sm leading-snug break-words", children: todayEntry.nightShiftPerson }),
+              todayEntry.originalNightShiftPerson && todayEntry.originalNightShiftPerson !== todayEntry.nightShiftPerson && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-[10px] text-red-500 line-through decoration-red-300 mt-0.5", children: todayEntry.originalNightShiftPerson }),
+              todayEntry.extraNightPersons && todayEntry.extraNightPersons.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-1.5 pt-1.5 border-t border-indigo-200/70 space-y-1", children: todayEntry.extraNightPersons.map((extraPerson, extraIdx) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-[10px] font-bold text-indigo-900 bg-white/90 border border-indigo-200 rounded-md px-1.5 py-0.5 truncate", children: [
+                "+ ",
+                extraPerson
+              ] }, `m-today-n-${extraIdx}`)) })
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            ShiftUserCard,
+            {
+              name: todayEntry.onCallPerson,
+              type: "Supervisor",
+              showIcon: true,
+              size: "sm",
+              badgeLabel: "سرپرست امروز"
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "hidden md:grid md:grid-cols-3 gap-3.5 items-stretch", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col gap-1.5 items-stretch bg-white p-2.5 rounded-xl border border-slate-200/80 shadow-2xs", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between px-1", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "inline-flex items-center gap-1.5 text-xs font-extrabold text-amber-800", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(Sun, { size: 14, className: "text-amber-500 shrink-0" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "شیفت روز (۰۸ - ۱۹)" })
+              ] }),
+              todayEntry.extraDayPersons && todayEntry.extraDayPersons.length > 0 ? /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-[10px] font-black text-orange-700 bg-orange-100 px-2 py-0.5 rounded-full", children: [
+                toPersianDigits$2(todayEntry.extraDayPersons.length + 1),
+                " نفره"
+              ] }) : liveShiftNow === "DAY" ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[10px] font-black text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.2 rounded-full", children: "در حال انجام" }) : null
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 flex flex-col justify-center", children: dayShiftCards })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col gap-1.5 items-stretch bg-white p-2.5 rounded-xl border border-slate-200/80 shadow-2xs", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between px-1", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "inline-flex items-center gap-1.5 text-xs font-extrabold text-indigo-800", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(Moon, { size: 14, className: "text-indigo-600 shrink-0" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "شیفت شب (۱۹ - ۰۸)" })
+              ] }),
+              todayEntry.extraNightPersons && todayEntry.extraNightPersons.length > 0 ? /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-[10px] font-black text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded-full", children: [
+                toPersianDigits$2(todayEntry.extraNightPersons.length + 1),
+                " نفره"
+              ] }) : liveShiftNow === "NIGHT" ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[10px] font-black text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.2 rounded-full", children: "در حال انجام" }) : null
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 flex flex-col justify-center", children: nightShiftCards })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col gap-1.5 items-stretch bg-white p-2.5 rounded-xl border border-slate-200/80 shadow-2xs", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between px-1", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "inline-flex items-center gap-1.5 text-xs font-extrabold text-emerald-800", children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "سرپرست کشیک (On-Call)" }) }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2 py-0.2 rounded-full", children: "۲۴ ساعته" })
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 flex flex-col justify-center", children: /* @__PURE__ */ jsxRuntimeExports.jsx(ShiftUserCard, { name: todayEntry.onCallPerson, type: "Supervisor", showIcon: true }) })
+          ] })
+        ] })
+      ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col items-center justify-center text-center py-4 bg-white rounded-xl border border-dashed border-slate-200 h-full", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(Calendar, { size: 36, className: "text-slate-300 mb-2" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-slate-500 font-medium text-xs sm:text-sm", children: [
+          "برای تاریخ امروز (",
+          toPersianDigits$2(currentDateStr),
+          ") شیفتی در دیتابیس ثبت نشده است."
+        ] }),
+        onNavigateToToday && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "button",
+          {
+            onClick: onNavigateToToday,
+            className: "mt-2 text-xs font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg flex items-center gap-1 transition cursor-pointer",
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "مشاهده تقویم و شیفت‌های ماه جاری" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(ArrowLeft, { size: 14 })
+            ]
+          }
+        )
+      ] }),
+      todayProcesses.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-4 pt-3.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2.5 bg-gradient-to-l from-emerald-50/70 to-teal-50/70 p-3 rounded-xl border border-emerald-200/60", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2.5", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0", children: /* @__PURE__ */ jsxRuntimeExports.jsx(FlaskConical, { size: 15 }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md", children: "پروسه بیوراکتور و تولید فعال امروز:" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-xs sm:text-sm font-black text-slate-850 mt-0.5 flex items-center gap-2 flex-wrap", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: todayProcesses[0].title }),
+              todayProcesses[0].vessel && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[11px] text-slate-600 bg-white px-2 py-0.5 rounded-md border border-slate-200 font-medium", children: todayProcesses[0].vessel }),
+              todayProcesses.length > 1 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-[10px] bg-emerald-200 text-emerald-900 font-black px-1.5 py-0.5 rounded-full", children: [
+                "+",
+                toPersianDigits$2(todayProcesses.length - 1),
+                " پروسه دیگر"
+              ] })
+            ] })
+          ] })
+        ] }),
+        onOpenProcessModal && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "button",
+          {
+            type: "button",
+            onClick: () => onOpenProcessModal(currentDateStr),
+            className: "flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition shadow-2xs active:scale-95 cursor-pointer",
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "مشاهده و ویرایش فرآیند" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(ChevronLeft, { size: 14 })
+            ]
+          }
+        )
+      ] })
+    ] }) })
   ] });
 };
 const getSoftBadgeStyles = (colorClass) => {
@@ -12372,30 +12376,30 @@ const StatsCard = ({
     } else if (textLength > 5) {
       valueFontSize = "text-base sm:text-lg leading-tight font-black";
     }
-    return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white p-3 sm:p-3.5 rounded-2xl shadow-2xs border border-slate-200/90 flex flex-col justify-between gap-2 transition-all hover:border-slate-300 hover:shadow-xs h-full w-full overflow-hidden", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between gap-2 min-w-0", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-[11px] sm:text-xs text-slate-500 font-bold truncate", children: title }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `w-7 h-7 sm:w-8 sm:h-8 rounded-xl border flex items-center justify-center shrink-0 ${badgeTone}`, children: /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { size: 15 }) })
+    return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white px-2.5 py-3 sm:p-3.5 rounded-2xl shadow-2xs border border-slate-200/90 flex flex-col items-center justify-between text-center gap-1.5 transition-all hover:border-slate-300 hover:shadow-xs h-full w-full overflow-hidden", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col items-center justify-center gap-1 w-full", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `w-7 h-7 sm:w-8 sm:h-8 rounded-xl border flex items-center justify-center shrink-0 ${badgeTone}`, children: /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { size: 15 }) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-[11px] sm:text-xs text-slate-600 font-extrabold leading-tight text-center w-full break-words", children: title })
       ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "min-w-0 pt-0.5", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "w-full flex flex-col items-center justify-center pt-0.5", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx(
           "p",
           {
-            className: `text-slate-900 tabular-nums break-words text-right ${valueFontSize}`,
+            className: `text-slate-900 tabular-nums break-words text-center mx-auto ${valueFontSize}`,
             title: stringValue,
             children: value
           }
         ),
-        subtitle && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-[10.5px] sm:text-[11px] text-slate-500 mt-1 font-bold tabular-nums truncate", children: subtitle })
+        subtitle && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-[10px] sm:text-[11px] text-slate-500 mt-1 font-bold tabular-nums text-center w-full truncate", children: subtitle })
       ] })
     ] });
   }
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white p-4 sm:p-5 rounded-2xl shadow-2xs border border-slate-200/90 flex items-center gap-3.5 transition-all hover:border-slate-300 hover:shadow-xs", children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `w-11 h-11 rounded-xl border flex items-center justify-center shrink-0 ${badgeTone}`, children: /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { size: 22 }) }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "min-w-0", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs sm:text-sm text-slate-500 font-bold", children: title }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xl sm:text-2xl font-black text-slate-900 tabular-nums mt-0.5", children: value }),
-      subtitle && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-slate-500 mt-0.5 font-medium tabular-nums", children: subtitle })
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white p-4 sm:p-5 rounded-2xl shadow-2xs border border-slate-200/90 flex flex-col items-center justify-center text-center gap-2 transition-all hover:border-slate-300 hover:shadow-xs", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 ${badgeTone}`, children: /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { size: 20 }) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "min-w-0 w-full text-center", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs sm:text-sm text-slate-600 font-extrabold", children: title }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xl sm:text-2xl font-black text-slate-900 tabular-nums mt-1 text-center mx-auto", children: value }),
+      subtitle && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-slate-500 mt-0.5 font-medium tabular-nums text-center", children: subtitle })
     ] })
   ] });
 };
@@ -17880,9 +17884,6 @@ const Dashboard = ({
       return true;
     });
   }, [baseScheduleForView, filterPerson, filterShiftType]);
-  const hiddenPastDaysCount = reactExports.useMemo(() => {
-    return filteredSchedule.filter((s) => s.date < todayPersianDate).length;
-  }, [filteredSchedule, todayPersianDate]);
   const mobileFilteredSchedule = reactExports.useMemo(() => {
     if (!hidePastDaysMobile) return filteredSchedule;
     return filteredSchedule.filter((s) => s.date >= todayPersianDate);
@@ -18099,9 +18100,9 @@ const Dashboard = ({
       }
     ),
     /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex flex-col gap-3 no-print", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden divide-y divide-slate-100", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-3 sm:p-4 flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2.5 sm:gap-3 min-w-0", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 ${viewMode === "RANGE" && appliedFilter ? "bg-blue-600 text-white" : "bg-emerald-600 text-white"}`, children: /* @__PURE__ */ jsxRuntimeExports.jsx(CalendarRange, { size: 19 }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-3.5 sm:p-4 flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3 min-w-0", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-2xs ${viewMode === "RANGE" && appliedFilter ? "bg-blue-600 text-white" : "bg-emerald-600 text-white"}`, children: /* @__PURE__ */ jsxRuntimeExports.jsx(CalendarRange, { size: 20 }) }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "min-w-0 flex-1", children: viewMode === "RANGE" && appliedFilter ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-1", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1.5 flex-wrap", children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-sm sm:text-base font-black text-slate-900 tracking-tight leading-snug", children: "برنامه شیفت" }),
@@ -18127,7 +18128,7 @@ const Dashboard = ({
               ] }),
               /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-slate-300", children: "•" }),
               /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "tabular-nums", children: [
-                toPersianDigits$1(filteredSchedule.length),
+                toPersianDigits$1(mobileFilteredSchedule.length),
                 " روز"
               ] })
             ] })
@@ -18139,147 +18140,148 @@ const Dashboard = ({
                 " ",
                 toPersianDigits$1(year)
               ] }),
+              isOwner && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: `inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full border whitespace-nowrap ${isLocked ? "bg-rose-50 text-rose-700 border-rose-200" : "bg-emerald-50 text-emerald-700 border-emerald-200"}`, children: [
+                isLocked ? /* @__PURE__ */ jsxRuntimeExports.jsx(Lock, { size: 10 }) : /* @__PURE__ */ jsxRuntimeExports.jsx(LockOpen, { size: 10 }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: isLocked ? "قفل شده" : "باز (قابل ویرایش)" })
+              ] }),
               filterPerson !== "All" && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "bg-emerald-50 text-emerald-800 text-[10px] sm:text-[11px] font-bold px-2 py-0.5 rounded-full border border-emerald-200 whitespace-nowrap", children: [
                 "فیلتر: ",
                 filterPerson.replace("مهندس", "")
               ] })
             ] }),
             /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-[11px] sm:text-xs text-slate-500 font-medium mt-0.5 tabular-nums", children: [
-              toPersianDigits$1(filteredSchedule.length),
+              toPersianDigits$1(mobileFilteredSchedule.length),
               " روز شیفت در جدول"
             ] })
           ] }) })
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 justify-between sm:justify-end w-full md:w-auto shrink-0 pt-2.5 md:pt-0 border-t md:border-t-0 border-slate-100", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `grid ${onNavigateToToday ? "grid-cols-2" : "grid-cols-1"} items-center gap-2 w-full md:w-auto md:min-w-[440px] lg:min-w-[500px] shrink-0 pt-2.5 md:pt-0 border-t md:border-t-0 border-slate-100`, children: [
           onNavigateToToday && /* @__PURE__ */ jsxRuntimeExports.jsxs(
             "button",
             {
               onClick: handleNavigateAndScrollToToday,
-              className: "h-9 sm:h-10 flex items-center justify-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300/80 hover:border-emerald-400 px-3 rounded-xl text-xs font-black transition active:scale-95 cursor-pointer whitespace-nowrap shrink-0 group",
+              className: "h-10 w-full flex items-center justify-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300/80 hover:border-emerald-400 px-2.5 rounded-xl text-xs font-black transition active:scale-95 cursor-pointer whitespace-nowrap group",
               title: "پرش و اسکرول مستقیم به برنامه شیفت امروز",
               children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "w-2 h-2 rounded-full bg-emerald-500 shrink-0" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx(CalendarCheck, { size: 15, className: "text-emerald-600 shrink-0" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(CalendarCheck, { size: 14, className: "text-emerald-600 shrink-0" }),
                 /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "امروز" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "hidden sm:inline text-[10.5px] font-black text-emerald-700 bg-white/80 px-1.5 py-0.5 rounded-md tabular-nums", children: toPersianDigits$1(todayPersianDate) })
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[10.5px] sm:text-[11px] font-black text-emerald-800 bg-white/90 px-1.5 py-0.5 rounded-md border border-emerald-200/70 tabular-nums", children: toPersianDigits$1(todayPersianDate) })
               ]
             }
           ),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "h-9 sm:h-10 flex items-center bg-slate-50/90 px-1 rounded-xl border border-slate-200/90 shrink-0", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: onPrevMonth, className: "p-1.5 hover:bg-white rounded-lg text-slate-600 transition cursor-pointer", title: "ماه قبل", children: /* @__PURE__ */ jsxRuntimeExports.jsx(ChevronRight, { size: 17 }) }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "font-extrabold text-slate-800 text-xs sm:text-sm px-2 sm:px-2.5 text-center min-w-[82px] sm:min-w-[94px] whitespace-nowrap", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "h-10 w-full flex items-center justify-between bg-slate-50/90 px-1 rounded-xl border border-slate-200/90", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: onPrevMonth, className: "w-7 h-7 flex items-center justify-center hover:bg-white rounded-lg text-slate-600 transition cursor-pointer shrink-0", title: "ماه قبل", children: /* @__PURE__ */ jsxRuntimeExports.jsx(ChevronRight, { size: 16 }) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "font-extrabold text-slate-800 text-xs sm:text-sm px-1.5 text-center whitespace-nowrap truncate", children: [
               monthName,
               " ",
               toPersianDigits$1(year)
             ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: onNextMonth, className: "p-1.5 hover:bg-white rounded-lg text-slate-600 transition cursor-pointer", title: "ماه بعد", children: /* @__PURE__ */ jsxRuntimeExports.jsx(ChevronLeft, { size: 17 }) })
+            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: onNextMonth, className: "w-7 h-7 flex items-center justify-center hover:bg-white rounded-lg text-slate-600 transition cursor-pointer shrink-0", title: "ماه بعد", children: /* @__PURE__ */ jsxRuntimeExports.jsx(ChevronLeft, { size: 16 }) })
           ] })
         ] })
       ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-3 py-2.5 sm:px-4 bg-slate-50/45 flex flex-col md:flex-row md:items-center md:justify-between gap-2", children: [
-        isOwner ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1.5 w-full md:w-auto flex-wrap", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "hidden lg:inline-flex items-center gap-1 text-[11px] font-black text-amber-800 bg-amber-50 border border-amber-200/90 px-2 py-1 rounded-lg shrink-0", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(Crown, { size: 12, className: "text-amber-600 shrink-0" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "مدیریت" })
-          ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "p-3 sm:px-4 bg-slate-50/50", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `grid gap-2 items-center ${isOwner ? "grid-cols-2 sm:grid-cols-4 lg:grid-cols-7" : "grid-cols-3"}`, children: [
+        isOwner && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs(
             "button",
             {
+              type: "button",
               onClick: onRegenerate,
-              className: "h-9 flex items-center justify-center gap-1.5 bg-white border border-slate-200 text-slate-700 hover:border-amber-400 hover:text-amber-700 hover:bg-amber-50/50 px-2.5 sm:px-3 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer",
-              title: "چیدمان مجدد هوشمند",
+              className: "h-10 w-full flex items-center justify-center gap-1.5 bg-white border border-slate-200/90 text-slate-700 hover:border-amber-400 hover:text-amber-800 hover:bg-amber-50/60 px-2.5 rounded-xl text-xs font-extrabold transition whitespace-nowrap cursor-pointer shadow-2xs",
+              title: "بروزرسانی، ذخیره ابری یا چیدمان مجدد هوشمند این ماه",
               children: [
                 /* @__PURE__ */ jsxRuntimeExports.jsx(RefreshCw, { size: 14, className: "shrink-0 text-amber-600" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "آپدیت" })
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "آپدیت برنامه" })
               ]
             }
           ),
           /* @__PURE__ */ jsxRuntimeExports.jsxs(
             "button",
             {
+              type: "button",
               onClick: onToggleLock,
-              className: `h-9 flex items-center justify-center gap-1.5 border px-2.5 sm:px-3 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${isLocked ? "bg-red-50 border-red-200 text-red-600 hover:bg-red-100" : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"}`,
-              title: isLocked ? "قفل شده" : "باز (قابل ویرایش)",
+              className: `h-10 w-full flex items-center justify-center gap-1.5 border px-2.5 rounded-xl text-xs font-extrabold transition whitespace-nowrap cursor-pointer shadow-2xs ${isLocked ? "bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100" : "bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100"}`,
+              title: isLocked ? "برنامه این ماه قفل است؛ برای باز کردن قفل و امکان ویرایش کلیک کنید" : "برنامه این ماه باز است؛ برای قفل کردن و جلوگیری از تغییر ناخواسته کلیک کنید",
               children: [
-                isLocked ? /* @__PURE__ */ jsxRuntimeExports.jsx(Lock, { size: 14, className: "shrink-0 text-red-500" }) : /* @__PURE__ */ jsxRuntimeExports.jsx(LockOpen, { size: 14, className: "shrink-0 text-slate-500" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: isLocked ? "قفل" : "باز" })
+                isLocked ? /* @__PURE__ */ jsxRuntimeExports.jsx(Lock, { size: 14, className: "shrink-0 text-rose-600" }) : /* @__PURE__ */ jsxRuntimeExports.jsx(LockOpen, { size: 14, className: "shrink-0 text-emerald-600" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: isLocked ? "قفل ماه: فعال" : "قفل ماه: باز" })
               ]
             }
           ),
           /* @__PURE__ */ jsxRuntimeExports.jsxs(
             "button",
             {
+              type: "button",
               onClick: () => setIsFiltersOpen(!isFiltersOpen),
-              className: `h-9 flex items-center justify-center gap-1.5 px-2.5 sm:px-3 rounded-xl text-xs font-bold transition border whitespace-nowrap cursor-pointer ${(publishedRange == null ? void 0 : publishedRange.isActive) ? "bg-amber-500 text-white border-amber-600" : appliedFilter ? "bg-blue-600 text-white border-blue-700" : isFiltersOpen ? "bg-amber-50 border-amber-300 text-amber-900" : "bg-white border-slate-200 text-slate-700 hover:bg-amber-50/40 hover:border-amber-200"}`,
+              className: `h-10 w-full flex items-center justify-center gap-1.5 px-2.5 rounded-xl text-xs font-extrabold transition border whitespace-nowrap cursor-pointer shadow-2xs ${(publishedRange == null ? void 0 : publishedRange.isActive) ? "bg-amber-500 text-white border-amber-600" : appliedFilter ? "bg-blue-600 text-white border-blue-700" : isFiltersOpen ? "bg-amber-50 border-amber-300 text-amber-900" : "bg-white border-slate-200/90 text-slate-700 hover:bg-amber-50/40 hover:border-amber-200"}`,
               title: "محدودسازی روزها و تعیین بازه برای نمایش به سایر کاربران",
               children: [
                 /* @__PURE__ */ jsxRuntimeExports.jsx(Crown, { size: 14, className: `shrink-0 ${(publishedRange == null ? void 0 : publishedRange.isActive) || appliedFilter ? "text-white" : "text-amber-600"}` }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "محدودسازی بازه" }),
-                (publishedRange == null ? void 0 : publishedRange.isActive) ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "hidden sm:inline bg-black/20 text-white px-1.5 py-0.5 rounded-full text-[9px] font-black", children: "منتشر" }) : appliedFilter ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "hidden sm:inline bg-white/25 text-white px-1.5 py-0.5 rounded-full text-[9px] font-black", children: "فیلتر" }) : null,
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "truncate", children: "محدودسازی بازه" }),
                 isFiltersOpen ? /* @__PURE__ */ jsxRuntimeExports.jsx(ChevronUp, { size: 13, className: "shrink-0" }) : /* @__PURE__ */ jsxRuntimeExports.jsx(ChevronDown, { size: 13, className: "shrink-0" })
               ]
             }
           )
-        ] }) : null,
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `flex flex-wrap items-center gap-1.5 w-full md:w-auto ${isOwner ? "pt-2 md:pt-0 border-t md:border-t-0 border-slate-200/70 md:mr-auto" : "md:mr-auto md:justify-end"}`, children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs(
-            "button",
-            {
-              id: "btn-toggle-shift-filter",
-              type: "button",
-              onClick: () => setIsShiftFilterOpen((prev) => !prev),
-              className: `h-9 flex items-center justify-center gap-1.5 px-2.5 sm:px-3 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${filterPerson !== "All" || filterShiftType !== "ALL" ? "bg-blue-600 hover:bg-blue-700 text-white" : isShiftFilterOpen ? "bg-blue-50 text-blue-800 border border-blue-300" : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300"}`,
-              title: "فیلتر هوشمند پرسنل و نوع شیفت",
-              children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx(Funnel, { size: 14, className: filterPerson !== "All" || filterShiftType !== "ALL" ? "text-white" : "text-blue-600" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "فیلتر شیفت" }),
-                (filterPerson !== "All" || filterShiftType !== "ALL") && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "bg-amber-400 text-slate-950 text-[10px] font-black px-1.5 py-0.2 rounded-full", children: filterPerson !== "All" && filterShiftType !== "ALL" ? "۲" : "۱" }),
-                isShiftFilterOpen ? /* @__PURE__ */ jsxRuntimeExports.jsx(ChevronUp, { size: 13, className: "shrink-0 opacity-70" }) : /* @__PURE__ */ jsxRuntimeExports.jsx(ChevronDown, { size: 13, className: "shrink-0 opacity-70" })
-              ]
-            }
-          ),
-          isOwner && /* @__PURE__ */ jsxRuntimeExports.jsxs(
-            "button",
-            {
-              type: "button",
-              onClick: () => {
-                const el = document.getElementById("fairness-analysis-section");
-                el == null ? void 0 : el.scrollIntoView({ behavior: "smooth", block: "start" });
-              },
-              className: "h-9 flex items-center justify-center gap-1.5 bg-white border border-slate-200 hover:border-indigo-400 text-slate-700 hover:text-indigo-700 hover:bg-indigo-50/50 px-2.5 sm:px-3 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer",
-              title: "تحلیل عدالت، سختی کار و ساعت وزنی پرسنل",
-              children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx(Scale, { size: 14, className: "shrink-0 text-indigo-600" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "تحلیل عدالت" })
-              ]
-            }
-          ),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs(
-            "button",
-            {
-              onClick: onOpenReport,
-              className: "h-9 flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 sm:px-3 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer",
-              title: "گزارش فردی",
-              children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx(FileText, { size: 14, className: "shrink-0" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "کارکرد پرسنل" })
-              ]
-            }
-          ),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs(
-            "button",
-            {
-              onClick: handlePrint,
-              className: "h-9 flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-black text-white px-2.5 sm:px-3 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer",
-              title: "چاپ برنامه",
-              children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx(Printer, { size: 14, className: "shrink-0" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "پرینت" })
-              ]
-            }
-          )
-        ] })
-      ] }),
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "button",
+          {
+            id: "btn-toggle-shift-filter",
+            type: "button",
+            onClick: () => setIsShiftFilterOpen((prev) => !prev),
+            className: `h-10 w-full flex items-center justify-center gap-1.5 px-2.5 rounded-xl text-xs font-extrabold transition whitespace-nowrap cursor-pointer shadow-2xs ${filterPerson !== "All" || filterShiftType !== "ALL" ? "bg-blue-600 hover:bg-blue-700 text-white border border-blue-600" : isShiftFilterOpen ? "bg-blue-50 text-blue-800 border border-blue-300" : "bg-white border border-slate-200/90 text-slate-700 hover:bg-slate-50 hover:border-slate-300"}`,
+            title: "فیلتر هوشمند پرسنل و نوع شیفت",
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(Funnel, { size: 14, className: filterPerson !== "All" || filterShiftType !== "ALL" ? "text-white shrink-0" : "text-blue-600 shrink-0" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "فیلتر شیفت" }),
+              (filterPerson !== "All" || filterShiftType !== "ALL") && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "bg-amber-400 text-slate-950 text-[10px] font-black px-1.5 py-0.2 rounded-full", children: filterPerson !== "All" && filterShiftType !== "ALL" ? "۲" : "۱" }),
+              isShiftFilterOpen ? /* @__PURE__ */ jsxRuntimeExports.jsx(ChevronUp, { size: 13, className: "shrink-0 opacity-70" }) : /* @__PURE__ */ jsxRuntimeExports.jsx(ChevronDown, { size: 13, className: "shrink-0 opacity-70" })
+            ]
+          }
+        ),
+        isOwner && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "button",
+          {
+            type: "button",
+            onClick: () => {
+              const el = document.getElementById("fairness-analysis-section");
+              el == null ? void 0 : el.scrollIntoView({ behavior: "smooth", block: "start" });
+            },
+            className: "h-10 w-full flex items-center justify-center gap-1.5 bg-white border border-slate-200/90 hover:border-indigo-400 text-slate-700 hover:text-indigo-700 hover:bg-indigo-50/50 px-2.5 rounded-xl text-xs font-extrabold transition whitespace-nowrap cursor-pointer shadow-2xs",
+            title: "تحلیل عدالت، سختی کار و ساعت وزنی پرسنل",
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(Scale, { size: 14, className: "shrink-0 text-indigo-600" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "تحلیل عدالت" })
+            ]
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "button",
+          {
+            type: "button",
+            onClick: onOpenReport,
+            className: "h-10 w-full flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 rounded-xl text-xs font-extrabold transition whitespace-nowrap cursor-pointer shadow-2xs",
+            title: "گزارش فردی",
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(FileText, { size: 14, className: "shrink-0" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "کارکرد پرسنل" })
+            ]
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "button",
+          {
+            type: "button",
+            onClick: handlePrint,
+            className: `h-10 w-full flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-black text-white px-2.5 rounded-xl text-xs font-extrabold transition whitespace-nowrap cursor-pointer shadow-2xs ${isOwner ? "col-span-2 sm:col-span-2 lg:col-span-1" : ""}`,
+            title: "چاپ برنامه",
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(Printer, { size: 14, className: "shrink-0" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "پرینت" })
+            ]
+          }
+        )
+      ] }) }),
       !isShiftFilterOpen && (filterPerson !== "All" || filterShiftType !== "ALL") && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between gap-2 bg-blue-50/70 text-blue-950 px-3 py-2 sm:px-4 text-xs font-bold print:hidden", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 flex-wrap", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx(Funnel, { size: 13, className: "text-blue-600 shrink-0" }),
@@ -18965,6 +18967,71 @@ const Dashboard = ({
           ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-1.5 flex items-center justify-end text-[7pt] font-bold text-slate-500 px-1", style: { breakInside: "avoid", pageBreakInside: "avoid" }, children: /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "سامانه یکپارچه مدیریت شیفت ShiftFlow" }) })
         ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white rounded-2xl border border-slate-200/90 p-2 sm:p-2.5 shadow-2xs grid grid-cols-3 gap-1.5 sm:gap-2.5 items-center overflow-hidden print:hidden", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "button",
+            {
+              type: "button",
+              onClick: () => setHidePastDaysMobile((prev) => !prev),
+              className: `h-9 sm:h-10 w-full px-1.5 sm:px-3 rounded-xl text-[11px] sm:text-xs font-extrabold flex items-center justify-center gap-1 sm:gap-1.5 whitespace-nowrap truncate border transition active:scale-95 cursor-pointer ${hidePastDaysMobile ? "bg-emerald-600 text-white border-emerald-600 shadow-2xs" : "bg-slate-50/90 text-slate-700 border-slate-200/90 hover:bg-emerald-50/60 hover:border-emerald-300"}`,
+              title: "مخفی کردن روزهای گذشته ماه برای کاهش اسکرول",
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(CalendarCheck, { size: 13, className: hidePastDaysMobile ? "text-white shrink-0" : "text-emerald-600 shrink-0" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "truncate", children: "از امروز به بعد" })
+              ]
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              type: "button",
+              onClick: () => setFilterShiftType(
+                (prev) => prev === "ALL" ? "DAY" : prev === "DAY" ? "NIGHT" : "ALL"
+              ),
+              className: `h-9 sm:h-10 w-full px-1.5 sm:px-3 rounded-xl text-[11px] sm:text-xs font-extrabold flex items-center justify-center gap-1 sm:gap-1.5 whitespace-nowrap truncate border transition active:scale-95 cursor-pointer ${filterShiftType === "DAY" ? "bg-amber-500 text-white border-amber-500 shadow-2xs" : filterShiftType === "NIGHT" ? "bg-indigo-600 text-white border-indigo-600 shadow-2xs" : "bg-slate-50/90 text-slate-700 border-slate-200/90 hover:bg-slate-100"}`,
+              title: "تغییر سریع نوع شیفت (روز و شب / فقط روز / فقط شب)",
+              children: filterShiftType === "DAY" ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(Sun, { size: 13, className: "text-white shrink-0" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "truncate", children: "فقط روز" })
+              ] }) : filterShiftType === "NIGHT" ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(Moon, { size: 13, className: "text-white shrink-0" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "truncate", children: "فقط شب" })
+              ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(Layers, { size: 13, className: "text-slate-500 shrink-0" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "truncate", children: "روز و شب" })
+              ] })
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "relative w-full min-w-0", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              Users,
+              {
+                size: 13,
+                className: `absolute right-2 sm:right-2.5 top-1/2 -translate-y-1/2 pointer-events-none ${filterPerson !== "All" ? "text-white" : "text-slate-500"}`
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              "select",
+              {
+                "aria-label": "فیلتر سریع پرسنل",
+                value: filterPerson,
+                onChange: (e) => setFilterPerson(e.target.value),
+                className: `w-full h-9 sm:h-10 appearance-none rounded-xl pr-6 sm:pr-7 pl-5 sm:pl-6 text-[11px] sm:text-xs font-extrabold border transition outline-none cursor-pointer truncate ${filterPerson !== "All" ? "bg-blue-600 text-white border-blue-600 shadow-2xs" : "bg-slate-50/90 text-slate-700 border-slate-200/90 hover:bg-slate-100"}`,
+                children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "All", className: "bg-white text-slate-800 font-bold", children: "همه پرسنل" }),
+                  shiftWorkers.map((person) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: person, className: "bg-white text-slate-800 font-bold", children: person }, `quick-opt-${person}`))
+                ]
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              ChevronDown,
+              {
+                size: 13,
+                className: `absolute left-1.5 sm:left-2 top-1/2 -translate-y-1/2 pointer-events-none ${filterPerson !== "All" ? "text-white/90" : "text-slate-400"}`
+              }
+            )
+          ] })
+        ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden hidden md:block print:hidden", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "overflow-x-auto", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("table", { className: "w-full text-sm text-center border-collapse", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("colgroup", { className: "hidden print:table-column-group", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("col", { style: { width: "8%" } }),
@@ -18976,20 +19043,20 @@ const Dashboard = ({
           /* @__PURE__ */ jsxRuntimeExports.jsx("thead", { className: "bg-slate-50 text-slate-700 font-bold border-b border-slate-200 print:bg-gray-100 print:text-black print:border-black", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "p-4 print:p-1 border border-slate-200 print:border-black", children: "روز" }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "p-4 print:p-1 border border-slate-200 print:border-black", children: "تاریخ" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: `p-4 print:p-1 border border-slate-200 print:border-black transition-colors ${filterShiftType === "DAY" ? "bg-amber-100/80 text-amber-950 font-black border-amber-300 ring-1 ring-amber-400/40" : ""}`, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-center gap-1.5", children: [
+            filterShiftType !== "NIGHT" && /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: `p-4 print:p-1 border border-slate-200 print:border-black transition-colors ${filterShiftType === "DAY" ? "bg-amber-100/80 text-amber-950 font-black border-amber-300 ring-1 ring-amber-400/40" : ""}`, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-center gap-1.5", children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx(Sun, { size: 15, className: "text-amber-500 shrink-0" }),
               /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "شیفت روز (۰۸ - ۱۹)" }),
-              filterShiftType === "DAY" && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[10px] bg-amber-500 text-white px-1.5 py-0.2 rounded-full font-black", children: "فعال" })
+              filterShiftType === "DAY" && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[10px] bg-amber-500 text-white px-1.5 py-0.2 rounded-full font-black", children: "فقط روز" })
             ] }) }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: `p-4 print:p-1 border border-slate-200 print:border-black transition-colors ${filterShiftType === "NIGHT" ? "bg-indigo-100/80 text-indigo-950 font-black border-indigo-300 ring-1 ring-indigo-400/40" : ""}`, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-center gap-1.5", children: [
+            filterShiftType !== "DAY" && /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: `p-4 print:p-1 border border-slate-200 print:border-black transition-colors ${filterShiftType === "NIGHT" ? "bg-indigo-100/80 text-indigo-950 font-black border-indigo-300 ring-1 ring-indigo-400/40" : ""}`, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-center gap-1.5", children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx(Moon, { size: 15, className: "text-indigo-500 shrink-0" }),
               /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "شیفت شب (۱۹ - ۰۸)" }),
-              filterShiftType === "NIGHT" && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[10px] bg-indigo-600 text-white px-1.5 py-0.2 rounded-full font-black", children: "فعال" })
+              filterShiftType === "NIGHT" && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[10px] bg-indigo-600 text-white px-1.5 py-0.2 rounded-full font-black", children: "فقط شب" })
             ] }) }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "p-4 print:p-1 border border-slate-200 print:border-black", children: "سرپرست (On-Call)" })
           ] }) }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("tbody", { className: "divide-y divide-slate-100 print:divide-black", children: [
-            filteredSchedule.map((entry) => {
+            mobileFilteredSchedule.map((entry) => {
               const isToday = entry.date === todayPersianDate;
               const isFriday = entry.dayName === "جمعه";
               const isHoliday = entry.isHoliday;
@@ -19049,7 +19116,7 @@ const Dashboard = ({
                         }
                       );
                     })(),
-                    /* @__PURE__ */ jsxRuntimeExports.jsxs("td", { className: "p-2 print:p-0.5 border border-slate-200 print:border-black", children: [
+                    filterShiftType !== "NIGHT" && /* @__PURE__ */ jsxRuntimeExports.jsxs("td", { className: "p-2 print:p-0.5 border border-slate-200 print:border-black", children: [
                       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "print:hidden", children: [
                         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between gap-1 group/day", children: [
                           /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 min-w-0", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -19170,7 +19237,7 @@ const Dashboard = ({
                         ] }, extraIdx))
                       ] })
                     ] }),
-                    /* @__PURE__ */ jsxRuntimeExports.jsxs("td", { className: "p-2 print:p-0.5 border border-slate-200 print:border-black", children: [
+                    filterShiftType !== "DAY" && /* @__PURE__ */ jsxRuntimeExports.jsxs("td", { className: "p-2 print:p-0.5 border border-slate-200 print:border-black", children: [
                       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "print:hidden", children: [
                         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between gap-1 group/night", children: [
                           /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 min-w-0", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -19318,92 +19385,33 @@ const Dashboard = ({
                 entry.id
               );
             }),
-            filteredSchedule.length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("tr", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("td", { colSpan: 5, className: "p-8 text-center text-slate-500 bg-slate-50/50", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col items-center justify-center gap-2", children: [
+            mobileFilteredSchedule.length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("tr", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("td", { colSpan: filterShiftType === "ALL" ? 5 : 4, className: "p-8 text-center text-slate-500 bg-slate-50/50", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col items-center justify-center gap-2", children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx(CalendarRange, { size: 32, className: "text-slate-300" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "font-bold text-sm text-slate-600", children: "در بازه زمانی انتخاب شده رکوردی یافت نشد" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "button",
-                {
-                  onClick: handleClearFilter,
-                  className: "mt-1 text-xs font-bold text-blue-600 hover:text-blue-800 underline",
-                  children: "بازگشت به نمایش کل ماه"
-                }
-              )
+              /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "font-bold text-sm text-slate-600", children: hidePastDaysMobile && filteredSchedule.length > 0 ? "تمام شیفت‌های این ماه مربوط به روزهای گذشته است" : "در بازه زمانی یا فیلتر انتخاب شده رکوردی یافت نشد" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3 mt-1", children: [
+                hidePastDaysMobile && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "button",
+                  {
+                    type: "button",
+                    onClick: () => setHidePastDaysMobile(false),
+                    className: "text-xs font-extrabold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-lg transition cursor-pointer",
+                    children: "نمایش کل روزهای ماه"
+                  }
+                ),
+                (filterPerson !== "All" || filterShiftType !== "ALL" || appliedFilter) && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "button",
+                  {
+                    type: "button",
+                    onClick: handleClearFilter,
+                    className: "text-xs font-bold text-blue-600 hover:text-blue-800 underline cursor-pointer",
+                    children: "پاک کردن فیلترها"
+                  }
+                )
+              ] })
             ] }) }) })
           ] })
         ] }) }) }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "md:hidden space-y-2.5 print:hidden", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white/95 rounded-xl border border-slate-200/90 px-2 py-1.5 shadow-2xs flex items-center gap-1.5 overflow-x-auto no-scrollbar", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsxs(
-              "button",
-              {
-                type: "button",
-                onClick: () => setHidePastDaysMobile((prev) => !prev),
-                className: `h-8 px-2.5 rounded-lg text-[11px] font-black flex items-center gap-1.5 whitespace-nowrap shrink-0 border transition active:scale-95 cursor-pointer ${hidePastDaysMobile ? "bg-emerald-600 text-white border-emerald-600 shadow-2xs" : "bg-slate-50/90 text-slate-700 border-slate-200/90 hover:bg-emerald-50/60 hover:border-emerald-300"}`,
-                title: "مخفی کردن روزهای گذشته ماه برای کاهش اسکرول",
-                children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsx(CalendarCheck, { size: 13, className: hidePastDaysMobile ? "text-white shrink-0" : "text-emerald-600 shrink-0" }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "از امروز به بعد" }),
-                  hidePastDaysMobile && hiddenPastDaysCount > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "bg-white/20 text-white px-1.5 py-0.2 rounded text-[10px] tabular-nums", children: [
-                    toPersianDigits$1(mobileFilteredSchedule.length),
-                    " روز"
-                  ] })
-                ]
-              }
-            ),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-4 w-px bg-slate-200 shrink-0" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "button",
-              {
-                type: "button",
-                onClick: () => setFilterShiftType(
-                  (prev) => prev === "ALL" ? "DAY" : prev === "DAY" ? "NIGHT" : "ALL"
-                ),
-                className: `h-8 px-2 rounded-lg text-[11px] font-bold flex items-center gap-1 whitespace-nowrap shrink-0 border transition active:scale-95 cursor-pointer ${filterShiftType === "DAY" ? "bg-amber-500 text-white border-amber-500 font-black shadow-2xs" : filterShiftType === "NIGHT" ? "bg-indigo-600 text-white border-indigo-600 font-black shadow-2xs" : "bg-slate-50/90 text-slate-600 border-slate-200/90 hover:bg-slate-100"}`,
-                title: "تغییر سریع نوع شیفت (همه / فقط روز / فقط شب)",
-                children: filterShiftType === "DAY" ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsx(Sun, { size: 12, className: "text-white shrink-0" }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "فقط روز" })
-                ] }) : filterShiftType === "NIGHT" ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsx(Moon, { size: 12, className: "text-white shrink-0" }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "فقط شب" })
-                ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsx(Layers, { size: 12, className: "text-slate-500 shrink-0" }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "روز و شب" })
-                ] })
-              }
-            ),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-4 w-px bg-slate-200 shrink-0" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "relative flex-1 min-w-[125px]", children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                Users,
-                {
-                  size: 13,
-                  className: `absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none ${filterPerson !== "All" ? "text-white" : "text-slate-500"}`
-                }
-              ),
-              /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                "select",
-                {
-                  "aria-label": "فیلتر سریع پرسنل",
-                  value: filterPerson,
-                  onChange: (e) => setFilterPerson(e.target.value),
-                  className: `w-full h-8 appearance-none rounded-lg pr-7 pl-6 text-[11px] font-bold border transition outline-none cursor-pointer truncate ${filterPerson !== "All" ? "bg-blue-600 text-white border-blue-600 font-black shadow-2xs" : "bg-slate-50/90 text-slate-700 border-slate-200/90 hover:bg-slate-100"}`,
-                  children: [
-                    /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "All", className: "bg-white text-slate-800 font-bold", children: "همه پرسنل" }),
-                    shiftWorkers.map((person) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: person, className: "bg-white text-slate-800 font-bold", children: person }, `quick-opt-${person}`))
-                  ]
-                }
-              ),
-              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                ChevronDown,
-                {
-                  size: 13,
-                  className: `absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none ${filterPerson !== "All" ? "text-white/90" : "text-slate-400"}`
-                }
-              )
-            ] })
-          ] }),
           mobileFilteredSchedule.length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white rounded-xl border border-slate-200 p-8 text-center", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx(CalendarRange, { size: 32, className: "text-slate-300 mx-auto mb-2" }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "font-bold text-sm text-slate-700", children: hidePastDaysMobile && filteredSchedule.length > 0 ? "تمام شیفت‌های این ماه مربوط به روزهای گذشته است" : filterPerson !== "All" ? `برای پرسنل «${filterPerson}» با فیلتر شیفت انتخابی رکوردی یافت نشد` : "در بازه زمانی انتخاب شده رکوردی یافت نشد" }),
@@ -20060,7 +20068,29 @@ const Dashboard = ({
                   }
                 )
               ] }),
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-4 sm:p-5 space-y-4 max-h-[70vh] overflow-y-auto", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "p-4 sm:p-5 space-y-4 max-h-[70vh] overflow-y-auto", children: isLocked ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-rose-50/80 border border-rose-200 rounded-2xl p-5 text-center space-y-3", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 border border-rose-200 flex items-center justify-center mx-auto", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Lock, { size: 22 }) }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-1", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("h4", { className: "font-black text-slate-900 text-sm sm:text-base", children: [
+                    "برنامه شیفت ",
+                    monthName,
+                    " قفل است"
+                  ] }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-slate-600 leading-relaxed", children: "برای جلوگیری از تغییرات ناخواسته، ویرایش دستی شیفت‌های این ماه قفل شده است. جهت تغییر این شیفت، ابتدا قفل ماه را باز کنید." })
+                ] }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                  "button",
+                  {
+                    type: "button",
+                    onClick: () => onToggleLock(),
+                    className: "w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center justify-center gap-2 shadow-sm transition cursor-pointer",
+                    children: [
+                      /* @__PURE__ */ jsxRuntimeExports.jsx(LockOpen, { size: 15 }),
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "باز کردن قفل ماه و ادامه ویرایش" })
+                    ]
+                  }
+                )
+              ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
                 quickEditNotice && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-emerald-50 border border-emerald-200 text-emerald-800 p-3 rounded-xl text-xs font-bold flex items-center gap-2 animate-in fade-in", children: [
                   /* @__PURE__ */ jsxRuntimeExports.jsx(CircleCheck, { size: 16, className: "text-emerald-600 shrink-0" }),
                   /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: quickEditNotice })
@@ -20117,7 +20147,7 @@ const Dashboard = ({
                     );
                   }) })
                 ] })
-              ] }),
+              ] }) }),
               /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "p-3 sm:p-4 border-t border-slate-100 bg-slate-50/50 flex justify-end", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
                 "button",
                 {
@@ -25231,88 +25261,6 @@ const PersonalReportModal = ({
       ] }) })
     ] })
   ] });
-};
-const scriptRel = "modulepreload";
-const assetsURL = function(dep, importerUrl) {
-  return new URL(dep, importerUrl).href;
-};
-const seen = {};
-const __vitePreload = function preload(baseModule, deps, importerUrl) {
-  let promise = Promise.resolve();
-  if (deps && deps.length > 0) {
-    let allSettled2 = function(promises) {
-      return Promise.all(
-        promises.map(
-          (p) => Promise.resolve(p).then(
-            (value) => ({ status: "fulfilled", value }),
-            (reason) => ({ status: "rejected", reason })
-          )
-        )
-      );
-    };
-    const links = document.getElementsByTagName("link");
-    const cspNonceMeta = document.querySelector(
-      "meta[property=csp-nonce]"
-    );
-    const cspNonce = (cspNonceMeta == null ? void 0 : cspNonceMeta.nonce) || (cspNonceMeta == null ? void 0 : cspNonceMeta.getAttribute("nonce"));
-    promise = allSettled2(
-      deps.map((dep) => {
-        dep = assetsURL(dep, importerUrl);
-        if (dep in seen) return;
-        seen[dep] = true;
-        const isCss = dep.endsWith(".css");
-        const cssSelector = isCss ? '[rel="stylesheet"]' : "";
-        const isBaseRelative = !!importerUrl;
-        if (isBaseRelative) {
-          for (let i = links.length - 1; i >= 0; i--) {
-            const link2 = links[i];
-            if (link2.href === dep && (!isCss || link2.rel === "stylesheet")) {
-              return;
-            }
-          }
-        } else if (document.querySelector(`link[href="${dep}"]${cssSelector}`)) {
-          return;
-        }
-        const link = document.createElement("link");
-        link.rel = isCss ? "stylesheet" : scriptRel;
-        if (!isCss) {
-          link.as = "script";
-        }
-        link.crossOrigin = "";
-        link.href = dep;
-        if (cspNonce) {
-          link.setAttribute("nonce", cspNonce);
-        }
-        document.head.appendChild(link);
-        if (isCss) {
-          return new Promise((res, rej) => {
-            link.addEventListener("load", res);
-            link.addEventListener(
-              "error",
-              () => rej(new Error(`Unable to preload CSS for ${dep}`))
-            );
-          });
-        }
-      })
-    );
-  }
-  function handlePreloadError(err) {
-    const e = new Event("vite:preloadError", {
-      cancelable: true
-    });
-    e.payload = err;
-    window.dispatchEvent(e);
-    if (!e.defaultPrevented) {
-      throw err;
-    }
-  }
-  return promise.then((res) => {
-    for (const item of res || []) {
-      if (item.status !== "rejected") continue;
-      handlePreloadError(item.reason);
-    }
-    return baseModule().catch(handlePreloadError);
-  });
 };
 var __webpack_modules__ = {
   /***/
@@ -58513,7 +58461,11 @@ async function parsePdfBuffer(bufferInput, knownPersonnel = []) {
     rowGroups.length = 0;
     allItems.length = 0;
     try {
-      const workerMod = await __vitePreload(() => import("./pdf.worker-BPvb6uQc.js"), true ? __vite__mapDeps([0,1,2,3,4]) : void 0, import.meta.url);
+      const workerHref = typeof window !== "undefined" ? new URL("./pdf.worker.mjs", document.baseURI || window.location.href).href : "pdfjs-dist/legacy/build/pdf.worker.mjs";
+      const workerMod = await import(
+        /* @vite-ignore */
+        workerHref
+      );
       if (typeof globalThis !== "undefined" && !globalThis.pdfjsWorker && workerMod) {
         globalThis.pdfjsWorker = workerMod;
       }
@@ -61133,6 +61085,10 @@ const CLIENT_BUILD_ID = "shiftflow-v2.2";
 const LEGACY_STALE_SCHEDULE_HASH = "88aedc2d";
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+try {
+  setLogLevel("silent");
+} catch {
+}
 let isDirectFirestoreUsable = true;
 let isDirectFirestoreBlockedUntilMs = 0;
 let isFirestoreQuotaExhausted = false;
@@ -61917,7 +61873,16 @@ function subscribeToCloudRoster(onUpdate, onInitialEmpty, onError) {
     document.addEventListener("visibilitychange", handleVisibilityOrFocus);
   }
   let firestoreUnsubscribe = null;
-  if (!isFirestoreQuotaExhausted) {
+  let firestoreReconnectTimer = null;
+  const attachFirestoreListener = () => {
+    if (isCancelled || isFirestoreQuotaExhausted) return;
+    if (firestoreUnsubscribe) {
+      try {
+        firestoreUnsubscribe();
+      } catch {
+      }
+      firestoreUnsubscribe = null;
+    }
     try {
       const docRef = doc(db, ROSTER_DOC_PATH, ROSTER_DOC_ID);
       firestoreUnsubscribe = onSnapshot(
@@ -61949,17 +61914,25 @@ function subscribeToCloudRoster(onUpdate, onInitialEmpty, onError) {
             updateSyncDetails({ isQuotaExhausted: true, firestoreConnected: false });
           } else {
             updateSyncDetails({ firestoreConnected: false });
+            if (!isCancelled && !isFirestoreQuotaExhausted) {
+              if (firestoreReconnectTimer) clearTimeout(firestoreReconnectTimer);
+              firestoreReconnectTimer = setTimeout(() => {
+                attachFirestoreListener();
+              }, 3e3);
+            }
           }
         }
       );
     } catch {
       updateSyncDetails({ firestoreConnected: false });
     }
-  }
+  };
+  attachFirestoreListener();
   return () => {
     isCancelled = true;
     if (pollTimer) clearInterval(pollTimer);
     if (sseReconnectTimer) clearTimeout(sseReconnectTimer);
+    if (firestoreReconnectTimer) clearTimeout(firestoreReconnectTimer);
     if (bgWorker) {
       try {
         bgWorker.terminate();
@@ -64008,9 +63981,9 @@ const App = () => {
   const [showAiAssistant, setShowAiAssistant] = reactExports.useState(() => {
     try {
       const saved = localStorage.getItem("shiftflow_show_ai_assistant");
-      return saved !== null ? saved === "true" : true;
+      return saved !== null ? saved === "true" : false;
     } catch {
-      return true;
+      return false;
     }
   });
   const [settingsSubTab, setSettingsSubTab] = reactExports.useState(() => {
@@ -64024,6 +63997,17 @@ const App = () => {
       return "general";
     }
   });
+  reactExports.useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    const raf = requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [activeTab, settingsSubTab]);
   const handleSelectSettingsSubTab = (tab) => {
     setSettingsSubTab(tab);
     try {
@@ -64302,10 +64286,10 @@ const App = () => {
       setPasswordModalError(null);
       setIsOwner(true);
       setIsSettingsUnlocked(true);
-      setShowAiAssistant(true);
+      setShowAiAssistant(false);
       try {
         localStorage.setItem(STORAGE_KEYS.IS_OWNER, "true");
-        localStorage.setItem("shiftflow_show_ai_assistant", "true");
+        localStorage.setItem("shiftflow_show_ai_assistant", "false");
       } catch (e) {
         console.error(e);
       }
@@ -64313,6 +64297,7 @@ const App = () => {
       setIsPasswordModalOpen(false);
       if (intendedTab === "settings") {
         setActiveTab("settings");
+        window.scrollTo({ top: 0, left: 0, behavior: "instant" });
       }
       setIntendedTab("dashboard");
     } else {
@@ -65252,11 +65237,14 @@ const App = () => {
     syncUpdatedSchedule(newSched);
     setSchedule(newSched);
   };
+  const [isUpdateScheduleModalOpen, setIsUpdateScheduleModalOpen] = reactExports.useState(false);
   const handleToggleLock = () => {
     hasUserEditedRef.current = true;
     const key = currentMonthKey;
+    const monthLabel = `${currentMonth.name} ${toPersianDigits$2(currentYear)}`;
+    const wasUnlocked = unlockedMonths.includes(key);
     let newLocked;
-    if (unlockedMonths.includes(key)) {
+    if (wasUnlocked) {
       newLocked = unlockedMonths.filter((m) => m !== key);
     } else {
       newLocked = [...unlockedMonths, key];
@@ -65268,6 +65256,11 @@ const App = () => {
     } catch (e) {
       console.error(e);
     }
+    setSaveNotice({
+      type: "success",
+      message: wasUnlocked ? `برنامه شیفت ${monthLabel} قفل شد؛ ویرایش‌های دستی غیرفعال گردید تا از تغییرات ناخواسته جلوگیری شود.` : `قفل برنامه شیفت ${monthLabel} باز شد؛ اکنون امکان ویرایش شیفت‌ها فعال است.`
+    });
+    setTimeout(() => setSaveNotice(null), 4e3);
     if (!isStagingPreviewRef.current) {
       setSyncStatus("syncing");
       saveCloudRoster(buildCloudRosterSnapshot({ unlockedMonths: newLocked })).then(() => setSyncStatus("synced")).catch((e) => {
@@ -65280,47 +65273,42 @@ const App = () => {
       });
     }
   };
-  const handleRegenerate = () => {
+  const executeSmartMonthRegenerate = () => {
     const monthCode = currentMonth.code;
     const monthLabel = `${currentMonth.name} ${toPersianDigits$2(currentYear)}`;
     const yearStr = String(currentYear);
-    setConfirmDialog({
-      title: `چیدمان مجدد ${monthLabel}`,
-      message: `آیا از چیدمان مجدد برنامه شیفت ${monthLabel} اطمینان دارید؟ تمام تغییرات دستی این ماه جایگزین و در سرور ابری ذخیره خواهد شد.`,
-      confirmLabel: "تایید و آپدیت برنامه",
-      tone: "warning",
-      onConfirm: () => {
-        const filteredSchedule = scheduleRef.current.filter((s) => !s.date.startsWith(`${yearStr}/${monthCode}`));
-        const monthStartPrefix = `${yearStr}/${monthCode}/01`;
-        const priorSchedule = [...filteredSchedule].filter((s) => s.date < monthStartPrefix).sort((a, b) => a.date.localeCompare(b.date));
-        let startDayIndex = 6;
-        if (priorSchedule.length > 0) {
-          const lastEntry = priorSchedule[priorSchedule.length - 1];
-          const weekDays = ["شنبه", "یک‌شنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنج‌شنبه", "جمعه"];
-          const idx = weekDays.indexOf(lastEntry.dayName);
-          if (idx !== -1) startDayIndex = (idx + 1) % 7;
-        } else {
-          const weekdayMap = ["یک‌شنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنج‌شنبه", "جمعه", "شنبه"];
-          const firstDayName = getDayNameForJalali(currentYear, parseInt(monthCode, 10), 1);
-          const weekDays = ["شنبه", "یک‌شنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنج‌شنبه", "جمعه"];
-          const idx = weekDays.indexOf(firstDayName);
-          if (idx !== -1) startDayIndex = idx;
-          else if (weekdayMap.length) startDayIndex = 6;
-        }
-        const daysInMonth = getDaysInPersianMonth(monthCode);
-        const newData = generateNextMonth(
-          priorSchedule,
-          currentYear,
-          monthCode,
-          startDayIndex,
-          personnelListRef.current,
-          daysInMonth
-        );
-        const updatedSchedule = [...filteredSchedule, ...newData].sort((a, b) => a.date.localeCompare(b.date));
-        setSchedule(updatedSchedule);
-        syncUpdatedSchedule(updatedSchedule, `برنامه ${monthLabel} با موفقیت آپدیت و در سرور ابری ذخیره شد.`);
-      }
-    });
+    const filteredSchedule = scheduleRef.current.filter((s) => !s.date.startsWith(`${yearStr}/${monthCode}`));
+    const monthStartPrefix = `${yearStr}/${monthCode}/01`;
+    const priorSchedule = [...filteredSchedule].filter((s) => s.date < monthStartPrefix).sort((a, b) => a.date.localeCompare(b.date));
+    let startDayIndex = 6;
+    if (priorSchedule.length > 0) {
+      const lastEntry = priorSchedule[priorSchedule.length - 1];
+      const weekDays = ["شنبه", "یک‌شنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنج‌شنبه", "جمعه"];
+      const idx = weekDays.indexOf(lastEntry.dayName);
+      if (idx !== -1) startDayIndex = (idx + 1) % 7;
+    } else {
+      const weekdayMap = ["یک‌شنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنج‌شنبه", "جمعه", "شنبه"];
+      const firstDayName = getDayNameForJalali(currentYear, parseInt(monthCode, 10), 1);
+      const weekDays = ["شنبه", "یک‌شنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنج‌شنبه", "جمعه"];
+      const idx = weekDays.indexOf(firstDayName);
+      if (idx !== -1) startDayIndex = idx;
+      else if (weekdayMap.length) startDayIndex = 6;
+    }
+    const daysInMonth = getDaysInPersianMonth(monthCode);
+    const newData = generateNextMonth(
+      priorSchedule,
+      currentYear,
+      monthCode,
+      startDayIndex,
+      personnelListRef.current,
+      daysInMonth
+    );
+    const updatedSchedule = [...filteredSchedule, ...newData].sort((a, b) => a.date.localeCompare(b.date));
+    setSchedule(updatedSchedule);
+    syncUpdatedSchedule(updatedSchedule, `چیدمان هوشمند ${monthLabel} انجام شد و در سرور ابری ذخیره گردید.`);
+  };
+  const handleRegenerate = () => {
+    setIsUpdateScheduleModalOpen(true);
   };
   const handleApplyAiGeneratedMonth = (targetYear, targetMonthCode, newMonthEntries, mode = "apply") => {
     var _a2;
@@ -66962,6 +66950,123 @@ const App = () => {
         )
       }
     ),
+    isUpdateScheduleModalOpen && /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "div",
+      {
+        className: "fixed inset-0 z-50 bg-black/45 backdrop-blur-[2px] flex items-center justify-center p-4 animate-in fade-in duration-200 no-print",
+        onClick: () => setIsUpdateScheduleModalOpen(false),
+        children: /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "div",
+          {
+            className: "bg-white p-5 sm:p-6 rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full animate-in zoom-in-95 text-right space-y-4",
+            onClick: (e) => e.stopPropagation(),
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between border-b border-slate-100 pb-3", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2.5", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-10 h-10 rounded-xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center shrink-0", children: /* @__PURE__ */ jsxRuntimeExports.jsx(RefreshCw, { size: 20 }) }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsxs("h3", { className: "font-black text-slate-900 text-sm sm:text-base", children: [
+                      "آپدیت و بروزرسانی برنامه ",
+                      currentMonth.name,
+                      " ",
+                      toPersianDigits$2(currentYear)
+                    ] }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-[11px] text-slate-500 font-bold mt-0.5", children: "عملیات مورد نظر برای بروزرسانی برنامه شیفت را انتخاب کنید" })
+                  ] })
+                ] }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "button",
+                  {
+                    type: "button",
+                    onClick: () => setIsUpdateScheduleModalOpen(false),
+                    className: "text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition cursor-pointer",
+                    children: /* @__PURE__ */ jsxRuntimeExports.jsx(X, { size: 18 })
+                  }
+                )
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-2.5", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                  "button",
+                  {
+                    type: "button",
+                    disabled: isSavingChanges,
+                    onClick: async () => {
+                      setIsUpdateScheduleModalOpen(false);
+                      await handleManualSaveChanges();
+                    },
+                    className: "w-full p-3.5 rounded-xl border border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100/80 text-right transition flex items-start gap-3 cursor-pointer group",
+                    children: [
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-2xs", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Save, { size: 18 }) }),
+                      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "min-w-0 flex-1", children: [
+                        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-black text-emerald-950 text-xs sm:text-sm", children: "ذخیره و آپدیت تغییرات فعلی در سرور ابری" }),
+                        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-[11px] text-emerald-800/90 mt-0.5 leading-relaxed", children: "تمام ویرایش‌های دستی، نفرات کمکی و سرپرستان فعلی را فوراً برای همه مرورگرها و دستگاه‌ها تثبیت می‌کند." })
+                      ] })
+                    ]
+                  }
+                ),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                  "button",
+                  {
+                    type: "button",
+                    disabled: isForceSyncing,
+                    onClick: async () => {
+                      setIsUpdateScheduleModalOpen(false);
+                      await handleForceSync();
+                    },
+                    className: "w-full p-3.5 rounded-xl border border-blue-200 bg-blue-50/60 hover:bg-blue-100/70 text-right transition flex items-start gap-3 cursor-pointer group",
+                    children: [
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-2xs", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Cloud, { size: 18 }) }),
+                      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "min-w-0 flex-1", children: [
+                        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-black text-blue-950 text-xs sm:text-sm", children: "دریافت آخرین نسخه ثبت‌شده از سرور" }),
+                        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-[11px] text-blue-800/90 mt-0.5 leading-relaxed", children: "اطلاعات صفحه را مستقیماً با آخرین نسخه ذخیره‌شده در پایگاه داده ابری همگام‌سازی می‌کند." })
+                      ] })
+                    ]
+                  }
+                ),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                  "button",
+                  {
+                    type: "button",
+                    onClick: () => {
+                      setIsUpdateScheduleModalOpen(false);
+                      const monthLabel = `${currentMonth.name} ${toPersianDigits$2(currentYear)}`;
+                      setConfirmDialog({
+                        title: `چیدمان مجدد هوشمند ${monthLabel}`,
+                        message: isCurrentMonthLocked ? `ماه ${monthLabel} در حال حاضر قفل است. در صورت تایید، برنامه این ماه بر اساس الگوریتم چرخش خودکار از نو چیده شده و جایگزین شیفت‌های فعلی می‌شود.` : `آیا از چیدمان مجدد خودکار ${monthLabel} اطمینان دارید؟ تمام تغییرات دستی این ماه با الگوریتم چرخش استاندارد جایگزین خواهد شد.`,
+                        confirmLabel: "تایید و چیدمان مجدد ماه",
+                        tone: "warning",
+                        onConfirm: executeSmartMonthRegenerate
+                      });
+                    },
+                    className: "w-full p-3.5 rounded-xl border border-amber-200 bg-amber-50/60 hover:bg-amber-100/70 text-right transition flex items-start gap-3 cursor-pointer group",
+                    children: [
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-2xs", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Sparkles, { size: 18 }) }),
+                      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "min-w-0 flex-1", children: [
+                        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "font-black text-amber-950 text-xs sm:text-sm", children: [
+                          "چیدمان مجدد خودکار کل ماه (",
+                          currentMonth.name,
+                          ")"
+                        ] }),
+                        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-[11px] text-amber-900/80 mt-0.5 leading-relaxed", children: "چیدمان خودکار شیفت‌های این ماه از ابتدا بر اساس لیست پرسنل فعال و الگوریتم نوبت‌دهی." })
+                      ] })
+                    ]
+                  }
+                )
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "pt-1 flex justify-end", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "button",
+                {
+                  type: "button",
+                  onClick: () => setIsUpdateScheduleModalOpen(false),
+                  className: "px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer",
+                  children: "بستن"
+                }
+              ) })
+            ]
+          }
+        )
+      }
+    ),
     isOwner && showAiAssistant && /* @__PURE__ */ jsxRuntimeExports.jsx(
       GeminiChatbot,
       {
@@ -66995,6 +67100,3 @@ const root = ReactDOM.createRoot(rootElement);
 root.render(
   /* @__PURE__ */ jsxRuntimeExports.jsx(React.StrictMode, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(App, {}) })
 );
-export {
-  __vitePreload as _
-};

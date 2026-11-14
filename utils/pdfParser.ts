@@ -373,7 +373,11 @@ export async function parsePdfBuffer(
     rowGroups.length = 0;
     allItems.length = 0;
     try {
-      const workerMod: any = await import('pdfjs-dist/legacy/build/pdf.worker.mjs');
+      const workerHref =
+        typeof window !== 'undefined'
+          ? new URL('./pdf.worker.mjs', document.baseURI || window.location.href).href
+          : 'pdfjs-dist/legacy/build/pdf.worker.mjs';
+      const workerMod: any = await import(/* @vite-ignore */ workerHref);
       if (typeof globalThis !== 'undefined' && !(globalThis as any).pdfjsWorker && workerMod) {
         (globalThis as any).pdfjsWorker = workerMod;
       }

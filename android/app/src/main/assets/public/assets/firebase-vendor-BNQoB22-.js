@@ -10851,6 +10851,9 @@ const ve = new Logger("@firebase/firestore");
 function __PRIVATE_getLogLevel() {
   return ve.logLevel;
 }
+function setLogLevel(e2) {
+  ve.setLogLevel(e2);
+}
 function __PRIVATE_logDebug(e2, ...t2) {
   if (ve.logLevel <= LogLevel.DEBUG) {
     const n2 = t2.map(__PRIVATE_argToString);
@@ -26656,8 +26659,9 @@ export {
   getFirestore as b,
   getDocFromServer as c,
   doc as d,
+  setDoc as e,
   getApps as g,
   initializeApp as i,
   onSnapshot as o,
-  setDoc as s
+  setLogLevel as s
 };

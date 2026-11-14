@@ -1851,7 +1851,7 @@ const Zap = createLucideIcon("zap", __iconNode);
 export {
   MessageSquare as $,
   ArrowLeft as A,
-  LockOpen as B,
+  Crown as B,
   CircleCheck as C,
   Dna as D,
   Funnel as E,
@@ -1919,8 +1919,8 @@ export {
   Cloud as ax,
   LogOut as ay,
   KeyRound as az,
-  Calendar as b,
-  Clock as c,
+  Clock as b,
+  Calendar as c,
   ChevronLeft as d,
   React as e,
   Check as f,
@@ -1940,8 +1940,8 @@ export {
   TrendingUp as t,
   TrendingDown as u,
   CalendarRange as v,
-  CalendarCheck as w,
-  ChevronRight as x,
-  Crown as y,
+  LockOpen as w,
+  CalendarCheck as x,
+  ChevronRight as y,
   RefreshCw as z
 };

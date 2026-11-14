@@ -69,41 +69,35 @@ jobs:
           echo "=== Checking Node & NPM environment ==="
           node -v
           npm -v
+          rm -rf dist
 
           if [ -f "package.json" ]; then
-            echo "=== Normalizing package.json for public npm registry ==="
+            echo "=== Normalizing package.json for public npm registry (frontend build) ==="
             python3 -c '
           import json
-          p = json.load(open("package.json", "r", encoding="utf-8"))
-          p.pop("engines", None)
-          pin_map = {
-              "react": "^19.0.0",
-              "react-dom": "^19.0.0",
-              "lucide-react": "latest",
-              "recharts": "latest",
-              "xlsx": "^0.18.5",
-              "firebase": "latest",
-              "pdfjs-dist": "^4.10.38",
-              "@google/genai": "latest",
-              "cors": "latest",
-              "express": "^4.21.2",
-              "vite": "^6.0.0",
-              "@vitejs/plugin-react": "^4.3.4",
-              "vite-plugin-pwa": "latest",
-              "typescript": "~5.7.2",
-              "tsx": "latest",
-              "@types/node": "latest",
-              "@types/express": "latest",
-              "@types/cors": "latest"
+          ci_pkg = {
+              "name": "final-shiftflow-production-roster",
+              "private": True,
+              "version": "4.2.5",
+              "type": "module",
+              "scripts": {
+                  "build": "vite build"
+              },
+              "dependencies": {
+                  "firebase": "latest",
+                  "lucide-react": "latest",
+                  "pdfjs-dist": "^4.10.38",
+                  "react": "^19.0.0",
+                  "react-dom": "^19.0.0",
+                  "recharts": "latest",
+                  "xlsx": "^0.18.5"
+              },
+              "devDependencies": {
+                  "@vitejs/plugin-react": "latest",
+                  "vite": "latest"
+              }
           }
-          for sec in ["dependencies", "devDependencies"]:
-              if sec in p and isinstance(p[sec], dict):
-                  for k in list(p[sec].keys()):
-                      if k.startswith("@capacitor/"):
-                          del p[sec][k]
-                      else:
-                          p[sec][k] = pin_map.get(k, "latest")
-          json.dump(p, open("package.json", "w", encoding="utf-8"), indent=2)
+          json.dump(ci_pkg, open("package.json", "w", encoding="utf-8"), indent=2)
           '
             rm -f package-lock.json bun.lock bun.lockb
             echo "=== Installing npm dependencies ==="
@@ -121,6 +115,7 @@ jobs:
             base: "./",
             plugins: [react()],
             resolve: { alias: { "@": path.resolve(".") } },
+            esbuild: { target: "esnext" },
             build: { target: "esnext", outDir: "dist", emptyOutDir: true, chunkSizeWarningLimit: 3000 }
           });
           """)
