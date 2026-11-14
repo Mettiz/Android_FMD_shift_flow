@@ -12310,15 +12310,15 @@ const TodayHero = ({
           }
         )
       ] }),
-      todayProcesses.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-4 pt-3.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2.5 bg-gradient-to-l from-emerald-50/70 to-teal-50/70 p-3 rounded-xl border border-emerald-200/60", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2.5", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0", children: /* @__PURE__ */ jsxRuntimeExports.jsx(FlaskConical, { size: 15 }) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md", children: "پروسه بیوراکتور و تولید فعال امروز:" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-xs sm:text-sm font-black text-slate-850 mt-0.5 flex items-center gap-2 flex-wrap", children: [
+      todayProcesses.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-4 pt-3.5 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gradient-to-l from-emerald-50/70 to-teal-50/70 p-3 sm:p-3.5 rounded-xl border border-emerald-200/60", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2.5 min-w-0", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-2xs", children: /* @__PURE__ */ jsxRuntimeExports.jsx(FlaskConical, { size: 17 }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "min-w-0", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "inline-block text-[10px] font-bold text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-md", children: "پروسه بیوراکتور و تولید فعال امروز:" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-xs sm:text-sm font-black text-slate-900 mt-1 flex items-center gap-2 flex-wrap", children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: todayProcesses[0].title }),
-              todayProcesses[0].vessel && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[11px] text-slate-600 bg-white px-2 py-0.5 rounded-md border border-slate-200 font-medium", children: todayProcesses[0].vessel }),
-              todayProcesses.length > 1 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-[10px] bg-emerald-200 text-emerald-900 font-black px-1.5 py-0.5 rounded-full", children: [
+              todayProcesses[0].vessel && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[11px] text-slate-600 bg-white px-2 py-0.5 rounded-md border border-slate-200 font-medium", dir: "ltr", children: todayProcesses[0].vessel }),
+              todayProcesses.length > 1 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-[10.5px] bg-emerald-200 text-emerald-900 font-black px-2 py-0.5 rounded-lg tabular-nums", children: [
                 "+",
                 toPersianDigits$2(todayProcesses.length - 1),
                 " پروسه دیگر"
@@ -12331,10 +12331,10 @@ const TodayHero = ({
           {
             type: "button",
             onClick: () => onOpenProcessModal(currentDateStr),
-            className: "flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition shadow-2xs active:scale-95 cursor-pointer",
+            className: "w-full sm:w-auto h-9 flex items-center justify-center gap-1.5 px-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-2xs active:scale-95 cursor-pointer whitespace-nowrap shrink-0",
             children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "مشاهده و ویرایش فرآیند" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx(ChevronLeft, { size: 14 })
+              /* @__PURE__ */ jsxRuntimeExports.jsx(ChevronLeft, { size: 14, className: "shrink-0" })
             ]
           }
         )
@@ -19918,56 +19918,79 @@ const Dashboard = ({
         personnelList
       }
     ) }),
-    showProcessSchedule && isOwner && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white rounded-xl shadow-2xs border border-slate-200 overflow-hidden no-print", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-3.5 py-2.5 border-b border-slate-200 bg-linear-to-r from-emerald-50/70 via-white to-slate-50 flex flex-wrap justify-between items-center gap-2", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center shadow-2xs shrink-0", children: /* @__PURE__ */ jsxRuntimeExports.jsx(FlaskConical, { size: 15 }) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 flex-wrap", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { className: "text-xs sm:text-sm font-black text-slate-800", children: "جدول فرآیندهای روزانه" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-[11px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full border border-emerald-200/80", children: [
-              toPersianDigits$1(processTableEntries.length),
-              " روز دارای پروسه"
-            ] })
+    showProcessSchedule && isOwner && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden no-print", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-4 py-3 sm:px-5 sm:py-3.5 border-b border-slate-200 bg-linear-to-r from-emerald-50/70 via-white to-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2.5", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-2xs shrink-0", children: /* @__PURE__ */ jsxRuntimeExports.jsx(FlaskConical, { size: 18 }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 flex-wrap", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { className: "text-xs sm:text-sm font-black text-slate-900", children: "جدول فرآیندهای روزانه" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-[11px] bg-emerald-50 text-emerald-700 font-bold px-2.5 py-0.5 rounded-lg border border-emerald-200/80 tabular-nums", children: [
+                toPersianDigits$1(processTableEntries.length),
+                " روز دارای پروسه"
+              ] })
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-[11px] text-slate-500 mt-0.5", children: "برنامه‌ریزی و پیگیری مراحل کشت سلول، بیوراکتورها و آماده‌سازی مخازن" })
           ] })
         ] }),
-        totalDaysWithProcesses > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "relative w-40 sm:w-48", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "input",
-            {
-              type: "text",
-              placeholder: "جستجوی پروسه...",
-              value: processSearchQuery,
-              onChange: (e) => setProcessSearchQuery(e.target.value),
-              className: "w-full text-xs font-bold pl-6 pr-2.5 py-1 bg-white border border-slate-200 rounded-lg focus:outline-hidden focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 placeholder:text-slate-400 placeholder:font-normal"
-            }
-          ),
-          processSearchQuery ? /* @__PURE__ */ jsxRuntimeExports.jsx(
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 w-full sm:w-auto", children: [
+          totalDaysWithProcesses > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "relative flex-1 sm:w-52", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "input",
+              {
+                type: "text",
+                placeholder: "جستجوی پروسه...",
+                value: processSearchQuery,
+                onChange: (e) => setProcessSearchQuery(e.target.value),
+                className: "w-full h-9 text-xs font-bold pl-7 pr-3 bg-white border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 placeholder:text-slate-400 placeholder:font-normal"
+              }
+            ),
+            processSearchQuery ? /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "button",
+              {
+                type: "button",
+                onClick: () => setProcessSearchQuery(""),
+                className: "absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer",
+                title: "پاک کردن",
+                children: /* @__PURE__ */ jsxRuntimeExports.jsx(X, { size: 13 })
+              }
+            ) : /* @__PURE__ */ jsxRuntimeExports.jsx(Search, { size: 13, className: "absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
             "button",
             {
               type: "button",
-              onClick: () => setProcessSearchQuery(""),
-              className: "absolute left-1.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5",
-              title: "پاک کردن",
-              children: /* @__PURE__ */ jsxRuntimeExports.jsx(X, { size: 12 })
+              onClick: () => {
+                const entry = baseScheduleForView.find((s) => s.date === todayPersianDate) || baseScheduleForView[0];
+                if (entry) {
+                  setSelectedProcessDate({ date: entry.date, dayName: entry.dayName });
+                  setIsProcessModalOpen(true);
+                }
+              },
+              className: "h-9 px-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition shadow-2xs cursor-pointer whitespace-nowrap shrink-0",
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(FlaskConical, { size: 13, className: "shrink-0" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "ثبت پروسه" })
+              ]
             }
-          ) : /* @__PURE__ */ jsxRuntimeExports.jsx(Search, { size: 12, className: "absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" })
+          )
         ] })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "overflow-x-auto", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("table", { className: "w-full text-right border-collapse text-xs", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("thead", { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { className: "bg-slate-50 text-slate-600 font-bold border-b border-slate-200 text-[11px]", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "py-2 px-3 w-20 sm:w-24 text-center border-l border-slate-200", children: "روز" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "py-2 px-3 w-28 sm:w-32 text-center border-l border-slate-200", children: "تاریخ" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "py-2 px-3 text-right", children: "عنوان پروسه" })
+          /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "py-2.5 px-3 w-24 sm:w-28 text-center border-l border-slate-200", children: "روز هفته" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "py-2.5 px-3 w-28 sm:w-36 text-center border-l border-slate-200", children: "تاریخ" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "py-2.5 px-4 text-right", children: "عنوان پروسه و مشخصات اجرایی" })
         ] }) }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("tbody", { className: "divide-y divide-slate-100", children: processTableEntries.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("tr", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("td", { colSpan: 3, className: "py-6 text-center text-slate-400 font-bold", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col items-center justify-center gap-1.5 text-xs", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(FlaskConical, { size: 20, className: "text-slate-300" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("tbody", { className: "divide-y divide-slate-100", children: processTableEntries.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("tr", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("td", { colSpan: 3, className: "py-8 text-center text-slate-400 font-bold", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col items-center justify-center gap-2 text-xs", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(FlaskConical, { size: 22, className: "text-slate-300" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: totalDaysWithProcesses === 0 ? "هیچ فرآیندی برای روزهای این دوره ثبت نشده است." : "هیچ پروسه‌ای مطابق با عبارت جستجو یافت نشد." }),
           processSearchQuery && /* @__PURE__ */ jsxRuntimeExports.jsx(
             "button",
             {
               type: "button",
               onClick: () => setProcessSearchQuery(""),
-              className: "text-[11px] text-emerald-600 hover:underline font-bold",
+              className: "text-[11px] text-emerald-600 hover:underline font-bold cursor-pointer",
               children: "پاک کردن جستجو"
             }
           )
@@ -19985,14 +20008,14 @@ const Dashboard = ({
               className: `group cursor-pointer transition-colors ${isToday ? "bg-emerald-50/50 hover:bg-emerald-100/60" : "hover:bg-slate-50"}`,
               title: "برای مشاهده و مدیریت جزئیات پروسه کلیک کنید",
               children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "py-1.5 px-3 text-center border-l border-slate-100 whitespace-nowrap", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+                /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "py-2.5 px-3 text-center border-l border-slate-100 whitespace-nowrap", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
                   "span",
                   {
                     className: `font-black text-xs ${isToday ? "text-emerald-700" : isWeekend ? "text-red-600" : "text-slate-800"}`,
                     children: entry.dayName
                   }
                 ) }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "py-1.5 px-3 text-center border-l border-slate-100 whitespace-nowrap", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-center gap-1.5", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "py-2.5 px-3 text-center border-l border-slate-100 whitespace-nowrap tabular-nums", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col sm:flex-row items-center justify-center gap-1", children: [
                   /* @__PURE__ */ jsxRuntimeExports.jsx(
                     "span",
                     {
@@ -20000,33 +20023,29 @@ const Dashboard = ({
                       children: toPersianDigits$1(entry.date)
                     }
                   ),
-                  isToday && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[9px] bg-emerald-600 text-white font-black px-1.5 py-0.2 rounded-full shadow-2xs", children: "امروز" })
+                  isToday && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[9.5px] bg-emerald-600 text-white font-black px-1.5 py-0.5 rounded-md shadow-2xs leading-none", children: "امروز" })
                 ] }) }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "py-1.5 px-3", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between gap-2", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "py-2.5 px-4", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between gap-2", children: [
                   /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex flex-wrap items-center gap-1.5", children: tasks.map((task, idx) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
                     "div",
                     {
-                      className: "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-bold bg-white text-slate-800 border border-slate-200 shadow-2xs group-hover:border-emerald-300 transition-colors",
-                      style: {
-                        borderRightWidth: "3px",
-                        borderRightColor: task.color || "#10b981"
-                      },
+                      className: "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-white text-slate-800 border border-slate-200 shadow-2xs group-hover:border-emerald-300 transition-colors",
                       children: [
                         /* @__PURE__ */ jsxRuntimeExports.jsx(
                           "span",
                           {
-                            className: "w-1.5 h-1.5 rounded-full shrink-0",
+                            className: "w-2 h-2 rounded-full shrink-0",
                             style: { backgroundColor: task.color || "#10b981" }
                           }
                         ),
                         /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-extrabold text-slate-900", children: task.title }),
-                        task.vessel && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[10px] text-slate-500 bg-slate-100 px-1 py-0.2 rounded font-mono dir-ltr", children: task.vessel }),
-                        task.phase && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[10px] text-emerald-700 bg-emerald-50 px-1 py-0.2 rounded", children: task.phase })
+                        task.vessel && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[10px] text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded-md font-mono", dir: "ltr", children: task.vessel }),
+                        task.phase && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-1.5 py-0.5 rounded-md", children: task.phase })
                       ]
                     },
                     task.id || idx
                   )) }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx(ChevronLeft, { size: 14, className: "text-slate-300 group-hover:text-emerald-600 group-hover:-translate-x-0.5 transition-all shrink-0 ms-auto" })
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(ChevronLeft, { size: 15, className: "text-slate-300 group-hover:text-emerald-600 group-hover:-translate-x-0.5 transition-all shrink-0 ms-auto" })
                 ] }) })
               ]
             },
@@ -21273,7 +21292,7 @@ const FALLBACK_ROSTER_STATE = {
       "date": "1405/08/23",
       "dayName": "شنبه",
       "nightShiftPerson": "مهندس دهقان",
-      "dayShiftPerson": "آقای رحیمی",
+      "dayShiftPerson": "مهندس سپهر آرا",
       "isHoliday": false,
       "id": 98551551,
       "onCallPerson": "مهندس لسانی"
@@ -21299,7 +21318,7 @@ const FALLBACK_ROSTER_STATE = {
     {
       "onCallPerson": "مهندس لسانی",
       "isHoliday": false,
-      "nightShiftPerson": "مهندس سالاروند",
+      "nightShiftPerson": "مهندس حیدری",
       "id": 26964180,
       "date": "1405/08/26",
       "dayShiftPerson": "مهندس سپهر آرا",
@@ -21308,7 +21327,7 @@ const FALLBACK_ROSTER_STATE = {
     {
       "dayName": "چهارشنبه",
       "date": "1405/08/27",
-      "nightShiftPerson": "مهندس حیدری",
+      "nightShiftPerson": "مهندس سالاروند",
       "id": 66854487,
       "dayShiftPerson": "مهندس سلیمان فلاح",
       "isHoliday": false,
@@ -21319,7 +21338,7 @@ const FALLBACK_ROSTER_STATE = {
       "date": "1405/08/28",
       "dayName": "پنج‌شنبه",
       "nightShiftPerson": "آقای رحیمی",
-      "dayShiftPerson": "مهندس سالاروند",
+      "dayShiftPerson": "مهندس اکبری",
       "onCallPerson": "مهندس لسانی",
       "id": 69391566
     },
@@ -21329,7 +21348,7 @@ const FALLBACK_ROSTER_STATE = {
       "id": 43685539,
       "nightShiftPerson": "مهندس سپهر آرا",
       "dayName": "جمعه",
-      "dayShiftPerson": "مهندس حیدری",
+      "dayShiftPerson": "مهندس سالاروند",
       "onCallPerson": "مهندس لسانی"
     },
     {
@@ -60731,14 +60750,14 @@ const ProcessSettings = ({
     }
     return true;
   });
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white rounded-3xl shadow-sm border border-slate-200 p-5 sm:p-7 space-y-6", dir: "rtl", children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4", children: [
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden", dir: "rtl", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-4 sm:p-5 border-b border-slate-100 bg-slate-50/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0", children: /* @__PURE__ */ jsxRuntimeExports.jsx(FlaskConical, { size: 24 }) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 border border-emerald-200/70", children: /* @__PURE__ */ jsxRuntimeExports.jsx(FlaskConical, { size: 20 }) }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { className: "font-black text-base sm:text-lg text-slate-850", children: "تعریف و مدیریت پروسه‌های تولید و بیوراکتورها" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs bg-emerald-100 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 flex-wrap", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { className: "font-black text-sm sm:text-base text-slate-900", children: "تعریف و مدیریت پروسه‌های تولید و بیوراکتورها" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-[11px] bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold px-2.5 py-0.5 rounded-lg tabular-nums", children: [
               toPersianDigits$2(processDefinitions.length),
               " پروسه تعریف‌شده"
             ] })
@@ -60746,16 +60765,16 @@ const ProcessSettings = ({
           /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-slate-500 mt-0.5", children: "تعریف پروسه‌های استاندارد کارخانه؛ این موارد به عنوان لیست کشویی هنگام ثبت کارهای روزانه ظاهر می‌شوند." })
         ] })
       ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-2 sm:flex items-center gap-2 w-full sm:w-auto shrink-0", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs(
           "button",
           {
             type: "button",
             onClick: handleResetToDefault,
-            className: "flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 rounded-xl transition cursor-pointer",
+            className: "h-9 px-3.5 flex items-center justify-center gap-1.5 text-xs font-bold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl transition cursor-pointer shadow-2xs whitespace-nowrap",
             title: "بازنشانی تمام پروسه‌ها به مقادیر اولیه کارخانه",
             children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx(RotateCcw, { size: 13 }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(RotateCcw, { size: 13, className: "shrink-0" }),
               /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "بازنشانی پیش‌فرض" })
             ]
           }
@@ -60765,264 +60784,327 @@ const ProcessSettings = ({
           {
             type: "button",
             onClick: handleStartAdd,
-            className: "flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-sm transition cursor-pointer active:scale-95",
+            className: "h-9 px-4 flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-xs transition cursor-pointer active:scale-95 whitespace-nowrap",
             children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx(Plus, { size: 16 }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(Plus, { size: 15, className: "shrink-0" }),
               /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "تعریف پروسه جدید" })
             ]
           }
         )
       ] })
     ] }),
-    pendingConfirm && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-amber-50 border border-amber-300 text-amber-950 px-4 py-3 rounded-xl text-xs font-bold flex flex-wrap items-center justify-between gap-2 shadow-xs", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: pendingConfirm.message }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "button",
-          {
-            type: "button",
-            onClick: () => setPendingConfirm(null),
-            className: "px-3 py-1.5 rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 cursor-pointer",
-            children: "انصراف"
-          }
-        ),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "button",
-          {
-            type: "button",
-            onClick: () => {
-              const action = pendingConfirm.onConfirm;
-              setPendingConfirm(null);
-              action();
-            },
-            className: "px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white cursor-pointer",
-            children: "تایید"
-          }
-        )
-      ] })
-    ] }),
-    toastMessage && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between shadow-sm", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: toastMessage }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => setToastMessage(null), className: "text-emerald-200 hover:text-white", children: /* @__PURE__ */ jsxRuntimeExports.jsx(X, { size: 14 }) })
-    ] }),
-    isAddingNew && /* @__PURE__ */ jsxRuntimeExports.jsxs("form", { onSubmit: handleSubmitForm, className: "bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 space-y-4", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between border-b border-slate-200 pb-3", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("h4", { className: "font-black text-sm text-slate-800 flex items-center gap-2", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(Sparkles, { size: 16, className: "text-emerald-600" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: editingId ? "ویرایش مشخصات پروسه" : "تعریف پروسه جدید برای لیست کشویی" })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "button",
-          {
-            type: "button",
-            onClick: () => setIsAddingNew(false),
-            className: "text-slate-400 hover:text-slate-600",
-            children: /* @__PURE__ */ jsxRuntimeExports.jsx(X, { size: 18 })
-          }
-        )
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5 text-xs", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "sm:col-span-2 space-y-1", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "font-bold text-slate-700", children: "نام کامل پروسه:" }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-4 sm:p-5 space-y-5", children: [
+      pendingConfirm && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-amber-50 border border-amber-300 text-amber-950 px-4 py-3 rounded-xl text-xs font-bold flex flex-wrap items-center justify-between gap-2 shadow-xs", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: pendingConfirm.message }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "input",
+            "button",
             {
-              type: "text",
-              value: formData.name || "",
-              onChange: (e) => setFormData((prev) => ({ ...prev, name: e.target.value })),
-              placeholder: "مثلاً: Cell Culture - Bioreactor 100L یا پایش زیست‌پذیری...",
-              className: "w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500",
-              required: true
+              type: "button",
+              onClick: () => setPendingConfirm(null),
+              className: "h-8 px-3 rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 cursor-pointer flex items-center justify-center",
+              children: "انصراف"
             }
-          )
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-1", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "font-bold text-slate-700", children: "دسته‌بندی:" }),
+          ),
           /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "select",
+            "button",
             {
-              value: formData.category || "CellCulture",
-              onChange: (e) => setFormData((prev) => ({ ...prev, category: e.target.value })),
-              className: "w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer",
-              children: Object.entries(CATEGORY_LABELS).map(([k, v]) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: k, children: v.label }, k))
-            }
-          )
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-1", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "font-bold text-slate-700", children: "مخزن / وسل پیش‌فرض:" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs(
-            "select",
-            {
-              value: formData.defaultVessel || "",
-              onChange: (e) => setFormData((prev) => ({ ...prev, defaultVessel: e.target.value })),
-              className: "w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer",
-              children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "بدون وسل مشخص" }),
-                VESSEL_OPTIONS.map((v) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: v.name, children: v.name }, v.id))
-              ]
-            }
-          )
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-1", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "font-bold text-slate-700", children: "محیط کشت پیش‌فرض:" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs(
-            "select",
-            {
-              value: formData.defaultMedium || "EMEM + Serum",
-              onChange: (e) => setFormData((prev) => ({ ...prev, defaultMedium: e.target.value })),
-              className: "w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer",
-              children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "EMEM + Serum", children: "EMEM + Serum" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "Earl", children: "Earl's Medium" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "Other", children: "Other" })
-              ]
-            }
-          )
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-1", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "font-bold text-slate-700", children: "دوره پاساژ یا مدت زمان (روز):" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "input",
-            {
-              type: "number",
-              min: 1,
-              max: 30,
-              value: formData.durationDays || 2,
-              onChange: (e) => setFormData((prev) => ({ ...prev, durationDays: Number(e.target.value) })),
-              className: "w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500"
-            }
-          )
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "sm:col-span-2 md:col-span-3 space-y-1", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "font-bold text-slate-700", children: "توضیحات و دستورالعمل اجرایی:" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "textarea",
-            {
-              rows: 2,
-              value: formData.description || "",
-              onChange: (e) => setFormData((prev) => ({ ...prev, description: e.target.value })),
-              placeholder: "توضیح مختصر در مورد نحوه اجرا، نکات ایمنی و استانداردهای این پروسه...",
-              className: "w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-medium text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 resize-none text-xs"
+              type: "button",
+              onClick: () => {
+                const action = pendingConfirm.onConfirm;
+                setPendingConfirm(null);
+                action();
+              },
+              className: "h-8 px-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-white cursor-pointer flex items-center justify-center",
+              children: "تایید"
             }
           )
         ] })
       ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-end gap-2 pt-2 border-t border-slate-200", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "button",
-          {
-            type: "button",
-            onClick: () => setIsAddingNew(false),
-            className: "px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-800",
-            children: "انصراف"
-          }
-        ),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "button",
-          {
-            type: "submit",
-            className: "px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-sm transition active:scale-95 cursor-pointer",
-            children: editingId ? "ذخیره تغییرات" : "ثبت پروسه در کتابخانه"
-          }
-        )
-      ] })
-    ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-wrap items-center justify-between gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-200/80", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "relative flex-1 min-w-[200px] max-w-md", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx(Search, { size: 15, className: "absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "input",
-          {
-            type: "text",
-            value: searchQuery,
-            onChange: (e) => setSearchQuery(e.target.value),
-            placeholder: "جستجو در نام، مخزن یا توضیحات پروسه...",
-            className: "w-full pr-9 pl-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500"
-          }
-        )
+      toastMessage && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between shadow-sm", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: toastMessage }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => setToastMessage(null), className: "text-emerald-200 hover:text-white cursor-pointer", children: /* @__PURE__ */ jsxRuntimeExports.jsx(X, { size: 14 }) })
       ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1 overflow-x-auto pb-1 max-w-full", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs(
-          "button",
-          {
-            type: "button",
-            onClick: () => setSelectedCategory("ALL"),
-            className: `px-2.5 py-1 rounded-lg text-[11px] font-bold transition whitespace-nowrap cursor-pointer ${selectedCategory === "ALL" ? "bg-emerald-600 text-white shadow-2xs" : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"}`,
-            children: [
-              "همه دسته‌ها (",
+      isAddingNew && /* @__PURE__ */ jsxRuntimeExports.jsxs("form", { onSubmit: handleSubmitForm, className: "bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 space-y-4", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between border-b border-slate-200 pb-3", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("h4", { className: "font-black text-sm text-slate-800 flex items-center gap-2", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(Sparkles, { size: 16, className: "text-emerald-600 shrink-0" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: editingId ? "ویرایش مشخصات پروسه" : "تعریف پروسه جدید برای لیست کشویی" })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              type: "button",
+              onClick: () => setIsAddingNew(false),
+              className: "w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition cursor-pointer",
+              children: /* @__PURE__ */ jsxRuntimeExports.jsx(X, { size: 16 })
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5 text-xs", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "sm:col-span-2 space-y-1", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "font-bold text-slate-700 block", children: "نام کامل پروسه:" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "input",
+              {
+                type: "text",
+                value: formData.name || "",
+                onChange: (e) => setFormData((prev) => ({ ...prev, name: e.target.value })),
+                placeholder: "مثلاً: Cell Culture - Bioreactor 100L یا پایش زیست‌پذیری...",
+                className: "w-full h-9 px-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500",
+                required: true
+              }
+            )
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-1", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "font-bold text-slate-700 block", children: "دسته‌بندی:" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "select",
+              {
+                value: formData.category || "CellCulture",
+                onChange: (e) => setFormData((prev) => ({ ...prev, category: e.target.value })),
+                className: "w-full h-9 px-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer",
+                children: Object.entries(CATEGORY_LABELS).map(([k, v]) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: k, children: v.label }, k))
+              }
+            )
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-1", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "font-bold text-slate-700 block", children: "مخزن / وسل پیش‌فرض:" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              "select",
+              {
+                value: formData.defaultVessel || "",
+                onChange: (e) => setFormData((prev) => ({ ...prev, defaultVessel: e.target.value })),
+                className: "w-full h-9 px-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer",
+                children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "بدون وسل مشخص" }),
+                  VESSEL_OPTIONS.map((v) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: v.name, children: v.name }, v.id))
+                ]
+              }
+            )
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-1", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "font-bold text-slate-700 block", children: "محیط کشت پیش‌فرض:" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              "select",
+              {
+                value: formData.defaultMedium || "EMEM + Serum",
+                onChange: (e) => setFormData((prev) => ({ ...prev, defaultMedium: e.target.value })),
+                className: "w-full h-9 px-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer",
+                children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "EMEM + Serum", children: "EMEM + Serum" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "Earl", children: "Earl's Medium" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "Other", children: "Other" })
+                ]
+              }
+            )
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-1", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "font-bold text-slate-700 block", children: "دوره پاساژ یا مدت زمان (روز):" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "input",
+              {
+                type: "number",
+                min: 1,
+                max: 30,
+                value: formData.durationDays || 2,
+                onChange: (e) => setFormData((prev) => ({ ...prev, durationDays: Number(e.target.value) })),
+                className: "w-full h-9 px-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 tabular-nums"
+              }
+            )
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "sm:col-span-2 md:col-span-3 space-y-1", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "font-bold text-slate-700 block", children: "توضیحات و دستورالعمل اجرایی:" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "textarea",
+              {
+                rows: 2,
+                value: formData.description || "",
+                onChange: (e) => setFormData((prev) => ({ ...prev, description: e.target.value })),
+                placeholder: "توضیح مختصر در مورد نحوه اجرا، نکات ایمنی و استانداردهای این پروسه...",
+                className: "w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-medium text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 resize-none text-xs"
+              }
+            )
+          ] })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-end gap-2 pt-2 border-t border-slate-200", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              type: "button",
+              onClick: () => setIsAddingNew(false),
+              className: "h-9 px-4 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 transition cursor-pointer",
+              children: "انصراف"
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              type: "submit",
+              className: "h-9 px-5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-sm transition active:scale-95 cursor-pointer",
+              children: editingId ? "ذخیره تغییرات" : "ثبت پروسه در کتابخانه"
+            }
+          )
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-slate-50/90 p-3.5 rounded-2xl border border-slate-200/80 space-y-3", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "relative flex-1", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(Search, { size: 15, className: "absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "input",
+              {
+                type: "text",
+                value: searchQuery,
+                onChange: (e) => setSearchQuery(e.target.value),
+                placeholder: "جستجو در نام، مخزن یا توضیحات پروسه...",
+                className: "w-full h-9 pr-9 pl-8 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500"
+              }
+            ),
+            searchQuery && /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "button",
+              {
+                type: "button",
+                onClick: () => setSearchQuery(""),
+                className: "absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer",
+                title: "پاک کردن جستجو",
+                children: /* @__PURE__ */ jsxRuntimeExports.jsx(X, { size: 14 })
+              }
+            )
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between sm:justify-end gap-2 px-3 h-9 bg-white border border-slate-200/90 rounded-xl text-[11px] font-bold text-slate-600 shrink-0 tabular-nums", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "تعداد نمایش:" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-emerald-700 font-black", children: [
+              toPersianDigits$2(filteredList.length),
+              " از ",
               toPersianDigits$2(processDefinitions.length),
-              ")"
-            ]
-          }
-        ),
-        Object.entries(CATEGORY_LABELS).map(([k, v]) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+              " پروسه"
+            ] })
+          ] })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-1.5", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "button",
+            {
+              type: "button",
+              onClick: () => setSelectedCategory("ALL"),
+              className: `h-8 px-2 rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 cursor-pointer truncate tabular-nums ${selectedCategory === "ALL" ? "bg-emerald-600 text-white shadow-2xs" : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/90"}`,
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "truncate", children: "همه دسته‌ها" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "shrink-0", children: [
+                  "(",
+                  toPersianDigits$2(processDefinitions.length),
+                  ")"
+                ] })
+              ]
+            }
+          ),
+          Object.entries(CATEGORY_LABELS).map(([k, v]) => {
+            const catCount = processDefinitions.filter((p) => p.category === k).length;
+            return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              "button",
+              {
+                type: "button",
+                onClick: () => setSelectedCategory(k),
+                className: `h-8 px-2 rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 cursor-pointer truncate tabular-nums ${selectedCategory === k ? "bg-emerald-600 text-white shadow-2xs" : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/90"}`,
+                title: `${v.label} (${toPersianDigits$2(catCount)})`,
+                children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "truncate", children: v.label }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "shrink-0 opacity-85", children: [
+                    "(",
+                    toPersianDigits$2(catCount),
+                    ")"
+                  ] })
+                ]
+              },
+              k
+            );
+          })
+        ] })
+      ] }),
+      filteredList.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "py-10 text-center bg-slate-50/60 border border-dashed border-slate-200 rounded-2xl space-y-2", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(FlaskConical, { size: 28, className: "mx-auto text-slate-300" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs font-bold text-slate-500", children: "هیچ پروسه‌ای در این دسته‌بندی یا عبارت جستجو یافت نشد." }),
+        (searchQuery || selectedCategory !== "ALL") && /* @__PURE__ */ jsxRuntimeExports.jsx(
           "button",
           {
             type: "button",
-            onClick: () => setSelectedCategory(k),
-            className: `px-2.5 py-1 rounded-lg text-[11px] font-bold transition whitespace-nowrap cursor-pointer ${selectedCategory === k ? "bg-emerald-600 text-white shadow-2xs" : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"}`,
-            children: v.label
-          },
-          k
-        ))
-      ] })
-    ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-3.5", children: filteredList.map((proc) => {
-      const catInfo = CATEGORY_LABELS[proc.category] || { label: "سایر", badgeBg: "bg-slate-100 border-slate-300" };
-      return /* @__PURE__ */ jsxRuntimeExports.jsxs(
-        "div",
-        {
-          className: "bg-white border border-slate-200 hover:border-emerald-300 rounded-2xl p-4 transition shadow-2xs space-y-2 flex flex-col justify-between",
-          children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-1.5", children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between gap-2", children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `text-[10px] font-bold px-2 py-0.5 rounded-md border ${catInfo.badgeBg}`, children: catInfo.label }),
-                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1", children: [
+            onClick: () => {
+              setSearchQuery("");
+              setSelectedCategory("ALL");
+            },
+            className: "text-xs font-black text-emerald-600 hover:text-emerald-700 underline cursor-pointer",
+            children: "نمایش همه پروسه‌ها"
+          }
+        )
+      ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-3.5 items-stretch", children: filteredList.map((proc) => {
+        const catInfo = CATEGORY_LABELS[proc.category] || { label: "سایر", badgeBg: "bg-slate-100 border-slate-300" };
+        return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "div",
+          {
+            className: "h-full bg-white border border-slate-200 hover:border-emerald-300 rounded-2xl p-4 transition-all shadow-2xs flex flex-col justify-between gap-3",
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-2", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between gap-2", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `inline-flex items-center h-6 text-[10.5px] font-bold px-2.5 rounded-lg border ${catInfo.badgeBg}`, children: catInfo.label }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1 shrink-0", children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx(
+                      "button",
+                      {
+                        type: "button",
+                        onClick: () => handleStartEdit(proc),
+                        className: "w-7 h-7 flex items-center justify-center text-slate-400 hover:text-amber-700 hover:bg-amber-50 border border-transparent hover:border-amber-200 rounded-lg transition cursor-pointer",
+                        title: "ویرایش پروسه",
+                        children: /* @__PURE__ */ jsxRuntimeExports.jsx(Pen, { size: 13 })
+                      }
+                    ),
+                    /* @__PURE__ */ jsxRuntimeExports.jsx(
+                      "button",
+                      {
+                        type: "button",
+                        onClick: () => handleDelete(proc.id),
+                        className: "w-7 h-7 flex items-center justify-center text-slate-400 hover:text-rose-700 hover:bg-rose-50 border border-transparent hover:border-rose-200 rounded-lg transition cursor-pointer",
+                        title: "حذف پروسه",
+                        children: /* @__PURE__ */ jsxRuntimeExports.jsx(Trash2, { size: 13 })
+                      }
+                    )
+                  ] })
+                ] }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-start gap-2", children: [
                   /* @__PURE__ */ jsxRuntimeExports.jsx(
-                    "button",
+                    "span",
                     {
-                      type: "button",
-                      onClick: () => handleStartEdit(proc),
-                      className: "p-1 text-slate-400 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition",
-                      title: "ویرایش",
-                      children: /* @__PURE__ */ jsxRuntimeExports.jsx(Pen, { size: 13 })
+                      className: "w-2 h-2 rounded-full shrink-0 mt-1.5",
+                      style: { backgroundColor: proc.color || "#10b981" }
                     }
                   ),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx(
-                    "button",
-                    {
-                      type: "button",
-                      onClick: () => handleDelete(proc.id),
-                      className: "p-1 text-slate-400 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition",
-                      title: "حذف",
-                      children: /* @__PURE__ */ jsxRuntimeExports.jsx(Trash2, { size: 13 })
-                    }
-                  )
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("h4", { className: "font-black text-sm text-slate-900 leading-snug", children: proc.name })
+                ] }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-[11px] text-slate-500 line-clamp-2 leading-relaxed min-h-[2.25rem]", children: proc.description || "بدون توضیحات تکمیلی" })
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-3 gap-1.5 pt-2.5 border-t border-slate-100 text-[10.5px] font-bold", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-slate-50 border border-slate-200/80 text-slate-700 px-2 py-1.5 rounded-lg flex flex-col items-center justify-center text-center min-w-0", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[9.5px] text-slate-400 font-medium", children: "مخزن" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "truncate w-full mt-0.5", dir: "ltr", title: proc.defaultVessel || "عمومی", children: proc.defaultVessel || "عمومی" })
+                ] }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-teal-50/70 border border-teal-200/80 text-teal-900 px-2 py-1.5 rounded-lg flex flex-col items-center justify-center text-center min-w-0", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[9.5px] text-teal-600/80 font-medium", children: "محیط" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "truncate w-full mt-0.5", dir: "ltr", title: proc.defaultMedium || "—", children: proc.defaultMedium || "—" })
+                ] }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-emerald-50/70 border border-emerald-200/80 text-emerald-900 px-2 py-1.5 rounded-lg flex flex-col items-center justify-center text-center min-w-0 tabular-nums", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[9.5px] text-emerald-600/80 font-medium", children: "دوره زمان‌بندی" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "truncate w-full mt-0.5", children: [
+                    toPersianDigits$2(proc.durationDays || 1),
+                    " روز"
+                  ] })
                 ] })
-              ] }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("h4", { className: "font-black text-sm text-slate-850", children: proc.name }),
-              proc.description && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-[11px] text-slate-500 line-clamp-2 leading-relaxed", children: proc.description })
-            ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 pt-2 border-t border-slate-100 text-[10px] text-slate-500 font-medium", children: [
-              proc.defaultVessel && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md", children: [
-                "مخزن: ",
-                proc.defaultVessel
-              ] }),
-              proc.defaultMedium && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "bg-teal-50 border border-teal-200 text-teal-800 px-2 py-0.5 rounded-md", children: [
-                "محیط: ",
-                proc.defaultMedium
-              ] }),
-              proc.durationDays && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "bg-emerald-50 border border-emerald-200 text-emerald-800 px-2 py-0.5 rounded-md", children: [
-                "دوره: ",
-                toPersianDigits$2(proc.durationDays),
-                " روز"
               ] })
-            ] })
-          ]
-        },
-        proc.id
-      );
-    }) })
+            ]
+          },
+          proc.id
+        );
+      }) })
+    ] })
   ] });
 };
 function useOnlineStatus() {
@@ -61456,7 +61538,11 @@ function subscribeToCloudRoster(onUpdate, onInitialEmpty, onError) {
       u: d.unlockedMonths || [],
       p: d.publishedRange || null,
       s: d.showProcessSchedule,
-      pl: (d.personnelList || []).map((x) => `${x.name}:${x.color}:${x.isActive}`)
+      pl: (d.personnelList || []).map((x) => `${x.name}:${x.color}:${x.isActive}`),
+      dp: d.dailyProcesses || {},
+      pd: (d.processDefinitions || []).map(
+        (x) => `${x.id}:${x.name}:${x.defaultVessel || ""}:${x.defaultMedium || ""}:${x.durationDays || 0}:${x.color || ""}`
+      )
     });
   };
   const handleIncomingData = (data, source, originClientId) => {
@@ -61482,7 +61568,7 @@ function subscribeToCloudRoster(onUpdate, onInitialEmpty, onError) {
     if ((hasReceivedAnyData || lastLocalMutationTimeMs > 0) && data.updatedAt && lastKnownCloudUpdatedAt && data.updatedAt < lastKnownCloudUpdatedAt) {
       return;
     }
-    if (source !== "broadcast" && lastKnownRevision > 0 && incomingRevision > 0 && incomingRevision < lastKnownRevision && !data._explicitReset) {
+    if (source !== "broadcast" && lastKnownRevision > 0 && incomingRevision > 0 && incomingRevision < lastKnownRevision && (!data.updatedAt || !lastKnownCloudUpdatedAt || data.updatedAt <= lastKnownCloudUpdatedAt) && !data._explicitReset) {
       return;
     }
     if (source !== "broadcast" && lastLocalMutationUpdatedAt && data.updatedAt && data.updatedAt <= lastLocalMutationUpdatedAt && Boolean(incomingFp) && incomingFp !== currentInstanceScheduleFingerprint) {
@@ -61648,7 +61734,9 @@ function subscribeToCloudRoster(onUpdate, onInitialEmpty, onError) {
       tasks.push(
         fetchFirestoreDocREST(4e3).then((restData) => {
           if (!restData) {
-            sawExplicitEmpty = true;
+            if (!isFirestoreQuotaExhausted) {
+              sawExplicitEmpty = true;
+            }
             return null;
           }
           return emitCandidate({
@@ -62219,16 +62307,25 @@ async function saveCloudRoster(data) {
           return false;
         }
       };
-      const postToServer = async (url) => {
+      const postToServer = async (url, forceRetry = false, overrideBase) => {
         var _a2, _b2;
         const isLocal = url === "/api/sync";
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 8e3);
         try {
+          const effectivePayload = forceRetry && overrideBase ? {
+            ...payload,
+            ...overrideBase.updatedAt ? { _baseUpdatedAt: overrideBase.updatedAt } : {},
+            ...typeof overrideBase.revision === "number" ? { _revision: Math.max(payload._revision || 1, overrideBase.revision + 1) } : {}
+          } : payload;
           const r = await fetch(url, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ data: payload, clientId: CLIENT_ID }),
+            body: JSON.stringify({
+              data: effectivePayload,
+              clientId: CLIENT_ID,
+              ...forceRetry ? { forceOverwrite: true } : {}
+            }),
             signal: controller.signal
           });
           if (r.status === 402 || r.status === 404 || r.status === 410) {
@@ -62237,15 +62334,26 @@ async function saveCloudRoster(data) {
             return { isLocal, ok: false };
           }
           if (r.status === 409) {
+            let conflictUpdatedAt;
+            let conflictRevision = 0;
             try {
               const conflictJson = await r.json();
-              if ((conflictJson == null ? void 0 : conflictJson.updatedAt) && (!lastKnownCloudUpdatedAt || conflictJson.updatedAt > lastKnownCloudUpdatedAt)) {
-                lastKnownCloudUpdatedAt = conflictJson.updatedAt;
+              conflictUpdatedAt = conflictJson == null ? void 0 : conflictJson.updatedAt;
+              conflictRevision = typeof ((_a2 = conflictJson == null ? void 0 : conflictJson.data) == null ? void 0 : _a2._revision) === "number" ? conflictJson.data._revision : 0;
+              if (conflictUpdatedAt && (!lastKnownCloudUpdatedAt || conflictUpdatedAt > lastKnownCloudUpdatedAt)) {
+                lastKnownCloudUpdatedAt = conflictUpdatedAt;
               }
-              if (typeof ((_a2 = conflictJson == null ? void 0 : conflictJson.data) == null ? void 0 : _a2._revision) === "number" && conflictJson.data._revision > lastKnownRevision) {
-                lastKnownRevision = conflictJson.data._revision;
+              if (conflictRevision > lastKnownRevision) {
+                lastKnownRevision = conflictRevision;
               }
             } catch {
+            }
+            const isLegacySchedule = Array.isArray(payload.schedule) && getScheduleHash(payload.schedule) === LEGACY_STALE_SCHEDULE_HASH && !payload._explicitReset;
+            if (!forceRetry && !isLegacySchedule) {
+              return await postToServer(url, true, {
+                updatedAt: conflictUpdatedAt,
+                revision: conflictRevision
+              });
             }
             return { isLocal, ok: false, conflict: true };
           }
@@ -62287,7 +62395,7 @@ async function saveCloudRoster(data) {
         }
       };
       const firestorePromise = writeToFirestore();
-      const serverPromises = targetUrls.map(postToServer);
+      const serverPromises = targetUrls.map((url) => postToServer(url));
       const durableConfirmation = new Promise((resolve) => {
         let settledCount = 0;
         const total = 1 + serverPromises.length;
@@ -64040,6 +64148,27 @@ const App = () => {
         } catch {
         }
       }
+      try {
+        if (localStorage.getItem("shiftflow_aban_base_v32_applied") !== "true") {
+          const abanPatchDates = /* @__PURE__ */ new Set(["1405/08/23", "1405/08/26", "1405/08/27", "1405/08/28", "1405/08/29"]);
+          const baseByDate = new Map(SCHEDULE_DATA.map((s) => [s.date, s]));
+          list = list.map((entry) => {
+            if (abanPatchDates.has(entry.date) && baseByDate.has(entry.date)) {
+              const baseEntry = baseByDate.get(entry.date);
+              return {
+                ...entry,
+                dayShiftPerson: baseEntry.dayShiftPerson,
+                nightShiftPerson: baseEntry.nightShiftPerson,
+                onCallPerson: baseEntry.onCallPerson
+              };
+            }
+            return entry;
+          });
+          localStorage.setItem(STORAGE_KEYS.SCHEDULE, JSON.stringify(list));
+          localStorage.setItem("shiftflow_aban_base_v32_applied", "true");
+        }
+      } catch {
+      }
       list = list.map((entry) => {
         const parts = entry.date.split("/");
         if (parts.length === 3) {
@@ -64128,6 +64257,7 @@ const App = () => {
     }
   });
   const handleSaveDailyProcesses = (updated) => {
+    hasUserEditedRef.current = true;
     dailyProcessesRef.current = updated;
     setDailyProcesses(updated);
     const now = (/* @__PURE__ */ new Date()).toISOString();
@@ -64148,6 +64278,7 @@ const App = () => {
     });
   };
   const handleSaveProcessDefinitions = (updated) => {
+    hasUserEditedRef.current = true;
     processDefinitionsRef.current = updated;
     setProcessDefinitions(updated);
     const now = (/* @__PURE__ */ new Date()).toISOString();
@@ -64531,6 +64662,7 @@ const App = () => {
           }
         }
         if (cloudData.unlockedMonths && Array.isArray(cloudData.unlockedMonths)) {
+          unlockedMonthsRef.current = cloudData.unlockedMonths;
           setUnlockedMonths(cloudData.unlockedMonths);
           try {
             localStorage.setItem(STORAGE_KEYS.LOCKED, JSON.stringify(cloudData.unlockedMonths));
@@ -64539,6 +64671,7 @@ const App = () => {
           }
         }
         if (cloudData.publishedRange !== void 0) {
+          publishedRangeRef.current = cloudData.publishedRange;
           setPublishedRange(cloudData.publishedRange);
           try {
             if (cloudData.publishedRange && cloudData.publishedRange.isActive) {
@@ -64551,6 +64684,7 @@ const App = () => {
           }
         }
         if (cloudData.adminPassword) {
+          adminPasswordRef.current = cloudData.adminPassword;
           setAdminPassword(cloudData.adminPassword);
           try {
             localStorage.setItem(STORAGE_KEYS.PASSWORD, cloudData.adminPassword);
@@ -64559,6 +64693,7 @@ const App = () => {
           }
         }
         if (cloudData.dailyProcesses) {
+          dailyProcessesRef.current = cloudData.dailyProcesses;
           setDailyProcesses(cloudData.dailyProcesses);
           try {
             localStorage.setItem(STORAGE_KEYS.DAILY_PROCESSES, JSON.stringify(cloudData.dailyProcesses));
@@ -64567,6 +64702,7 @@ const App = () => {
           }
         }
         if (cloudData.processDefinitions) {
+          processDefinitionsRef.current = cloudData.processDefinitions;
           setProcessDefinitions(cloudData.processDefinitions);
           try {
             localStorage.setItem(STORAGE_KEYS.PROCESS_DEFINITIONS, JSON.stringify(cloudData.processDefinitions));
@@ -64575,6 +64711,7 @@ const App = () => {
           }
         }
         if (cloudData.showProcessSchedule !== void 0) {
+          showProcessScheduleRef.current = cloudData.showProcessSchedule;
           setShowProcessSchedule(cloudData.showProcessSchedule);
           try {
             localStorage.setItem(STORAGE_KEYS.SHOW_PROCESS_SCHEDULE, String(cloudData.showProcessSchedule));
@@ -64590,12 +64727,12 @@ const App = () => {
           isRemoteUpdateRef.current = false;
         }, 150);
       },
-      // Warm cold relay/server cache if endpoint responded empty while client has valid schedule
+      // Never overwrite remote cloud state from an unedited browser tab on initial empty/quota response
       () => {
         isInitialLoadCompletedRef.current = true;
         setIsCloudLoading(false);
         setSyncStatus("synced");
-        if (scheduleRef.current && scheduleRef.current.length > 0) {
+        if (hasUserEditedRef.current && scheduleRef.current && scheduleRef.current.length > 0) {
           saveCloudRoster(buildCloudRosterSnapshot()).catch(() => {
           });
         }
@@ -65658,12 +65795,12 @@ const App = () => {
             }
           )
         ] }),
-        activeTab === "settings" && isOwner && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "hidden lg:flex items-center bg-slate-100 p-0.5 sm:p-1 rounded-xl border border-slate-200/80 animate-in fade-in duration-150", children: [
+        activeTab === "settings" && isOwner && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "hidden lg:grid grid-cols-3 items-center bg-slate-100 p-1 rounded-xl border border-slate-200/80 animate-in fade-in duration-150 min-w-[290px]", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx(
             "button",
             {
               onClick: () => handleSelectSettingsSubTab("general"),
-              className: `px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap ${settingsSubTab === "general" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-900"}`,
+              className: `px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap text-center ${settingsSubTab === "general" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-900"}`,
               children: "تنظیمات جنرال"
             }
           ),
@@ -65671,16 +65808,16 @@ const App = () => {
             "button",
             {
               onClick: () => handleSelectSettingsSubTab("shifts"),
-              className: `px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap ${settingsSubTab === "shifts" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-900"}`,
-              children: "شیفت"
+              className: `px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap text-center ${settingsSubTab === "shifts" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-900"}`,
+              children: "شیفت‌ها"
             }
           ),
           /* @__PURE__ */ jsxRuntimeExports.jsx(
             "button",
             {
               onClick: () => handleSelectSettingsSubTab("processes"),
-              className: `px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap ${settingsSubTab === "processes" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-900"}`,
-              children: "پروسه"
+              className: `px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap text-center ${settingsSubTab === "processes" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-900"}`,
+              children: "پروسه‌ها"
             }
           )
         ] }),
@@ -65964,13 +66101,13 @@ const App = () => {
         ),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "max-w-4xl mx-auto space-y-6", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white/95 backdrop-blur-md rounded-2xl shadow-xs border border-slate-200 p-2.5 sm:p-3.5 flex flex-col md:flex-row items-center justify-between gap-3 sticky top-14 sm:top-16 z-30 transition-all", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center justify-center w-full md:w-auto", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center bg-slate-100 p-0.5 sm:p-1 rounded-xl border border-slate-200/80 w-full sm:w-auto justify-center", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-full md:w-auto", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-3 items-center bg-slate-100 p-1 rounded-xl border border-slate-200/80 w-full md:min-w-[340px]", children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx(
                 "button",
                 {
                   type: "button",
                   onClick: () => handleSelectSettingsSubTab("general"),
-                  className: `flex-1 sm:flex-initial px-3 sm:px-5 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap ${settingsSubTab === "general" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-900"}`,
+                  className: `h-9 px-3 sm:px-4 rounded-lg text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap flex items-center justify-center text-center ${settingsSubTab === "general" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-900"}`,
                   children: "تنظیمات جنرال"
                 }
               ),
@@ -65979,8 +66116,8 @@ const App = () => {
                 {
                   type: "button",
                   onClick: () => handleSelectSettingsSubTab("shifts"),
-                  className: `flex-1 sm:flex-initial px-3 sm:px-5 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap ${settingsSubTab === "shifts" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-900"}`,
-                  children: "شیفت"
+                  className: `h-9 px-3 sm:px-4 rounded-lg text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap flex items-center justify-center text-center ${settingsSubTab === "shifts" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-900"}`,
+                  children: "شیفت‌ها"
                 }
               ),
               /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -65988,18 +66125,18 @@ const App = () => {
                 {
                   type: "button",
                   onClick: () => handleSelectSettingsSubTab("processes"),
-                  className: `flex-1 sm:flex-initial px-3 sm:px-5 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap ${settingsSubTab === "processes" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-900"}`,
-                  children: "پروسه"
+                  className: `h-9 px-3 sm:px-4 rounded-lg text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap flex items-center justify-center text-center ${settingsSubTab === "processes" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-900"}`,
+                  children: "پروسه‌ها"
                 }
               )
             ] }) }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 w-full md:w-auto justify-end shrink-0", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-2 sm:flex items-center gap-2 w-full md:w-auto justify-end shrink-0", children: [
               /* @__PURE__ */ jsxRuntimeExports.jsxs(
                 "button",
                 {
                   type: "button",
                   onClick: () => setChangePwdOpen(true),
-                  className: "flex-1 sm:flex-initial flex items-center justify-center gap-1.5 text-xs text-slate-700 hover:text-emerald-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 transition font-bold px-3 py-1.5 sm:py-2 rounded-xl cursor-pointer shadow-2xs whitespace-nowrap",
+                  className: "h-9 flex items-center justify-center gap-1.5 text-xs text-slate-700 hover:text-emerald-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 transition font-bold px-3.5 rounded-xl cursor-pointer shadow-2xs whitespace-nowrap",
                   title: "تغییر رمز عبور مدیریت",
                   children: [
                     /* @__PURE__ */ jsxRuntimeExports.jsx(KeyRound, { size: 14, className: "text-emerald-600 shrink-0" }),
@@ -66014,7 +66151,7 @@ const App = () => {
                   id: "btn-save-settings-top",
                   onClick: handleManualSaveChanges,
                   disabled: isSavingChanges,
-                  className: "flex-1 sm:flex-initial flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 disabled:bg-slate-400 text-white font-black text-xs sm:text-sm px-4 sm:px-6 py-1.5 sm:py-2 rounded-xl shadow-xs transition-all cursor-pointer whitespace-nowrap",
+                  className: "h-9 flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 disabled:bg-slate-400 text-white font-black text-xs sm:text-sm px-4 sm:px-5 rounded-xl shadow-xs transition-all cursor-pointer whitespace-nowrap",
                   children: isSavingChanges ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
                     /* @__PURE__ */ jsxRuntimeExports.jsx(RefreshCw, { size: 14, className: "animate-spin shrink-0" }),
                     /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "در حال ذخیره..." })
@@ -66772,29 +66909,19 @@ const App = () => {
           ] }),
           settingsSubTab === "processes" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-6 animate-in fade-in duration-200", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden", children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-5 sm:p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center flex-wrap gap-2", children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2.5", children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0", children: /* @__PURE__ */ jsxRuntimeExports.jsx(FlaskConical, { size: 18 }) }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-4 sm:p-5 border-b border-slate-100 bg-slate-50/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 border border-emerald-200/70", children: /* @__PURE__ */ jsxRuntimeExports.jsx(FlaskConical, { size: 20 }) }),
                   /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-                    /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-base sm:text-lg font-bold text-slate-800 flex items-center gap-2", children: "نمایش برنامه پروسه‌ها در داشبورد" }),
-                    /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-slate-500 mt-0.5", children: "کنترل نمایش یا پنهان‌سازی کل بخش فرآیندهای تولید، بیوراکتورها و جدول پروسه‌ها در داشبورد اصلی" })
+                    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 flex-wrap", children: [
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-sm sm:text-base font-black text-slate-900", children: "نمایش برنامه پروسه‌ها در داشبورد" }),
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `text-[11px] px-2.5 py-0.5 rounded-lg font-bold border transition-colors ${showProcessSchedule ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-700 border-rose-200"}`, children: showProcessSchedule ? "فعال در داشبورد" : "پنهان از داشبورد" })
+                    ] }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-slate-500 mt-0.5", children: "کنترل نمایش یا پنهان‌سازی بخش فرآیندهای تولید، بیوراکتورها و جدول پروسه‌ها در صفحه اصلی" })
                   ] })
                 ] }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `text-xs px-3 py-1 rounded-full font-bold border transition-colors ${showProcessSchedule ? "bg-emerald-50 text-emerald-700 border-emerald-200 shadow-2xs" : "bg-rose-50 text-rose-700 border-rose-200 shadow-2xs"}`, children: showProcessSchedule ? "● فعال و در حال نمایش در داشبورد" : "○ غیرفعال و پنهان از داشبورد" })
-              ] }),
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-5 sm:p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6", children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-xs sm:text-sm text-slate-600 leading-relaxed max-w-2xl space-y-2.5", children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "font-bold text-slate-800 text-sm", children: "کلید فعال‌سازی و حذف برنامه پروسه‌ها از صفحه اصلی" }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-slate-500 leading-6", children: "با خاموش کردن این کلید، جدول فرآیندهای روزانه در پایین داشبورد، بنر پروسه امروز در وضعیت زنده، نشانگرهای فرآیند روی روزهای تقویم و پنجره مدیریت پروسه‌ها کاملاً از صفحه داشبورد برداشته می‌شوند و صفحه تنها به شیفت‌ها، ساعات کارکرد و نمودارها اختصاص می‌یابد." }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 bg-emerald-50/90 text-emerald-900 text-[11px] font-bold p-3 rounded-xl border border-emerald-200/80", children: [
-                    /* @__PURE__ */ jsxRuntimeExports.jsx(Sparkles, { size: 16, className: "text-emerald-600 shrink-0" }),
-                    /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
-                      /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "حفظ ۱۰۰٪ داده‌ها:" }),
-                      " با خاموش کردن این گزینه هیچ داده یا تنظیمی پاک نخواهد شد؛ تمام فرآیندها در پایگاه داده باقی مانده و با روشن کردن مجدد کلید، دقیقاً به همان شکل در داشبورد ظاهر می‌شوند."
-                    ] })
-                  ] })
-                ] }),
-                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col items-center md:items-end gap-2 shrink-0 w-full md:w-auto p-4 md:p-0 bg-slate-50 md:bg-transparent rounded-xl border md:border-0 border-slate-100", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between sm:justify-end gap-3 bg-white px-3.5 py-2 rounded-xl border border-slate-200/90 shadow-2xs shrink-0", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `text-xs font-black whitespace-nowrap ${showProcessSchedule ? "text-emerald-700" : "text-slate-500"}`, children: showProcessSchedule ? "وضعیت: روشن" : "وضعیت: خاموش" }),
                   /* @__PURE__ */ jsxRuntimeExports.jsx(
                     "button",
                     {
@@ -66802,12 +66929,24 @@ const App = () => {
                       role: "switch",
                       "aria-checked": showProcessSchedule,
                       onClick: () => handleToggleProcessSchedule(!showProcessSchedule),
-                      className: `w-20 h-10 flex items-center rounded-full p-1.5 cursor-pointer transition-all duration-200 shadow-inner ${showProcessSchedule ? "bg-emerald-600 justify-end ring-2 ring-emerald-500/20" : "bg-slate-300 justify-start"}`,
+                      className: `w-14 h-8 flex items-center rounded-full p-1 cursor-pointer transition-all duration-200 shadow-inner shrink-0 ${showProcessSchedule ? "bg-emerald-600 justify-end ring-2 ring-emerald-500/20" : "bg-slate-300 justify-start"}`,
                       title: showProcessSchedule ? "برای برداشتن برنامه پروسه‌ها از داشبورد کلیک کنید" : "برای فعال‌سازی و بازگرداندن برنامه پروسه‌ها به داشبورد کلیک کنید",
-                      children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "bg-white w-7 h-7 rounded-full shadow-md flex items-center justify-center transition-all", children: showProcessSchedule ? /* @__PURE__ */ jsxRuntimeExports.jsx(Check, { size: 14, className: "text-emerald-600 stroke-[3]" }) : /* @__PURE__ */ jsxRuntimeExports.jsx(X, { size: 14, className: "text-slate-400 stroke-[3]" }) })
+                      children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "bg-white w-6 h-6 rounded-full shadow-sm flex items-center justify-center transition-all", children: showProcessSchedule ? /* @__PURE__ */ jsxRuntimeExports.jsx(Check, { size: 13, className: "text-emerald-600 stroke-[3]" }) : /* @__PURE__ */ jsxRuntimeExports.jsx(X, { size: 13, className: "text-slate-400 stroke-[3]" }) })
                     }
-                  ),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `text-xs font-black ${showProcessSchedule ? "text-emerald-700" : "text-slate-500"}`, children: showProcessSchedule ? "روشن (نمایش در داشبورد)" : "خاموش (پنهان از داشبورد)" })
+                  )
+                ] })
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-4 sm:p-5 grid grid-cols-1 md:grid-cols-2 gap-3.5 items-stretch", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-slate-50/80 border border-slate-200/80 rounded-xl p-3.5 flex flex-col justify-center space-y-1.5", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "font-bold text-slate-800 text-xs sm:text-sm", children: "نحوه عملکرد کلید نمایش پروسه‌ها" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-slate-500 leading-6", children: "با خاموش کردن این کلید، جدول فرآیندهای روزانه در پایین داشبورد، بنر پروسه امروز در وضعیت زنده و نشانگرهای فرآیند روی روزهای تقویم پنهان می‌شوند تا صفحه تنها به شیفت‌ها و ساعات کارکرد اختصاص یابد." })
+                ] }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-emerald-50/70 border border-emerald-200/80 rounded-xl p-3.5 flex items-start gap-2.5", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0 mt-0.5", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Sparkles, { size: 15 }) }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-1", children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "font-black text-emerald-950 text-xs sm:text-sm", children: "حفظ کامل اطلاعات در دیتابیس ابری" }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-emerald-900/90 leading-6", children: "با خاموش کردن این گزینه هیچ داده یا تنظیمی حذف نمی‌شود؛ تمامی فرآیندهای ثبت‌شده در سرور باقی مانده و با روشن کردن مجدد کلید، بلافاصله در داشبورد نمایش داده می‌شوند." })
+                  ] })
                 ] })
               ] })
             ] }),

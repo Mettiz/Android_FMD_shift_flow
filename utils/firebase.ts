@@ -575,6 +575,10 @@ export function subscribeToCloudRoster(
       p: d.publishedRange || null,
       s: d.showProcessSchedule,
       pl: (d.personnelList || []).map((x) => `${x.name}:${x.color}:${x.isActive}`),
+      dp: d.dailyProcesses || {},
+      pd: (d.processDefinitions || []).map(
+        (x) => `${x.id}:${x.name}:${x.defaultVessel || ''}:${x.defaultMedium || ''}:${x.durationDays || 0}:${x.color || ''}`
+      ),
     });
   };
 
@@ -630,12 +634,13 @@ export function subscribeToCloudRoster(
       return;
     }
 
-    // Never allow a lower revision from an unhydrated client to overwrite a higher revision (unless explicit factory reset)
+    // Never allow a lower revision from an unhydrated client to overwrite unless strictly newer updatedAt or explicit reset
     if (
       source !== 'broadcast' &&
       lastKnownRevision > 0 &&
       incomingRevision > 0 &&
       incomingRevision < lastKnownRevision &&
+      (!data.updatedAt || !lastKnownCloudUpdatedAt || data.updatedAt <= lastKnownCloudUpdatedAt) &&
       !data._explicitReset
     ) {
       return;
@@ -866,7 +871,9 @@ export function subscribeToCloudRoster(
         fetchFirestoreDocREST(4000)
           .then((restData): Candidate | null => {
             if (!restData) {
-              sawExplicitEmpty = true;
+              if (!isFirestoreQuotaExhausted) {
+                sawExplicitEmpty = true;
+              }
               return null;
             }
             return emitCandidate({
@@ -1543,16 +1550,33 @@ export async function saveCloudRoster(data: Partial<CloudRosterState>): Promise<
       };
 
       const postToServer = async (
-        url: string
+        url: string,
+        forceRetry = false,
+        overrideBase?: { updatedAt?: string; revision?: number }
       ): Promise<{ isLocal: boolean; ok: boolean; conflict?: boolean; firestorePersisted?: boolean }> => {
         const isLocal = url === '/api/sync';
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 8000);
         try {
+          const effectivePayload =
+            forceRetry && overrideBase
+              ? {
+                  ...payload,
+                  ...(overrideBase.updatedAt ? { _baseUpdatedAt: overrideBase.updatedAt } : {}),
+                  ...(typeof overrideBase.revision === 'number'
+                    ? { _revision: Math.max(payload._revision || 1, overrideBase.revision + 1) }
+                    : {}),
+                }
+              : payload;
+
           const r = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ data: payload, clientId: CLIENT_ID }),
+            body: JSON.stringify({
+              data: effectivePayload,
+              clientId: CLIENT_ID,
+              ...(forceRetry ? { forceOverwrite: true } : {}),
+            }),
             signal: controller.signal,
           });
           if (r.status === 402 || r.status === 404 || r.status === 410) {
@@ -1561,15 +1585,30 @@ export async function saveCloudRoster(data: Partial<CloudRosterState>): Promise<
             return { isLocal, ok: false };
           }
           if (r.status === 409) {
+            let conflictUpdatedAt: string | undefined;
+            let conflictRevision = 0;
             try {
               const conflictJson = await r.json();
-              if (conflictJson?.updatedAt && (!lastKnownCloudUpdatedAt || conflictJson.updatedAt > lastKnownCloudUpdatedAt)) {
-                lastKnownCloudUpdatedAt = conflictJson.updatedAt;
+              conflictUpdatedAt = conflictJson?.updatedAt;
+              conflictRevision = typeof conflictJson?.data?._revision === 'number' ? conflictJson.data._revision : 0;
+              if (conflictUpdatedAt && (!lastKnownCloudUpdatedAt || conflictUpdatedAt > lastKnownCloudUpdatedAt)) {
+                lastKnownCloudUpdatedAt = conflictUpdatedAt;
               }
-              if (typeof conflictJson?.data?._revision === 'number' && conflictJson.data._revision > lastKnownRevision) {
-                lastKnownRevision = conflictJson.data._revision;
+              if (conflictRevision > lastKnownRevision) {
+                lastKnownRevision = conflictRevision;
               }
             } catch {}
+            // Auto-retry once with forceOverwrite for genuine user edits so stale Relay timestamps never block saving
+            const isLegacySchedule =
+              Array.isArray(payload.schedule) &&
+              getScheduleHash(payload.schedule) === LEGACY_STALE_SCHEDULE_HASH &&
+              !payload._explicitReset;
+            if (!forceRetry && !isLegacySchedule) {
+              return await postToServer(url, true, {
+                updatedAt: conflictUpdatedAt,
+                revision: conflictRevision,
+              });
+            }
             return { isLocal, ok: false, conflict: true };
           }
           if (!r.ok) {
@@ -1611,7 +1650,7 @@ export async function saveCloudRoster(data: Partial<CloudRosterState>): Promise<
 
       // Launch direct Firestore + server/relay writes; resolve promptly once durable cloud persistence is confirmed
       const firestorePromise = writeToFirestore();
-      const serverPromises = targetUrls.map(postToServer);
+      const serverPromises = targetUrls.map((url) => postToServer(url));
 
       const durableConfirmation = new Promise<{
         firestoreOk: boolean;

@@ -2877,47 +2877,69 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
       {/* --- COMPACT DAILY PROCESSES TABLE (MANAGER ONLY) --- */}
       {showProcessSchedule && isOwner && (
-      <div className="bg-white rounded-xl shadow-2xs border border-slate-200 overflow-hidden no-print">
-        {/* Compact Header Ribbon */}
-        <div className="px-3.5 py-2.5 border-b border-slate-200 bg-linear-to-r from-emerald-50/70 via-white to-slate-50 flex flex-wrap justify-between items-center gap-2">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center shadow-2xs shrink-0">
-              <FlaskConical size={15} />
+      <div className="bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden no-print">
+        {/* Balanced Header Ribbon */}
+        <div className="px-4 py-3 sm:px-5 sm:py-3.5 border-b border-slate-200 bg-linear-to-r from-emerald-50/70 via-white to-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-2xs shrink-0">
+              <FlaskConical size={18} />
             </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="text-xs sm:text-sm font-black text-slate-800">
-                جدول فرآیندهای روزانه
-              </h3>
-              <span className="text-[11px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full border border-emerald-200/80">
-                {toPersianDigits(processTableEntries.length)} روز دارای پروسه
-              </span>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-xs sm:text-sm font-black text-slate-900">
+                  جدول فرآیندهای روزانه
+                </h3>
+                <span className="text-[11px] bg-emerald-50 text-emerald-700 font-bold px-2.5 py-0.5 rounded-lg border border-emerald-200/80 tabular-nums">
+                  {toPersianDigits(processTableEntries.length)} روز دارای پروسه
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                برنامه‌ریزی و پیگیری مراحل کشت سلول، بیوراکتورها و آماده‌سازی مخازن
+              </p>
             </div>
           </div>
 
-          {/* Compact Quick Search */}
-          {totalDaysWithProcesses > 0 && (
-            <div className="relative w-40 sm:w-48">
-              <input
-                type="text"
-                placeholder="جستجوی پروسه..."
-                value={processSearchQuery}
-                onChange={(e) => setProcessSearchQuery(e.target.value)}
-                className="w-full text-xs font-bold pl-6 pr-2.5 py-1 bg-white border border-slate-200 rounded-lg focus:outline-hidden focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 placeholder:text-slate-400 placeholder:font-normal"
-              />
-              {processSearchQuery ? (
-                <button
-                  type="button"
-                  onClick={() => setProcessSearchQuery('')}
-                  className="absolute left-1.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
-                  title="پاک کردن"
-                >
-                  <X size={12} />
-                </button>
-              ) : (
-                <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-              )}
-            </div>
-          )}
+          {/* Search & Quick Action */}
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            {totalDaysWithProcesses > 0 && (
+              <div className="relative flex-1 sm:w-52">
+                <input
+                  type="text"
+                  placeholder="جستجوی پروسه..."
+                  value={processSearchQuery}
+                  onChange={(e) => setProcessSearchQuery(e.target.value)}
+                  className="w-full h-9 text-xs font-bold pl-7 pr-3 bg-white border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 placeholder:text-slate-400 placeholder:font-normal"
+                />
+                {processSearchQuery ? (
+                  <button
+                    type="button"
+                    onClick={() => setProcessSearchQuery('')}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                    title="پاک کردن"
+                  >
+                    <X size={13} />
+                  </button>
+                ) : (
+                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                )}
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => {
+                const entry = baseScheduleForView.find(s => s.date === todayPersianDate) || baseScheduleForView[0];
+                if (entry) {
+                  setSelectedProcessDate({ date: entry.date, dayName: entry.dayName });
+                  setIsProcessModalOpen(true);
+                }
+              }}
+              className="h-9 px-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition shadow-2xs cursor-pointer whitespace-nowrap shrink-0"
+            >
+              <FlaskConical size={13} className="shrink-0" />
+              <span>ثبت پروسه</span>
+            </button>
+          </div>
         </div>
 
         {/* Table Content: Only Days With Processes */}
@@ -2925,23 +2947,23 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <table className="w-full text-right border-collapse text-xs">
             <thead>
               <tr className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200 text-[11px]">
-                <th className="py-2 px-3 w-20 sm:w-24 text-center border-l border-slate-200">
-                  روز
+                <th className="py-2.5 px-3 w-24 sm:w-28 text-center border-l border-slate-200">
+                  روز هفته
                 </th>
-                <th className="py-2 px-3 w-28 sm:w-32 text-center border-l border-slate-200">
+                <th className="py-2.5 px-3 w-28 sm:w-36 text-center border-l border-slate-200">
                   تاریخ
                 </th>
-                <th className="py-2 px-3 text-right">
-                  عنوان پروسه
+                <th className="py-2.5 px-4 text-right">
+                  عنوان پروسه و مشخصات اجرایی
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {processTableEntries.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="py-6 text-center text-slate-400 font-bold">
-                    <div className="flex flex-col items-center justify-center gap-1.5 text-xs">
-                      <FlaskConical size={20} className="text-slate-300" />
+                  <td colSpan={3} className="py-8 text-center text-slate-400 font-bold">
+                    <div className="flex flex-col items-center justify-center gap-2 text-xs">
+                      <FlaskConical size={22} className="text-slate-300" />
                       <span>
                         {totalDaysWithProcesses === 0
                           ? 'هیچ فرآیندی برای روزهای این دوره ثبت نشده است.'
@@ -2951,7 +2973,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         <button
                           type="button"
                           onClick={() => setProcessSearchQuery('')}
-                          className="text-[11px] text-emerald-600 hover:underline font-bold"
+                          className="text-[11px] text-emerald-600 hover:underline font-bold cursor-pointer"
                         >
                           پاک کردن جستجو
                         </button>
@@ -2980,7 +3002,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       title="برای مشاهده و مدیریت جزئیات پروسه کلیک کنید"
                     >
                       {/* 1. Day of Week */}
-                      <td className="py-1.5 px-3 text-center border-l border-slate-100 whitespace-nowrap">
+                      <td className="py-2.5 px-3 text-center border-l border-slate-100 whitespace-nowrap">
                         <span
                           className={`font-black text-xs ${
                             isToday
@@ -2995,8 +3017,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       </td>
 
                       {/* 2. Date */}
-                      <td className="py-1.5 px-3 text-center border-l border-slate-100 whitespace-nowrap">
-                        <div className="flex items-center justify-center gap-1.5">
+                      <td className="py-2.5 px-3 text-center border-l border-slate-100 whitespace-nowrap tabular-nums">
+                        <div className="flex flex-col sm:flex-row items-center justify-center gap-1">
                           <span
                             className={`font-bold text-xs ${
                               isToday ? 'font-black text-emerald-800' : 'text-slate-700'
@@ -3005,7 +3027,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                             {toPersianDigits(entry.date)}
                           </span>
                           {isToday && (
-                            <span className="text-[9px] bg-emerald-600 text-white font-black px-1.5 py-0.2 rounded-full shadow-2xs">
+                            <span className="text-[9.5px] bg-emerald-600 text-white font-black px-1.5 py-0.5 rounded-md shadow-2xs leading-none">
                               امروز
                             </span>
                           )}
@@ -3013,32 +3035,28 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       </td>
 
                       {/* 3. Process Title */}
-                      <td className="py-1.5 px-3">
+                      <td className="py-2.5 px-4">
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex flex-wrap items-center gap-1.5">
                             {tasks.map((task, idx) => (
                               <div
                                 key={task.id || idx}
-                                className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-bold bg-white text-slate-800 border border-slate-200 shadow-2xs group-hover:border-emerald-300 transition-colors"
-                                style={{
-                                  borderRightWidth: '3px',
-                                  borderRightColor: task.color || '#10b981',
-                                }}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-white text-slate-800 border border-slate-200 shadow-2xs group-hover:border-emerald-300 transition-colors"
                               >
                                 <span
-                                  className="w-1.5 h-1.5 rounded-full shrink-0"
+                                  className="w-2 h-2 rounded-full shrink-0"
                                   style={{ backgroundColor: task.color || '#10b981' }}
                                 />
                                 <span className="font-extrabold text-slate-900">
                                   {task.title}
                                 </span>
                                 {task.vessel && (
-                                  <span className="text-[10px] text-slate-500 bg-slate-100 px-1 py-0.2 rounded font-mono dir-ltr">
+                                  <span className="text-[10px] text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded-md font-mono" dir="ltr">
                                     {task.vessel}
                                   </span>
                                 )}
                                 {task.phase && (
-                                  <span className="text-[10px] text-emerald-700 bg-emerald-50 px-1 py-0.2 rounded">
+                                  <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-1.5 py-0.5 rounded-md">
                                     {task.phase}
                                   </span>
                                 )}
@@ -3046,7 +3064,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                             ))}
                           </div>
 
-                          <ChevronLeft size={14} className="text-slate-300 group-hover:text-emerald-600 group-hover:-translate-x-0.5 transition-all shrink-0 ms-auto" />
+                          <ChevronLeft size={15} className="text-slate-300 group-hover:text-emerald-600 group-hover:-translate-x-0.5 transition-all shrink-0 ms-auto" />
                         </div>
                       </td>
                     </tr>

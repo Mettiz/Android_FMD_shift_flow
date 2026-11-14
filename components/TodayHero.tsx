@@ -346,24 +346,24 @@ export const TodayHero: React.FC<TodayHeroProps> = ({
 
            {/* Today Bioprocesses Banner */}
            {todayProcesses.length > 0 && (
-             <div className="mt-4 pt-3.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2.5 bg-gradient-to-l from-emerald-50/70 to-teal-50/70 p-3 rounded-xl border border-emerald-200/60">
-               <div className="flex items-center gap-2.5">
-                 <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0">
-                   <FlaskConical size={15} />
+             <div className="mt-4 pt-3.5 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gradient-to-l from-emerald-50/70 to-teal-50/70 p-3 sm:p-3.5 rounded-xl border border-emerald-200/60">
+               <div className="flex items-center gap-2.5 min-w-0">
+                 <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                   <FlaskConical size={17} />
                  </div>
-                 <div>
-                   <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md">
+                 <div className="min-w-0">
+                   <span className="inline-block text-[10px] font-bold text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-md">
                      پروسه بیوراکتور و تولید فعال امروز:
                    </span>
-                   <div className="text-xs sm:text-sm font-black text-slate-850 mt-0.5 flex items-center gap-2 flex-wrap">
+                   <div className="text-xs sm:text-sm font-black text-slate-900 mt-1 flex items-center gap-2 flex-wrap">
                      <span>{todayProcesses[0].title}</span>
                      {todayProcesses[0].vessel && (
-                       <span className="text-[11px] text-slate-600 bg-white px-2 py-0.5 rounded-md border border-slate-200 font-medium">
+                       <span className="text-[11px] text-slate-600 bg-white px-2 py-0.5 rounded-md border border-slate-200 font-medium" dir="ltr">
                          {todayProcesses[0].vessel}
                        </span>
                      )}
                      {todayProcesses.length > 1 && (
-                       <span className="text-[10px] bg-emerald-200 text-emerald-900 font-black px-1.5 py-0.5 rounded-full">
+                       <span className="text-[10.5px] bg-emerald-200 text-emerald-900 font-black px-2 py-0.5 rounded-lg tabular-nums">
                          +{toPersianDigits(todayProcesses.length - 1)} پروسه دیگر
                        </span>
                      )}
@@ -375,10 +375,10 @@ export const TodayHero: React.FC<TodayHeroProps> = ({
                  <button
                    type="button"
                    onClick={() => onOpenProcessModal(currentDateStr)}
-                   className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition shadow-2xs active:scale-95 cursor-pointer"
+                   className="w-full sm:w-auto h-9 flex items-center justify-center gap-1.5 px-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-2xs active:scale-95 cursor-pointer whitespace-nowrap shrink-0"
                  >
                    <span>مشاهده و ویرایش فرآیند</span>
-                   <ChevronLeft size={14} />
+                   <ChevronLeft size={14} className="shrink-0" />
                  </button>
                )}
              </div>

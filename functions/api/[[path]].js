@@ -9,7 +9,7 @@ const FIRESTORE_DOC_URL =
 
 let memoryCache = null;
 let lastReadTime = 0;
-const CACHE_TTL_MS = 5000;
+const CACHE_TTL_MS = 60000;
 
 function decodeValue(val) {
   if (!val || typeof val !== 'object') return val;
@@ -239,31 +239,26 @@ export async function onRequest(context) {
       } catch {}
     }
 
+    // Only block legacy 88aedc2d fallback overwrites unless explicit reset
+    const LEGACY_HASH = '88aedc2d';
     if (
       !isReset &&
       !(body && body.forceOverwrite) &&
-      baseState?.updatedAt &&
-      incoming?._baseUpdatedAt &&
-      typeof incoming._baseUpdatedAt === 'string' &&
-      clientId &&
-      baseState._originClientId &&
-      clientId !== baseState._originClientId &&
-      Array.isArray(incoming.schedule) &&
-      getSchedHash(incoming.schedule) !== getSchedHash(baseState.schedule)
+      !incoming?._explicitReset &&
+      baseState?.schedule &&
+      getSchedHash(baseState.schedule) !== LEGACY_HASH &&
+      Array.isArray(incoming?.schedule) &&
+      getSchedHash(incoming.schedule) === LEGACY_HASH
     ) {
-      const currentMs = Date.parse(baseState.updatedAt);
-      const baseMs = Date.parse(incoming._baseUpdatedAt);
-      if (Number.isFinite(currentMs) && Number.isFinite(baseMs) && currentMs - baseMs > 30000) {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: 'stale_conflict',
-            updatedAt: baseState.updatedAt,
-            data: baseState,
-          }),
-          { status: 409, headers: cors }
-        );
-      }
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'stale_conflict',
+          updatedAt: baseState.updatedAt,
+          data: baseState,
+        }),
+        { status: 409, headers: cors }
+      );
     }
 
     const now = nextMonotonicTimestamp(baseState?.updatedAt, incoming?.updatedAt);

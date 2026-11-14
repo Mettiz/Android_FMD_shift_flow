@@ -112,6 +112,28 @@ const App: React.FC = () => {
         } catch {}
       }
 
+      // Upgrade cached schedule once for Aban 1405 final PDF base changes (days 23, 26, 27, 28, 29)
+      try {
+        if (localStorage.getItem('shiftflow_aban_base_v32_applied') !== 'true') {
+          const abanPatchDates = new Set(['1405/08/23', '1405/08/26', '1405/08/27', '1405/08/28', '1405/08/29']);
+          const baseByDate = new Map(SCHEDULE_DATA.map(s => [s.date, s]));
+          list = list.map(entry => {
+            if (abanPatchDates.has(entry.date) && baseByDate.has(entry.date)) {
+              const baseEntry = baseByDate.get(entry.date)!;
+              return {
+                ...entry,
+                dayShiftPerson: baseEntry.dayShiftPerson,
+                nightShiftPerson: baseEntry.nightShiftPerson,
+                onCallPerson: baseEntry.onCallPerson,
+              };
+            }
+            return entry;
+          });
+          localStorage.setItem(STORAGE_KEYS.SCHEDULE, JSON.stringify(list));
+          localStorage.setItem('shiftflow_aban_base_v32_applied', 'true');
+        }
+      } catch {}
+
       // Always guarantee each entry's dayName is strictly mathematically accurate for the Iranian calendar
       list = list.map(entry => {
         const parts = entry.date.split('/');
@@ -212,6 +234,7 @@ const App: React.FC = () => {
   });
 
   const handleSaveDailyProcesses = (updated: DailyProcessMap) => {
+    hasUserEditedRef.current = true;
     dailyProcessesRef.current = updated;
     setDailyProcesses(updated);
     const now = new Date().toISOString();
@@ -235,6 +258,7 @@ const App: React.FC = () => {
   };
 
   const handleSaveProcessDefinitions = (updated: ProcessDefinition[]) => {
+    hasUserEditedRef.current = true;
     processDefinitionsRef.current = updated;
     setProcessDefinitions(updated);
     const now = new Date().toISOString();
@@ -658,6 +682,7 @@ const App: React.FC = () => {
           }
         }
         if (cloudData.unlockedMonths && Array.isArray(cloudData.unlockedMonths)) {
+          unlockedMonthsRef.current = cloudData.unlockedMonths;
           setUnlockedMonths(cloudData.unlockedMonths);
           try {
             localStorage.setItem(STORAGE_KEYS.LOCKED, JSON.stringify(cloudData.unlockedMonths));
@@ -666,6 +691,7 @@ const App: React.FC = () => {
           }
         }
         if (cloudData.publishedRange !== undefined) {
+          publishedRangeRef.current = cloudData.publishedRange;
           setPublishedRange(cloudData.publishedRange);
           try {
             if (cloudData.publishedRange && cloudData.publishedRange.isActive) {
@@ -678,6 +704,7 @@ const App: React.FC = () => {
           }
         }
         if (cloudData.adminPassword) {
+          adminPasswordRef.current = cloudData.adminPassword;
           setAdminPassword(cloudData.adminPassword);
           try {
             localStorage.setItem(STORAGE_KEYS.PASSWORD, cloudData.adminPassword);
@@ -686,6 +713,7 @@ const App: React.FC = () => {
           }
         }
         if (cloudData.dailyProcesses) {
+          dailyProcessesRef.current = cloudData.dailyProcesses;
           setDailyProcesses(cloudData.dailyProcesses);
           try {
             localStorage.setItem(STORAGE_KEYS.DAILY_PROCESSES, JSON.stringify(cloudData.dailyProcesses));
@@ -694,6 +722,7 @@ const App: React.FC = () => {
           }
         }
         if (cloudData.processDefinitions) {
+          processDefinitionsRef.current = cloudData.processDefinitions;
           setProcessDefinitions(cloudData.processDefinitions);
           try {
             localStorage.setItem(STORAGE_KEYS.PROCESS_DEFINITIONS, JSON.stringify(cloudData.processDefinitions));
@@ -702,6 +731,7 @@ const App: React.FC = () => {
           }
         }
         if (cloudData.showProcessSchedule !== undefined) {
+          showProcessScheduleRef.current = cloudData.showProcessSchedule;
           setShowProcessSchedule(cloudData.showProcessSchedule);
           try {
             localStorage.setItem(STORAGE_KEYS.SHOW_PROCESS_SCHEDULE, String(cloudData.showProcessSchedule));
@@ -720,12 +750,12 @@ const App: React.FC = () => {
           isRemoteUpdateRef.current = false;
         }, 150);
       },
-      // Warm cold relay/server cache if endpoint responded empty while client has valid schedule
+      // Never overwrite remote cloud state from an unedited browser tab on initial empty/quota response
       () => {
         isInitialLoadCompletedRef.current = true;
         setIsCloudLoading(false);
         setSyncStatus('synced');
-        if (scheduleRef.current && scheduleRef.current.length > 0) {
+        if (hasUserEditedRef.current && scheduleRef.current && scheduleRef.current.length > 0) {
           saveCloudRoster(buildCloudRosterSnapshot()).catch(() => {});
         }
       },
@@ -2037,10 +2067,10 @@ const App: React.FC = () => {
 
               {/* 3 Settings Subtabs in Top Navbar on Medium+ Screens */}
               {activeTab === 'settings' && isOwner && (
-                <div className="hidden lg:flex items-center bg-slate-100 p-0.5 sm:p-1 rounded-xl border border-slate-200/80 animate-in fade-in duration-150">
+                <div className="hidden lg:grid grid-cols-3 items-center bg-slate-100 p-1 rounded-xl border border-slate-200/80 animate-in fade-in duration-150 min-w-[290px]">
                   <button
                     onClick={() => handleSelectSettingsSubTab('general')}
-                    className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap text-center ${
                       settingsSubTab === 'general'
                         ? 'bg-white text-slate-900 shadow-xs'
                         : 'text-slate-500 hover:text-slate-900'
@@ -2050,23 +2080,23 @@ const App: React.FC = () => {
                   </button>
                   <button
                     onClick={() => handleSelectSettingsSubTab('shifts')}
-                    className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap text-center ${
                       settingsSubTab === 'shifts'
                         ? 'bg-white text-slate-900 shadow-xs'
                         : 'text-slate-500 hover:text-slate-900'
                     }`}
                   >
-                    شیفت
+                    شیفت‌ها
                   </button>
                   <button
                     onClick={() => handleSelectSettingsSubTab('processes')}
-                    className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap text-center ${
                       settingsSubTab === 'processes'
                         ? 'bg-white text-slate-900 shadow-xs'
                         : 'text-slate-500 hover:text-slate-900'
                     }`}
                   >
-                    پروسه
+                    پروسه‌ها
                   </button>
                 </div>
               )}
@@ -2341,13 +2371,13 @@ const App: React.FC = () => {
                 
                 {/* Top Sticky Header with the 3 Segmented Tabs (styled like the top of the app) and Save Actions */}
                 <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-xs border border-slate-200 p-2.5 sm:p-3.5 flex flex-col md:flex-row items-center justify-between gap-3 sticky top-14 sm:top-16 z-30 transition-all">
-                    {/* The 3 Tabs - Exactly styled like the top app segmented pill */}
-                    <div className="flex items-center justify-center w-full md:w-auto">
-                        <div className="flex items-center bg-slate-100 p-0.5 sm:p-1 rounded-xl border border-slate-200/80 w-full sm:w-auto justify-center">
+                    {/* The 3 Tabs - Symmetrical 3-column grid */}
+                    <div className="w-full md:w-auto">
+                        <div className="grid grid-cols-3 items-center bg-slate-100 p-1 rounded-xl border border-slate-200/80 w-full md:min-w-[340px]">
                             <button
                                 type="button"
                                 onClick={() => handleSelectSettingsSubTab('general')}
-                                className={`flex-1 sm:flex-initial px-3 sm:px-5 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap ${
+                                className={`h-9 px-3 sm:px-4 rounded-lg text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap flex items-center justify-center text-center ${
                                     settingsSubTab === 'general'
                                         ? 'bg-white text-slate-900 shadow-xs'
                                         : 'text-slate-500 hover:text-slate-900'
@@ -2359,35 +2389,35 @@ const App: React.FC = () => {
                             <button
                                 type="button"
                                 onClick={() => handleSelectSettingsSubTab('shifts')}
-                                className={`flex-1 sm:flex-initial px-3 sm:px-5 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap ${
+                                className={`h-9 px-3 sm:px-4 rounded-lg text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap flex items-center justify-center text-center ${
                                     settingsSubTab === 'shifts'
                                         ? 'bg-white text-slate-900 shadow-xs'
                                         : 'text-slate-500 hover:text-slate-900'
                                 }`}
                             >
-                                شیفت
+                                شیفت‌ها
                             </button>
 
                             <button
                                 type="button"
                                 onClick={() => handleSelectSettingsSubTab('processes')}
-                                className={`flex-1 sm:flex-initial px-3 sm:px-5 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap ${
+                                className={`h-9 px-3 sm:px-4 rounded-lg text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap flex items-center justify-center text-center ${
                                     settingsSubTab === 'processes'
                                         ? 'bg-white text-slate-900 shadow-xs'
                                         : 'text-slate-500 hover:text-slate-900'
                                 }`}
                             >
-                                پروسه
+                                پروسه‌ها
                             </button>
                         </div>
                     </div>
 
                     {/* Quick Actions (Password & Save) */}
-                    <div className="flex items-center gap-2 w-full md:w-auto justify-end shrink-0">
+                    <div className="grid grid-cols-2 sm:flex items-center gap-2 w-full md:w-auto justify-end shrink-0">
                         <button 
                             type="button"
                             onClick={() => setChangePwdOpen(true)}
-                            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 text-xs text-slate-700 hover:text-emerald-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 transition font-bold px-3 py-1.5 sm:py-2 rounded-xl cursor-pointer shadow-2xs whitespace-nowrap"
+                            className="h-9 flex items-center justify-center gap-1.5 text-xs text-slate-700 hover:text-emerald-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 transition font-bold px-3.5 rounded-xl cursor-pointer shadow-2xs whitespace-nowrap"
                             title="تغییر رمز عبور مدیریت"
                         >
                             <KeyRound size={14} className="text-emerald-600 shrink-0" />
@@ -2399,7 +2429,7 @@ const App: React.FC = () => {
                             id="btn-save-settings-top"
                             onClick={handleManualSaveChanges}
                             disabled={isSavingChanges}
-                            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 disabled:bg-slate-400 text-white font-black text-xs sm:text-sm px-4 sm:px-6 py-1.5 sm:py-2 rounded-xl shadow-xs transition-all cursor-pointer whitespace-nowrap"
+                            className="h-9 flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 disabled:bg-slate-400 text-white font-black text-xs sm:text-sm px-4 sm:px-5 rounded-xl shadow-xs transition-all cursor-pointer whitespace-nowrap"
                         >
                             {isSavingChanges ? (
                                 <>
@@ -3189,82 +3219,92 @@ const App: React.FC = () => {
                 {settingsSubTab === 'processes' && (
                     <div className="space-y-6 animate-in fade-in duration-200">
                         {/* 5. Process Module Visibility & Toggle Setting */}
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div className="p-5 sm:p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center flex-wrap gap-2">
-                        <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
-                                <FlaskConical size={18} />
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                            <div className="p-4 sm:p-5 border-b border-slate-100 bg-slate-50/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 border border-emerald-200/70">
+                                        <FlaskConical size={20} />
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <h2 className="text-sm sm:text-base font-black text-slate-900">
+                                                نمایش برنامه پروسه‌ها در داشبورد
+                                            </h2>
+                                            <span className={`text-[11px] px-2.5 py-0.5 rounded-lg font-bold border transition-colors ${
+                                                showProcessSchedule 
+                                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                                                    : 'bg-rose-50 text-rose-700 border-rose-200'
+                                            }`}>
+                                                {showProcessSchedule ? 'فعال در داشبورد' : 'پنهان از داشبورد'}
+                                            </span>
+                                        </div>
+                                        <p className="text-xs text-slate-500 mt-0.5">
+                                            کنترل نمایش یا پنهان‌سازی بخش فرآیندهای تولید، بیوراکتورها و جدول پروسه‌ها در صفحه اصلی
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Balanced Switch Control Box */}
+                                <div className="flex items-center justify-between sm:justify-end gap-3 bg-white px-3.5 py-2 rounded-xl border border-slate-200/90 shadow-2xs shrink-0">
+                                    <span className={`text-xs font-black whitespace-nowrap ${showProcessSchedule ? 'text-emerald-700' : 'text-slate-500'}`}>
+                                        {showProcessSchedule ? 'وضعیت: روشن' : 'وضعیت: خاموش'}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        role="switch"
+                                        aria-checked={showProcessSchedule}
+                                        onClick={() => handleToggleProcessSchedule(!showProcessSchedule)}
+                                        className={`w-14 h-8 flex items-center rounded-full p-1 cursor-pointer transition-all duration-200 shadow-inner shrink-0 ${
+                                            showProcessSchedule 
+                                                ? 'bg-emerald-600 justify-end ring-2 ring-emerald-500/20' 
+                                                : 'bg-slate-300 justify-start'
+                                        }`}
+                                        title={showProcessSchedule ? 'برای برداشتن برنامه پروسه‌ها از داشبورد کلیک کنید' : 'برای فعال‌سازی و بازگرداندن برنامه پروسه‌ها به داشبورد کلیک کنید'}
+                                    >
+                                        <span className="bg-white w-6 h-6 rounded-full shadow-sm flex items-center justify-center transition-all">
+                                            {showProcessSchedule ? (
+                                                <Check size={13} className="text-emerald-600 stroke-[3]" />
+                                            ) : (
+                                                <X size={13} className="text-slate-400 stroke-[3]" />
+                                            )}
+                                        </span>
+                                    </button>
+                                </div>
                             </div>
-                            <div>
-                                <h2 className="text-base sm:text-lg font-bold text-slate-800 flex items-center gap-2">
-                                    نمایش برنامه پروسه‌ها در داشبورد
-                                </h2>
-                                <p className="text-xs text-slate-500 mt-0.5">
-                                    کنترل نمایش یا پنهان‌سازی کل بخش فرآیندهای تولید، بیوراکتورها و جدول پروسه‌ها در داشبورد اصلی
-                                </p>
-                            </div>
-                        </div>
-                        <span className={`text-xs px-3 py-1 rounded-full font-bold border transition-colors ${
-                            showProcessSchedule 
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-2xs' 
-                                : 'bg-rose-50 text-rose-700 border-rose-200 shadow-2xs'
-                        }`}>
-                            {showProcessSchedule ? '● فعال و در حال نمایش در داشبورد' : '○ غیرفعال و پنهان از داشبورد'}
-                        </span>
-                    </div>
-                    
-                    <div className="p-5 sm:p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-                        <div className="text-xs sm:text-sm text-slate-600 leading-relaxed max-w-2xl space-y-2.5">
-                            <p className="font-bold text-slate-800 text-sm">
-                                کلید فعال‌سازی و حذف برنامه پروسه‌ها از صفحه اصلی
-                            </p>
-                            <p className="text-xs text-slate-500 leading-6">
-                                با خاموش کردن این کلید، جدول فرآیندهای روزانه در پایین داشبورد، بنر پروسه امروز در وضعیت زنده، نشانگرهای فرآیند روی روزهای تقویم و پنجره مدیریت پروسه‌ها کاملاً از صفحه داشبورد برداشته می‌شوند و صفحه تنها به شیفت‌ها، ساعات کارکرد و نمودارها اختصاص می‌یابد.
-                            </p>
-                            <div className="flex items-center gap-2 bg-emerald-50/90 text-emerald-900 text-[11px] font-bold p-3 rounded-xl border border-emerald-200/80">
-                                <Sparkles size={16} className="text-emerald-600 shrink-0" />
-                                <span>
-                                    <strong>حفظ ۱۰۰٪ داده‌ها:</strong> با خاموش کردن این گزینه هیچ داده یا تنظیمی پاک نخواهد شد؛ تمام فرآیندها در پایگاه داده باقی مانده و با روشن کردن مجدد کلید، دقیقاً به همان شکل در داشبورد ظاهر می‌شوند.
-                                </span>
+                            
+                            <div className="p-4 sm:p-5 grid grid-cols-1 md:grid-cols-2 gap-3.5 items-stretch">
+                                <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3.5 flex flex-col justify-center space-y-1.5">
+                                    <p className="font-bold text-slate-800 text-xs sm:text-sm">
+                                        نحوه عملکرد کلید نمایش پروسه‌ها
+                                    </p>
+                                    <p className="text-xs text-slate-500 leading-6">
+                                        با خاموش کردن این کلید، جدول فرآیندهای روزانه در پایین داشبورد، بنر پروسه امروز در وضعیت زنده و نشانگرهای فرآیند روی روزهای تقویم پنهان می‌شوند تا صفحه تنها به شیفت‌ها و ساعات کارکرد اختصاص یابد.
+                                    </p>
+                                </div>
+
+                                <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-xl p-3.5 flex items-start gap-2.5">
+                                    <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0 mt-0.5">
+                                        <Sparkles size={15} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="font-black text-emerald-950 text-xs sm:text-sm">
+                                            حفظ کامل اطلاعات در دیتابیس ابری
+                                        </p>
+                                        <p className="text-xs text-emerald-900/90 leading-6">
+                                            با خاموش کردن این گزینه هیچ داده یا تنظیمی حذف نمی‌شود؛ تمامی فرآیندهای ثبت‌شده در سرور باقی مانده و با روشن کردن مجدد کلید، بلافاصله در داشبورد نمایش داده می‌شوند.
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
-                        {/* Interactive Switch Toggle */}
-                        <div className="flex flex-col items-center md:items-end gap-2 shrink-0 w-full md:w-auto p-4 md:p-0 bg-slate-50 md:bg-transparent rounded-xl border md:border-0 border-slate-100">
-                            <button
-                                type="button"
-                                role="switch"
-                                aria-checked={showProcessSchedule}
-                                onClick={() => handleToggleProcessSchedule(!showProcessSchedule)}
-                                className={`w-20 h-10 flex items-center rounded-full p-1.5 cursor-pointer transition-all duration-200 shadow-inner ${
-                                    showProcessSchedule 
-                                        ? 'bg-emerald-600 justify-end ring-2 ring-emerald-500/20' 
-                                        : 'bg-slate-300 justify-start'
-                                }`}
-                                title={showProcessSchedule ? 'برای برداشتن برنامه پروسه‌ها از داشبورد کلیک کنید' : 'برای فعال‌سازی و بازگرداندن برنامه پروسه‌ها به داشبورد کلیک کنید'}
-                            >
-                                <span className="bg-white w-7 h-7 rounded-full shadow-md flex items-center justify-center transition-all">
-                                    {showProcessSchedule ? (
-                                        <Check size={14} className="text-emerald-600 stroke-[3]" />
-                                    ) : (
-                                        <X size={14} className="text-slate-400 stroke-[3]" />
-                                    )}
-                                </span>
-                            </button>
-                            <span className={`text-xs font-black ${showProcessSchedule ? 'text-emerald-700' : 'text-slate-500'}`}>
-                                {showProcessSchedule ? 'روشن (نمایش در داشبورد)' : 'خاموش (پنهان از داشبورد)'}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Industrial Bioprocess & Bioreactor Definition Settings */}
-                <ProcessSettings 
-                    processDefinitions={processDefinitions}
-                    onSaveDefinitions={handleSaveProcessDefinitions}
-                    isUnlocked={isSettingsUnlocked}
-                    onOpenUnlockModal={() => setIsPasswordModalOpen(true)}
-                />
+                        {/* Industrial Bioprocess & Bioreactor Definition Settings */}
+                        <ProcessSettings 
+                            processDefinitions={processDefinitions}
+                            onSaveDefinitions={handleSaveProcessDefinitions}
+                            isUnlocked={isSettingsUnlocked}
+                            onOpenUnlockModal={() => setIsPasswordModalOpen(true)}
+                        />
                     </div>
                 )}
 

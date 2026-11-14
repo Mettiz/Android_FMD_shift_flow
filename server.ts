@@ -124,19 +124,40 @@ async function startServer() {
     return (h >>> 0).toString(16).padStart(8, '0');
   }
 
-  async function mirrorToWorkerRelay(stateToMirror: any): Promise<void> {
-    if (!stateToMirror) return;
+  function getMetaFingerprint(state: any): string {
+    if (!state) return '';
+    try {
+      return JSON.stringify({
+        dp: state.dailyProcesses || {},
+        pd: (state.processDefinitions || []).map((x: any) => `${x.id}:${x.name}:${x.defaultVessel || ''}:${x.defaultMedium || ''}:${x.durationDays || 0}`),
+        u: state.unlockedMonths || [],
+        p: state.publishedRange || null,
+        s: state.showProcessSchedule,
+        pl: (state.personnelList || []).map((x: any) => `${x.name}:${x.color}:${x.isActive}`),
+      });
+    } catch {
+      return '';
+    }
+  }
+
+  async function mirrorToWorkerRelay(stateToMirror: any): Promise<boolean> {
+    if (!stateToMirror) return false;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 5000);
     try {
-      await fetch(WORKER_RELAY_SYNC_URL, {
+      const res = await fetch(WORKER_RELAY_SYNC_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: sanitizeForFirestore(stateToMirror), clientId: stateToMirror._originClientId || 'server_healer' }),
+        body: JSON.stringify({
+          data: sanitizeForFirestore(stateToMirror),
+          clientId: stateToMirror._originClientId || 'server_healer',
+          forceOverwrite: true,
+        }),
         signal: controller.signal,
       });
+      return res.ok;
     } catch {
-      // Ignore Worker relay mirror errors
+      return false;
     } finally {
       clearTimeout(timer);
     }
@@ -178,14 +199,40 @@ async function startServer() {
       currentState = JSON.parse(raw);
       stateVersion = currentState._version || 1;
       stateRevision = typeof currentState._revision === 'number' ? currentState._revision : 0;
-      console.log(`[SyncServer] Loaded local roster state cache (version ${stateVersion}, rev ${stateRevision}, updatedAt ${currentState.updatedAt})`);
+
+      // Upgrade local disk cache once if it predates Aban 1405 v32 base schedule
+      if (stateVersion < 32 && Array.isArray(currentState.schedule) && Array.isArray(FALLBACK_ROSTER_STATE?.schedule)) {
+        const abanPatchDates = new Set(['1405/08/23', '1405/08/26', '1405/08/27', '1405/08/28', '1405/08/29']);
+        const fallbackByDate = new Map(FALLBACK_ROSTER_STATE.schedule.map((s: any) => [s.date, s]));
+        currentState.schedule = currentState.schedule.map((entry: any) => {
+          if (abanPatchDates.has(entry.date) && fallbackByDate.has(entry.date)) {
+            const baseEntry = fallbackByDate.get(entry.date)!;
+            return {
+              ...entry,
+              dayShiftPerson: baseEntry.dayShiftPerson,
+              nightShiftPerson: baseEntry.nightShiftPerson,
+              onCallPerson: baseEntry.onCallPerson,
+            };
+          }
+          return entry;
+        });
+        stateVersion = 32;
+        stateRevision = Math.max(stateRevision, 10);
+        currentState._version = stateVersion;
+        currentState._revision = stateRevision;
+        currentState.updatedAt = nextMonotonicIsoTimestamp(currentState.updatedAt, (FALLBACK_ROSTER_STATE as any).updatedAt);
+        fs.writeFileSync(dataFilePath, JSON.stringify(currentState, null, 2), 'utf-8');
+        console.log(`[SyncServer] Upgraded cached roster to Aban v32 (rev ${stateRevision}, updatedAt ${currentState.updatedAt})`);
+      } else {
+        console.log(`[SyncServer] Loaded local roster state cache (version ${stateVersion}, rev ${stateRevision}, updatedAt ${currentState.updatedAt})`);
+      }
     } else if (FALLBACK_ROSTER_STATE) {
       currentState = {
         ...FALLBACK_ROSTER_STATE,
         updatedAt: (FALLBACK_ROSTER_STATE as any).updatedAt || (FALLBACK_ROSTER_STATE as any)._baseUpdatedAt || new Date().toISOString(),
       };
-      stateVersion = currentState._version || 31;
-      stateRevision = typeof currentState._revision === 'number' ? currentState._revision : 6;
+      stateVersion = currentState._version || 32;
+      stateRevision = typeof currentState._revision === 'number' ? currentState._revision : 10;
       fs.writeFileSync(dataFilePath, JSON.stringify(currentState, null, 2), 'utf-8');
       console.log(`[SyncServer] Initialized local roster state from FALLBACK_ROSTER_STATE (version ${stateVersion}, rev ${stateRevision})`);
     }
@@ -318,7 +365,7 @@ async function startServer() {
     return await writeFirestoreViaREST(cleanData, merge);
   }
 
-  // Helper to reconcile incoming cloud data with local server state and self-healing guard
+  // Helper to reconcile incoming cloud data with local server state (only block legacy 88aedc2d fallback)
   function reconcileCloudState(remoteData: any, eventSourceLabel: string) {
     if (!remoteData) return;
     isFirestoreConnected = true;
@@ -328,6 +375,8 @@ async function startServer() {
     if (!currentState || (remoteUpdated && localUpdated ? remoteUpdated > localUpdated : Boolean(remoteUpdated))) {
       const prevHash = getSchedHash(currentState?.schedule);
       const nextHash = getSchedHash(remoteData.schedule);
+      const prevMeta = getMetaFingerprint(currentState);
+      const nextMeta = getMetaFingerprint(remoteData);
       const remoteRevision = typeof remoteData._revision === 'number' ? remoteData._revision : 0;
 
       const isUnauthorizedLegacyRevert =
@@ -337,16 +386,7 @@ async function startServer() {
         nextHash === LEGACY_STALE_SCHEDULE_HASH &&
         !remoteData._explicitReset;
 
-      const isUnhydratedLowerRevisionOverwrite =
-        currentState &&
-        prevHash !== 'empty' &&
-        nextHash !== prevHash &&
-        stateRevision > 0 &&
-        remoteRevision > 0 &&
-        remoteRevision < stateRevision &&
-        !remoteData._explicitReset;
-
-      if (isUnauthorizedLegacyRevert || isUnhydratedLowerRevisionOverwrite) {
+      if (isUnauthorizedLegacyRevert) {
         const healedNow = nextMonotonicIsoTimestamp(currentState.updatedAt, remoteUpdated);
         stateVersion += 1;
         stateRevision = Math.max(stateRevision, remoteRevision) + 1;
@@ -358,15 +398,12 @@ async function startServer() {
         };
         persistToDisk(currentState);
         recordSyncAudit({
-          event: 'auto_healed_revert',
+          event: 'auto_healed_legacy_revert',
           offendingClientId: remoteData._originClientId || 'unknown',
-          offendingBuild: remoteData._clientBuild || 'legacy',
           offendingUpdatedAt: remoteUpdated,
-          offendingRevision: remoteRevision,
           offendingHash: nextHash,
           restoredHash: prevHash,
           healedUpdatedAt: healedNow,
-          healedRevision: stateRevision,
         });
         persistToFirestore(currentState, true).catch(() => {});
         mirrorToWorkerRelay(currentState).catch(() => {});
@@ -387,7 +424,7 @@ async function startServer() {
         _revision: stateRevision,
       };
       persistToDisk(currentState);
-      if (prevHash !== nextHash) {
+      if (prevHash !== nextHash || prevMeta !== nextMeta) {
         recordSyncAudit({
           event: eventSourceLabel,
           clientId: remoteData._originClientId || 'unknown',
@@ -408,15 +445,50 @@ async function startServer() {
     }
   }
 
-  // 2. Initial Firestore REST sync on startup + keep Cloudflare Worker relay warm
-  if (currentState) {
-    mirrorToWorkerRelay(currentState).catch(() => {});
-  }
-  setInterval(() => {
-    if (currentState) {
-      mirrorToWorkerRelay(currentState).catch(() => {});
+  // Bidirectional sync with Cloudflare Worker relay (never blindly overwrites newer client edits!)
+  async function syncWithWorkerRelay(): Promise<void> {
+    if (!currentState) return;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 6000);
+    try {
+      const res = await fetch(`${WORKER_RELAY_SYNC_URL}?_t=${Date.now()}`, {
+        headers: { Accept: 'application/json' },
+        cache: 'no-store',
+        signal: controller.signal,
+      });
+      if (!res.ok) return;
+      const json: any = await res.json();
+      if (json?.exists === false) {
+        // Worker cache is cold/empty — warm it with currentState
+        await mirrorToWorkerRelay(currentState);
+        return;
+      }
+      if (json?.exists === true && json?.data) {
+        const remote = json.data;
+        const remoteUpdated = json.updatedAt || remote.updatedAt || '';
+        const localUpdated = currentState.updatedAt || '';
+        const sameContent =
+          getSchedHash(remote.schedule) === getSchedHash(currentState.schedule) &&
+          getMetaFingerprint(remote) === getMetaFingerprint(currentState);
+
+        if (remoteUpdated && localUpdated && remoteUpdated > localUpdated && !sameContent) {
+          reconcileCloudState(remote, 'worker_relay_sync');
+        } else if (!sameContent && (!remoteUpdated || (localUpdated && localUpdated > remoteUpdated))) {
+          await mirrorToWorkerRelay(currentState);
+        }
+      }
+    } catch {
+      // Ignore transient network errors
+    } finally {
+      clearTimeout(timer);
     }
-  }, 45000);
+  }
+
+  // 2. Initial sync with Worker relay & Firestore REST on startup
+  syncWithWorkerRelay().catch(() => {});
+  setInterval(() => {
+    syncWithWorkerRelay().catch(() => {});
+  }, 60000);
   if (firebaseConfig?.projectId && firebaseConfig?.firestoreDatabaseId) {
     fetchFirestoreViaREST()
       .then((restData) => {
@@ -616,43 +688,6 @@ async function startServer() {
           updatedAt: currentState.updatedAt,
           data: currentState,
         });
-      }
-
-      // Guard against stale background tabs from a different client overwriting newer schedule edits
-      if (
-        currentState?.updatedAt &&
-        clientId &&
-        currentState._originClientId &&
-        clientId !== currentState._originClientId &&
-        Array.isArray(dataToMerge?.schedule) &&
-        nextHash !== prevHash &&
-        !dataToMerge?._explicitReset &&
-        !incoming.forceOverwrite
-      ) {
-        const currentMs = Date.parse(currentState.updatedAt);
-        const baseMs = baseUpdatedAt && typeof baseUpdatedAt === 'string' ? Date.parse(baseUpdatedAt) : 0;
-        const isStaleBase = Number.isFinite(currentMs) && Number.isFinite(baseMs) && baseMs > 0 && currentMs - baseMs > 30000;
-        const isLowerRevision = stateRevision > 0 && incomingRev > 0 && incomingRev < stateRevision;
-        if (isStaleBase || isLowerRevision) {
-          recordSyncAudit({
-            event: 'rejected_stale',
-            clientId,
-            clientBuild,
-            origin: req.headers.origin || req.headers.referer || '',
-            baseUpdatedAt,
-            incomingRev,
-            stateRevision,
-            currentUpdatedAt: currentState.updatedAt,
-            schedHash: nextHash,
-            prevHash,
-          });
-          return res.status(409).json({
-            success: false,
-            error: 'stale_conflict',
-            updatedAt: currentState.updatedAt,
-            data: currentState,
-          });
-        }
       }
 
       const now = nextMonotonicIsoTimestamp(currentState?.updatedAt, dataToMerge?.updatedAt);

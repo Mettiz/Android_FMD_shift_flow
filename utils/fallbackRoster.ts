@@ -1062,7 +1062,7 @@ export const FALLBACK_ROSTER_STATE = {
       "date": "1405/08/23",
       "dayName": "شنبه",
       "nightShiftPerson": "مهندس دهقان",
-      "dayShiftPerson": "آقای رحیمی",
+      "dayShiftPerson": "مهندس سپهر آرا",
       "isHoliday": false,
       "id": 98551551,
       "onCallPerson": "مهندس لسانی"
@@ -1088,7 +1088,7 @@ export const FALLBACK_ROSTER_STATE = {
     {
       "onCallPerson": "مهندس لسانی",
       "isHoliday": false,
-      "nightShiftPerson": "مهندس سالاروند",
+      "nightShiftPerson": "مهندس حیدری",
       "id": 26964180,
       "date": "1405/08/26",
       "dayShiftPerson": "مهندس سپهر آرا",
@@ -1097,7 +1097,7 @@ export const FALLBACK_ROSTER_STATE = {
     {
       "dayName": "چهارشنبه",
       "date": "1405/08/27",
-      "nightShiftPerson": "مهندس حیدری",
+      "nightShiftPerson": "مهندس سالاروند",
       "id": 66854487,
       "dayShiftPerson": "مهندس سلیمان فلاح",
       "isHoliday": false,
@@ -1108,7 +1108,7 @@ export const FALLBACK_ROSTER_STATE = {
       "date": "1405/08/28",
       "dayName": "پنج‌شنبه",
       "nightShiftPerson": "آقای رحیمی",
-      "dayShiftPerson": "مهندس سالاروند",
+      "dayShiftPerson": "مهندس اکبری",
       "onCallPerson": "مهندس لسانی",
       "id": 69391566
     },
@@ -1118,7 +1118,7 @@ export const FALLBACK_ROSTER_STATE = {
       "id": 43685539,
       "nightShiftPerson": "مهندس سپهر آرا",
       "dayName": "جمعه",
-      "dayShiftPerson": "مهندس حیدری",
+      "dayShiftPerson": "مهندس سالاروند",
       "onCallPerson": "مهندس لسانی"
     },
     {
@@ -2038,7 +2038,7 @@ export const FALLBACK_ROSTER_STATE = {
   ],
   "unlockedMonths": [],
   "_vercelPing": "pong_1792142215388",
-  "updatedAt": "2026-11-14T06:17:14.822Z",
+  "updatedAt": "2026-11-14T22:35:00.000Z",
   "productionBatches": [
     {
       "targetVolume": "۱۲۰۰ لیتر (۳۰۰,۰۰۰ دوز)",
@@ -2221,8 +2221,8 @@ export const FALLBACK_ROSTER_STATE = {
       "targetVolume": "۸۰۰ لیتر (۲۰۰,۰۰۰ دوز)"
     }
   ],
-  "_version": 31,
-  "_revision": 6,
-  "_baseUpdatedAt": "2026-11-14T06:17:06.108Z",
-  "_clientBuild": "shiftflow-v2.1"
+  "_version": 32,
+  "_revision": 10,
+  "_baseUpdatedAt": "2026-11-14T22:35:00.000Z",
+  "_clientBuild": "shiftflow-v2.2"
 };
