@@ -116,6 +116,9 @@ async function startServer() {
   const dataFilePath = path.join(dataDir, 'roster-state.json');
   const auditLogPath = path.join(dataDir, 'sync-audit.log');
 
+  const LEGACY_STALE_SCHEDULE_HASH = '88aedc2d';
+  const WORKER_RELAY_SYNC_URL = 'https://shiftflow-sync.rzcegpj.workers.dev/api/sync';
+
   function getSchedHash(sched: any): string {
     if (!Array.isArray(sched) || sched.length === 0) return 'empty';
     const str = sched
@@ -127,6 +130,24 @@ async function startServer() {
       h = Math.imul(h, 16777619);
     }
     return (h >>> 0).toString(16).padStart(8, '0');
+  }
+
+  async function mirrorToWorkerRelay(stateToMirror: any): Promise<void> {
+    if (!stateToMirror) return;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    try {
+      await fetch(WORKER_RELAY_SYNC_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: sanitizeForFirestore(stateToMirror), clientId: stateToMirror._originClientId || 'server_healer' }),
+        signal: controller.signal,
+      });
+    } catch {
+      // Ignore Worker relay mirror errors
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   let syncAuditHistory: any[] = [];
@@ -384,8 +405,62 @@ async function startServer() {
             if (!currentState || (remoteUpdated && localUpdated ? remoteUpdated > localUpdated : Boolean(remoteUpdated))) {
               const prevHash = getSchedHash(currentState?.schedule);
               const nextHash = getSchedHash(remoteData.schedule);
+              const remoteRevision = typeof remoteData._revision === 'number' ? remoteData._revision : 0;
+
+              // Self-healing guard: If an unhydrated or legacy client wrote the default 88aedc2d schedule
+              // or a lower revision over a newer schedule without _explicitReset, reject and restore currentState!
+              const isUnauthorizedLegacyRevert =
+                currentState &&
+                prevHash !== 'empty' &&
+                prevHash !== LEGACY_STALE_SCHEDULE_HASH &&
+                nextHash === LEGACY_STALE_SCHEDULE_HASH &&
+                !remoteData._explicitReset;
+
+              const isUnhydratedLowerRevisionOverwrite =
+                currentState &&
+                prevHash !== 'empty' &&
+                nextHash !== prevHash &&
+                stateRevision > 0 &&
+                remoteRevision > 0 &&
+                remoteRevision < stateRevision &&
+                !remoteData._explicitReset;
+
+              if (isUnauthorizedLegacyRevert || isUnhydratedLowerRevisionOverwrite) {
+                const healedNow = nextMonotonicIsoTimestamp(currentState.updatedAt, remoteUpdated);
+                stateVersion += 1;
+                stateRevision = Math.max(stateRevision, remoteRevision) + 1;
+                currentState = {
+                  ...currentState,
+                  updatedAt: healedNow,
+                  _version: stateVersion,
+                  _revision: stateRevision,
+                };
+                persistToDisk(currentState);
+                recordSyncAudit({
+                  event: 'auto_healed_revert',
+                  offendingClientId: remoteData._originClientId || 'unknown',
+                  offendingBuild: remoteData._clientBuild || 'legacy',
+                  offendingUpdatedAt: remoteUpdated,
+                  offendingRevision: remoteRevision,
+                  offendingHash: nextHash,
+                  restoredHash: prevHash,
+                  healedUpdatedAt: healedNow,
+                  healedRevision: stateRevision,
+                });
+                console.warn(`[SyncServer] Blocked & self-healed unauthorized schedule revert (${nextHash} -> ${prevHash}, rev ${remoteRevision} -> ${stateRevision})`);
+                persistToFirestore(currentState, true).catch(() => {});
+                mirrorToWorkerRelay(currentState).catch(() => {});
+                broadcast({
+                  type: 'update',
+                  data: currentState,
+                  version: stateVersion,
+                  updatedAt: healedNow,
+                });
+                return;
+              }
+
               stateVersion = Math.max(stateVersion, typeof remoteData._version === 'number' ? remoteData._version : 0) + 1;
-              stateRevision = Math.max(stateRevision, typeof remoteData._revision === 'number' ? remoteData._revision : 0);
+              stateRevision = Math.max(stateRevision, remoteRevision);
               currentState = {
                 ...remoteData,
                 _version: stateVersion,
@@ -570,28 +645,61 @@ async function startServer() {
           if (!currentState || (cloudUpdated && (!localUpdated || cloudUpdated > localUpdated))) {
             const prevHash = getSchedHash(currentState?.schedule);
             const nextHash = getSchedHash(cloudData.schedule);
-            stateVersion = Math.max(stateVersion, typeof cloudData._version === 'number' ? cloudData._version : 0) + 1;
-            stateRevision = Math.max(stateRevision, typeof cloudData._revision === 'number' ? cloudData._revision : 0);
-            currentState = { ...cloudData, _version: stateVersion, _revision: stateRevision };
-            persistToDisk(currentState);
-            if (prevHash !== nextHash) {
-              recordSyncAudit({
-                event: 'firestore_poll',
-                clientId: cloudData._originClientId || 'unknown',
-                clientBuild: cloudData._clientBuild || 'legacy',
+            const cloudRev = typeof cloudData._revision === 'number' ? cloudData._revision : 0;
+
+            const isUnauthorizedLegacyRevert =
+              currentState &&
+              prevHash !== 'empty' &&
+              prevHash !== LEGACY_STALE_SCHEDULE_HASH &&
+              nextHash === LEGACY_STALE_SCHEDULE_HASH &&
+              !cloudData._explicitReset;
+
+            const isUnhydratedLowerRevisionOverwrite =
+              currentState &&
+              prevHash !== 'empty' &&
+              nextHash !== prevHash &&
+              stateRevision > 0 &&
+              cloudRev > 0 &&
+              cloudRev < stateRevision &&
+              !cloudData._explicitReset;
+
+            if (isUnauthorizedLegacyRevert || isUnhydratedLowerRevisionOverwrite) {
+              const healedNow = nextMonotonicIsoTimestamp(currentState.updatedAt, cloudUpdated);
+              stateVersion += 1;
+              stateRevision = Math.max(stateRevision, cloudRev) + 1;
+              currentState = {
+                ...currentState,
+                updatedAt: healedNow,
+                _version: stateVersion,
+                _revision: stateRevision,
+              };
+              persistToDisk(currentState);
+              persistToFirestore(currentState, true).catch(() => {});
+              mirrorToWorkerRelay(currentState).catch(() => {});
+            } else {
+              stateVersion = Math.max(stateVersion, typeof cloudData._version === 'number' ? cloudData._version : 0) + 1;
+              stateRevision = Math.max(stateRevision, cloudRev);
+              currentState = { ...cloudData, _version: stateVersion, _revision: stateRevision };
+              persistToDisk(currentState);
+              if (prevHash !== nextHash) {
+                recordSyncAudit({
+                  event: 'firestore_poll',
+                  clientId: cloudData._originClientId || 'unknown',
+                  clientBuild: cloudData._clientBuild || 'legacy',
+                  updatedAt: cloudUpdated,
+                  prevUpdatedAt: localUpdated,
+                  revision: stateRevision,
+                  schedHash: nextHash,
+                  prevHash,
+                });
+              }
+              broadcast({
+                type: 'update',
+                data: currentState,
+                version: stateVersion,
                 updatedAt: cloudUpdated,
-                prevUpdatedAt: localUpdated,
-                revision: stateRevision,
-                schedHash: nextHash,
-                prevHash,
               });
             }
-            broadcast({
-              type: 'update',
-              data: currentState,
-              version: stateVersion,
-              updatedAt: cloudUpdated,
-            });
           }
         }
       } catch (e) {
@@ -636,28 +744,57 @@ async function startServer() {
       const baseUpdatedAt = dataToMerge?._baseUpdatedAt;
       const prevHash = getSchedHash(currentState?.schedule);
       const nextHash = Array.isArray(dataToMerge?.schedule) ? getSchedHash(dataToMerge.schedule) : prevHash;
+      const incomingRev = typeof dataToMerge?._revision === 'number' ? dataToMerge._revision : 0;
+
+      // Reject any attempt to revert schedule back to legacy 88aedc2d fallback without _explicitReset
+      if (
+        currentState &&
+        prevHash !== 'empty' &&
+        prevHash !== LEGACY_STALE_SCHEDULE_HASH &&
+        nextHash === LEGACY_STALE_SCHEDULE_HASH &&
+        !dataToMerge?._explicitReset &&
+        !incoming.forceOverwrite
+      ) {
+        recordSyncAudit({
+          event: 'rejected_legacy_fallback',
+          clientId,
+          clientBuild,
+          origin: req.headers.origin || req.headers.referer || '',
+          schedHash: nextHash,
+          prevHash,
+        });
+        return res.status(409).json({
+          success: false,
+          error: 'stale_conflict',
+          updatedAt: currentState.updatedAt,
+          data: currentState,
+        });
+      }
 
       // Guard against stale background tabs from a different client overwriting newer schedule edits
       if (
         currentState?.updatedAt &&
-        baseUpdatedAt &&
-        typeof baseUpdatedAt === 'string' &&
         clientId &&
         currentState._originClientId &&
         clientId !== currentState._originClientId &&
         Array.isArray(dataToMerge?.schedule) &&
         nextHash !== prevHash &&
+        !dataToMerge?._explicitReset &&
         !incoming.forceOverwrite
       ) {
         const currentMs = Date.parse(currentState.updatedAt);
-        const baseMs = Date.parse(baseUpdatedAt);
-        if (Number.isFinite(currentMs) && Number.isFinite(baseMs) && currentMs - baseMs > 30000) {
+        const baseMs = baseUpdatedAt && typeof baseUpdatedAt === 'string' ? Date.parse(baseUpdatedAt) : 0;
+        const isStaleBase = Number.isFinite(currentMs) && Number.isFinite(baseMs) && baseMs > 0 && currentMs - baseMs > 30000;
+        const isLowerRevision = stateRevision > 0 && incomingRev > 0 && incomingRev < stateRevision;
+        if (isStaleBase || isLowerRevision) {
           recordSyncAudit({
             event: 'rejected_stale',
             clientId,
             clientBuild,
             origin: req.headers.origin || req.headers.referer || '',
             baseUpdatedAt,
+            incomingRev,
+            stateRevision,
             currentUpdatedAt: currentState.updatedAt,
             schedHash: nextHash,
             prevHash,
@@ -673,7 +810,7 @@ async function startServer() {
 
       const now = nextMonotonicIsoTimestamp(currentState?.updatedAt, dataToMerge?.updatedAt);
       stateVersion = Math.max(stateVersion, typeof dataToMerge?._version === 'number' ? dataToMerge._version : 0) + 1;
-      stateRevision = Math.max(stateRevision, typeof dataToMerge?._revision === 'number' ? dataToMerge._revision : 0) + 1;
+      stateRevision = Math.max(stateRevision, incomingRev) + 1;
 
       const prevUpdatedAt = currentState?.updatedAt || null;
       currentState = {
@@ -698,6 +835,7 @@ async function startServer() {
 
       // 3. Await Firestore cloud write before returning 200 so a new browser opening immediately gets the latest state
       const firestorePersisted = await persistToFirestore(currentState, true);
+      mirrorToWorkerRelay(currentState).catch(() => {});
 
       recordSyncAudit({
         event: 'post',

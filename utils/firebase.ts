@@ -73,9 +73,13 @@ export interface CloudRosterState {
   _baseUpdatedAt?: string;
   _clientBuild?: string;
   _originClientId?: string;
+  _userEdited?: boolean;
+  _scheduleEdited?: boolean;
+  _explicitReset?: boolean;
 }
 
-const CLIENT_BUILD_ID = 'shiftflow-v2.1';
+const CLIENT_BUILD_ID = 'shiftflow-v2.2';
+export const LEGACY_STALE_SCHEDULE_HASH = '88aedc2d';
 
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
@@ -177,8 +181,27 @@ export function getScheduleFingerprint(schedule?: ShiftEntry[]): string {
     .join('|');
 }
 
+export function getScheduleHash(schedule?: ShiftEntry[]): string {
+  if (!schedule || !Array.isArray(schedule) || schedule.length === 0) return 'empty';
+  const str = schedule
+    .map(
+      (s) =>
+        `${s.date}:${s.dayShiftPerson || ''}:${s.nightShiftPerson || ''}:${s.onCallPerson || ''}:${(
+          s.extraDayPersons || []
+        ).join(',')}:${(s.extraNightPersons || []).join(',')}`
+    )
+    .join('|');
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0).toString(16).padStart(8, '0');
+}
+
 // Per-instance in-memory state of the currently applied schedule & revision
 let currentInstanceScheduleFingerprint = '';
+let currentInstanceScheduleHash = '';
 let lastLocalMutationTimeMs = 0;
 let lastLocalMutationUpdatedAt = '';
 let lastKnownCloudUpdatedAt = '';
@@ -204,6 +227,7 @@ export function setLocalScheduleFingerprint(schedule: ShiftEntry[]) {
   const fp = getScheduleFingerprint(schedule);
   if (fp) {
     currentInstanceScheduleFingerprint = fp;
+    currentInstanceScheduleHash = getScheduleHash(schedule);
   }
 }
 
@@ -577,9 +601,20 @@ export function subscribeToCloudRoster(
     }
 
     const incomingFp = getScheduleFingerprint(data.schedule);
+    const incomingHash = getScheduleHash(data.schedule);
     const incomingMeta = getMetaHash(data);
     const incomingVersion = typeof data._version === 'number' ? data._version : 0;
     const incomingRevision = typeof data._revision === 'number' ? data._revision : 0;
+
+    // Never allow any remote snapshot to revert a customized schedule back to the legacy 88aedc2d fallback unless explicitly reset
+    if (
+      incomingHash === LEGACY_STALE_SCHEDULE_HASH &&
+      currentInstanceScheduleHash &&
+      currentInstanceScheduleHash !== LEGACY_STALE_SCHEDULE_HASH &&
+      !data._explicitReset
+    ) {
+      return;
+    }
 
     // Never allow an older or equal-to-mutation snapshot to revert newer local/cloud state
     if (
@@ -591,13 +626,13 @@ export function subscribeToCloudRoster(
       return;
     }
 
-    // Never allow a lower revision from an identical-or-older timestamp to overwrite a newer revision
+    // Never allow a lower revision from an unhydrated client to overwrite a higher revision (unless explicit factory reset)
     if (
       source !== 'broadcast' &&
       lastKnownRevision > 0 &&
       incomingRevision > 0 &&
       incomingRevision < lastKnownRevision &&
-      (!data.updatedAt || !lastKnownCloudUpdatedAt || data.updatedAt <= lastKnownCloudUpdatedAt)
+      !data._explicitReset
     ) {
       return;
     }
@@ -652,6 +687,7 @@ export function subscribeToCloudRoster(
 
     if (incomingFp) {
       currentInstanceScheduleFingerprint = incomingFp;
+      currentInstanceScheduleHash = incomingHash;
     }
     lastAppliedMetaHash = incomingMeta;
     if (incomingVersion > lastAppliedVersion) {
@@ -768,10 +804,23 @@ export function subscribeToCloudRoster(
       const json = await tryServerSyncGet(base);
       if (!json) return null;
       if (json.exists === false) {
-        sawExplicitEmpty = true;
+        // Note: A cold Cloudflare Worker isolate whose upstream Firestore read timed out returns { exists: false }.
+        // Never treat a Worker { exists: false } as an authoritative empty database.
+        if (!base || !base.includes('.workers.dev')) {
+          sawExplicitEmpty = true;
+        }
         return null;
       }
       if (json.exists && json.data) {
+        const candHash = getScheduleHash(json.data.schedule);
+        if (
+          candHash === LEGACY_STALE_SCHEDULE_HASH &&
+          currentInstanceScheduleHash &&
+          currentInstanceScheduleHash !== LEGACY_STALE_SCHEDULE_HASH &&
+          !json.data._explicitReset
+        ) {
+          return null;
+        }
         return emitCandidate({
           result: json,
           source: 'server',
@@ -925,8 +974,10 @@ export function subscribeToCloudRoster(
         if (isCancelled || lastLocalMutationTimeMs > reqStartedAt) return;
         if (resData && resData.exists && resData.data) {
           handleIncomingData(resData.data, source, resData.data._originClientId);
-        } else if (resData && !resData.exists) {
-          if (!hasReceivedAnyData && onInitialEmpty) {
+        } else if (!hasReceivedAnyData) {
+          if (attempt < 4) {
+            setTimeout(() => doFetchInitial(attempt + 1), 1800);
+          } else if (onInitialEmpty) {
             onInitialEmpty();
           }
         }
@@ -937,8 +988,8 @@ export function subscribeToCloudRoster(
           return;
         }
         if (!hasReceivedAnyData) {
-          if (attempt < 2) {
-            setTimeout(() => doFetchInitial(attempt + 1), 1500);
+          if (attempt < 4) {
+            setTimeout(() => doFetchInitial(attempt + 1), 1800);
           } else if (onError) {
             onError(err);
           }
@@ -948,22 +999,24 @@ export function subscribeToCloudRoster(
 
   doFetchInitial(1);
 
-  // 2. Direct Server-Sent Events (SSE) Stream — ONLY connect when an active backend server exists
+  // 2. Direct Server-Sent Events (SSE) Stream — connect to local /api/sync/stream whenever local server is available
   let eventSource: EventSource | null = null;
   let sseReconnectTimer: any = null;
   const syncApiBase = getSyncApiBase();
+  const canConnectLocalSSE =
+    !isNativeAndroid && !isStaticHost && !isCloudflarePagesOrigin() && !deadEndpointUrls.has('__local__');
   const hasServerEndpoint =
-    (Boolean(syncApiBase) && !deadEndpointUrls.has(syncApiBase)) ||
-    (!isNativeAndroid && !isStaticHost && !deadEndpointUrls.has('__local__'));
+    canConnectLocalSSE || (Boolean(syncApiBase) && !deadEndpointUrls.has(syncApiBase));
 
   const connectSSE = () => {
     if (isCancelled || typeof window === 'undefined' || !('EventSource' in window)) return;
-    const currentBase = getSyncApiBase();
-    const activeKey = currentBase || '__local__';
+    // Prefer local '/api/sync/stream' whenever available (even if customUrl is set to a Cloudflare Worker relay)
+    const sseBase = canConnectLocalSSE ? '' : getSyncApiBase();
+    const activeKey = sseBase || '__local__';
     if (
-      (!currentBase && (isNativeAndroid || isStaticHost || isCloudflarePagesOrigin())) ||
+      (!sseBase && (isNativeAndroid || isStaticHost || isCloudflarePagesOrigin())) ||
       deadEndpointUrls.has(activeKey) ||
-      currentBase.includes('.workers.dev')
+      sseBase.includes('.workers.dev')
     ) {
       return;
     }
@@ -973,7 +1026,7 @@ export function subscribeToCloudRoster(
           eventSource.close();
         } catch {}
       }
-      const streamUrl = `${currentBase}/api/sync/stream`;
+      const streamUrl = `${sseBase}/api/sync/stream`;
       eventSource = new EventSource(streamUrl);
       eventSource.onopen = () => {
         updateSyncDetails({
@@ -1281,42 +1334,93 @@ function cleanFirestoreData<T>(obj: T): T {
  * 3. Uses local server or relay/Firestore commit confirmation without stalling 14s when direct Firestore is blocked in Iran.
  */
 export async function saveCloudRoster(data: Partial<CloudRosterState>): Promise<void> {
-  const baseUpdatedAt = lastKnownCloudUpdatedAt || undefined;
-  const now = nextMonotonicTimestamp(lastKnownCloudUpdatedAt, lastLocalMutationUpdatedAt);
-  const nextRevision = lastKnownRevision + 1;
-
-  lastLocalMutationTimeMs = Date.now();
-  lastLocalMutationUpdatedAt = now;
-  lastKnownCloudUpdatedAt = now;
-  lastKnownRevision = nextRevision;
-
-  if (data.schedule && Array.isArray(data.schedule)) {
-    setLocalScheduleFingerprint(data.schedule);
+  // Block any accidental write of the legacy unedited 88aedc2d schedule unless explicitly resetting
+  if (
+    data.schedule &&
+    Array.isArray(data.schedule) &&
+    getScheduleHash(data.schedule) === LEGACY_STALE_SCHEDULE_HASH &&
+    !data._explicitReset
+  ) {
+    console.warn('[CloudSync] Blocked attempt to overwrite cloud schedule with legacy fallback 88aedc2d');
+    return;
   }
-
-  const payload = cleanFirestoreData({
-    ...data,
-    updatedAt: now,
-    _revision: nextRevision,
-    ...(baseUpdatedAt ? { _baseUpdatedAt: baseUpdatedAt } : {}),
-    _clientBuild: CLIENT_BUILD_ID,
-    _originClientId: CLIENT_ID,
-  });
-
-  if (typeof localStorage !== 'undefined') {
-    try {
-      localStorage.setItem('shiftflow_updated_at', now);
-    } catch {}
-  }
-
-  // Broadcast to other tabs in the same browser immediately (0ms latency)
-  broadcastLocalStateChange(payload);
 
   const runWrite = async (): Promise<void> => {
     activePendingMutations++;
     lastLocalMutationTimeMs = Date.now();
 
     try {
+      // If this browser tab hasn't hydrated from the cloud yet (lastKnownRevision === 0),
+      // do a fast pre-write fetch so we never write _revision: 1 over an existing cloud state!
+      let remotePreState: CloudRosterState | null = null;
+      if ((!lastKnownCloudUpdatedAt || lastKnownRevision === 0) && !data._explicitReset) {
+        try {
+          remotePreState = await Promise.race([
+            fetchLatestCloudRosterNow(),
+            new Promise<null>((r) => setTimeout(() => r(null), 3000)),
+          ]);
+          if (remotePreState) {
+            if (remotePreState.updatedAt && (!lastKnownCloudUpdatedAt || remotePreState.updatedAt > lastKnownCloudUpdatedAt)) {
+              lastKnownCloudUpdatedAt = remotePreState.updatedAt;
+            }
+            if (typeof remotePreState._revision === 'number' && remotePreState._revision > lastKnownRevision) {
+              lastKnownRevision = remotePreState._revision;
+            }
+          }
+        } catch {}
+      }
+
+      const baseUpdatedAt = lastKnownCloudUpdatedAt || undefined;
+      const now = nextMonotonicTimestamp(
+        lastKnownCloudUpdatedAt,
+        lastLocalMutationUpdatedAt,
+        remotePreState?.updatedAt
+      );
+      const nextRevision = Math.max(lastKnownRevision, remotePreState?._revision || 0) + 1;
+
+      lastLocalMutationTimeMs = Date.now();
+      lastLocalMutationUpdatedAt = now;
+      lastKnownCloudUpdatedAt = now;
+      lastKnownRevision = nextRevision;
+
+      const mergedData: Partial<CloudRosterState> = {
+        ...(remotePreState || {}),
+        ...data,
+      };
+      // If caller did not explicitly edit schedule and remotePreState has a non-legacy schedule, keep remote schedule
+      if (
+        !data._scheduleEdited &&
+        remotePreState?.schedule &&
+        Array.isArray(remotePreState.schedule) &&
+        remotePreState.schedule.length > 0 &&
+        getScheduleHash(remotePreState.schedule) !== LEGACY_STALE_SCHEDULE_HASH
+      ) {
+        mergedData.schedule = remotePreState.schedule;
+      }
+
+      if (mergedData.schedule && Array.isArray(mergedData.schedule)) {
+        setLocalScheduleFingerprint(mergedData.schedule);
+      }
+
+      const payload = cleanFirestoreData({
+        ...mergedData,
+        updatedAt: now,
+        _revision: nextRevision,
+        ...(baseUpdatedAt ? { _baseUpdatedAt: baseUpdatedAt } : {}),
+        _userEdited: true,
+        _clientBuild: CLIENT_BUILD_ID,
+        _originClientId: CLIENT_ID,
+      });
+
+      if (typeof localStorage !== 'undefined') {
+        try {
+          localStorage.setItem('shiftflow_updated_at', now);
+        } catch {}
+      }
+
+      // Broadcast to other tabs in the same browser immediately (0ms latency)
+      broadcastLocalStateChange(payload);
+
       const isAndroid = isStandaloneAndroidRuntime();
       const isStaticHost = isStaticHostingOrigin();
       const isPagesHost = isCloudflarePagesOrigin();
@@ -1579,9 +1683,15 @@ export async function resetCloudRoster(data: CloudRosterState): Promise<void> {
     setLocalScheduleFingerprint(data.schedule);
   }
 
+  const nextRevision = lastKnownRevision + 1;
+  lastKnownRevision = nextRevision;
   const payload = cleanFirestoreData({
     ...data,
     updatedAt: now,
+    _revision: nextRevision,
+    _explicitReset: true,
+    _userEdited: true,
+    _clientBuild: CLIENT_BUILD_ID,
     _originClientId: CLIENT_ID,
   });
 

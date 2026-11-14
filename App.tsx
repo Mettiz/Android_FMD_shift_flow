@@ -16,7 +16,7 @@ import { ShiftEntry, Personnel, AppData, PublishedRange, DailyProcessMap, Proces
 import { Settings, Plus, Trash2, Save, ArrowUp, ArrowDown, UserCog, Users, ArrowRightLeft, AlertCircle, AlertTriangle, CheckCircle2, Edit, Calendar as CalendarIcon, List, Table as TableIcon, Check, Lock, X, KeyRound, CalendarPlus, Crown, LogOut, ShieldCheck, Palette, Cloud, CloudUpload, Wifi, RefreshCw, UserPlus, Sun, Moon, Sparkles, FlaskConical, Server, SlidersHorizontal } from 'lucide-react';
 import { getTodayPersianParts, getDayNameForJalali, toPersianDigits, getNextJalaliDate } from './utils/persianDate';
 import { getNextPersonnelColor, getPersonColor, ensureUniquePersonnelColors, upgradeToVibrantPersonnel } from './utils/personnelColors';
-import { subscribeToCloudRoster, saveCloudRoster, resetCloudRoster, subscribeSyncStatus, SyncStatusDetails, getSyncApiBase, setLocalScheduleFingerprint, fetchLatestCloudRosterNow, CloudRosterState } from './utils/firebase';
+import { subscribeToCloudRoster, saveCloudRoster, resetCloudRoster, subscribeSyncStatus, SyncStatusDetails, getSyncApiBase, setLocalScheduleFingerprint, fetchLatestCloudRosterNow, CloudRosterState, getScheduleHash, LEGACY_STALE_SCHEDULE_HASH } from './utils/firebase';
 import { unifyPersonnelAndShifts } from './utils/customFormatHandler';
 import { DEFAULT_PROCESS_DEFINITIONS, generateFullBioprocessCampaign } from './utils/bioprocessData';
 import { dispatchScheduleChangeNotifications } from './utils/shiftNotifications';
@@ -91,9 +91,12 @@ const App: React.FC = () => {
       // Filter out all 1404 entries
       list = list.filter(s => !s.date.startsWith('1404'));
 
-      // If empty after 1404 purge, fallback to clean SCHEDULE_DATA
-      if (list.length === 0) {
+      // If empty after 1404 purge, or if localStorage still holds the old legacy 88aedc2d schedule, upgrade to latest SCHEDULE_DATA
+      if (list.length === 0 || getScheduleHash(list) === LEGACY_STALE_SCHEDULE_HASH) {
         list = SCHEDULE_DATA;
+        try {
+          localStorage.setItem(STORAGE_KEYS.SCHEDULE, JSON.stringify(SCHEDULE_DATA));
+        } catch {}
       }
 
       // Always guarantee each entry's dayName is strictly mathematically accurate for the Iranian calendar
@@ -285,6 +288,8 @@ const App: React.FC = () => {
     dailyProcesses: overrides.dailyProcesses ?? dailyProcessesRef.current,
     processDefinitions: overrides.processDefinitions ?? processDefinitionsRef.current,
     showProcessSchedule: overrides.showProcessSchedule !== undefined ? overrides.showProcessSchedule : showProcessScheduleRef.current,
+    _userEdited: true,
+    _scheduleEdited: Boolean(overrides.schedule !== undefined || overrides._scheduleEdited || hasUserEditedScheduleRef.current),
   });
 
   const handleSavePublishedRange = (range: PublishedRange | null) => {
@@ -557,6 +562,7 @@ const App: React.FC = () => {
   const isInitialLoadCompletedRef = useRef(false);
   const hasCloudHydratedRef = useRef(false);
   const hasUserEditedRef = useRef(false);
+  const hasUserEditedScheduleRef = useRef(false);
 
   // Safety fallback: Never keep the user waiting longer than 3.5s if network is lagging
   useEffect(() => {
@@ -692,20 +698,10 @@ const App: React.FC = () => {
           isRemoteUpdateRef.current = false;
         }, 150);
       },
-      // If Firestore doc does not exist yet, seed it with current live refs
+      // Never auto-write fallback schedule to cloud if an endpoint transiently reports empty on initial load
       () => {
-        saveCloudRoster(buildCloudRosterSnapshot())
-          .then(() => {
-            setSyncStatus('synced');
-            hasCloudHydratedRef.current = true;
-            isInitialLoadCompletedRef.current = true;
-            setIsCloudLoading(false);
-          })
-          .catch(() => {
-            setSyncStatus('offline');
-            isInitialLoadCompletedRef.current = true;
-            setIsCloudLoading(false);
-          });
+        isInitialLoadCompletedRef.current = true;
+        setIsCloudLoading(false);
       },
       (error) => {
         console.warn('Firestore subscription offline or waiting:', error);
@@ -740,6 +736,7 @@ const App: React.FC = () => {
 
   const handleManualSaveChanges = async () => {
     hasUserEditedRef.current = true;
+    hasUserEditedScheduleRef.current = true;
     setIsSavingChanges(true);
     setSaveNotice(null);
     try {
@@ -1339,6 +1336,7 @@ const App: React.FC = () => {
 
   const syncUpdatedSchedule = (newSchedule: ShiftEntry[], successToast?: string) => {
     hasUserEditedRef.current = true;
+    hasUserEditedScheduleRef.current = true;
     scheduleRef.current = newSchedule;
     setLocalScheduleFingerprint(newSchedule);
 
@@ -1662,6 +1660,9 @@ const App: React.FC = () => {
   
   const handleImport = (data: AppData) => {
       hasUserEditedRef.current = true;
+      if (data.schedule) {
+        hasUserEditedScheduleRef.current = true;
+      }
       const rawSched = data.schedule || scheduleRef.current;
       const non1404 = rawSched.filter(s => !s.date.startsWith('1404'));
       const incomingStaff = data.personnel || [];
