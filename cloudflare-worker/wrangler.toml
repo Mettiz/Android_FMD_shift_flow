@@ -1,0 +1,33 @@
+name = "shiftflow-sync"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+workers_dev = true
+
+# After running `npx wrangler d1 create shiftflow-db`,
+# replace `REPLACE_WITH_YOUR_D1_DATABASE_ID` below with the database_id printed by Wrangler.
+[[d1_databases]]
+binding = "DB"
+database_name = "shiftflow-db"
+database_id = "3f158e24-be4a-4766-8c2a-d8906b11d83c"
+
+# Automated Cron Triggers:
+# - 20:30 UTC (00:00 Tehran): Daily automatic snapshot in D1
+# - 03:30 UTC (07:00 Tehran): Morning snapshot + optional Telegram daily shift report
+[triggers]
+crons = ["30 20 * * *", "30 3 * * *"]
+
+# --- OPTIONAL: Real-Time WebSockets via SQLite Durable Objects (Free Tier Supported) ---
+# Uncomment both blocks below and redeploy with `npx wrangler deploy` to enable <50ms WebSocket push:
+#
+# [[durable_objects.bindings]]
+# name = "SYNC_ROOM"
+# class_name = "ShiftFlowRoom"
+#
+# [[migrations]]
+# tag = "v1"
+# new_sqlite_classes = ["ShiftFlowRoom"]
+
+# --- OPTIONAL Secrets (set via Cloudflare Dashboard -> Settings -> Variables and Secrets, or `npx wrangler secret put`) ---
+# - SYNC_WRITE_SECRET   : Shared secret required in `X-ShiftFlow-Secret` header for POST /sync, /reset, /restore
+# - TELEGRAM_BOT_TOKEN  : Bot token for daily 07:00 IRST shift summary via Cron
+# - TELEGRAM_CHAT_ID    : Target Telegram group/channel/user chat ID

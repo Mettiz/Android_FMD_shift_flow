@@ -567,9 +567,18 @@ export async function testServerUrlConnection(rawUrl: string): Promise<{ success
     const latency = Date.now() - startTime;
     if (res.ok) {
       deadEndpointUrls.delete(cleanUrl);
+      let d1Label = '';
+      try {
+        const healthJson = await res.json();
+        if (healthJson?.d1Bound && healthJson?.d1Connected) {
+          d1Label = ' | دیتابیس D1 فعال';
+        } else if (healthJson?.d1Bound === false) {
+          d1Label = ' | حافظه موقت (D1 متصل نشده)';
+        }
+      } catch {}
       return {
         success: true,
-        message: `اتصال به سرور واسط موفقیت‌آمیز بود (${latency}ms) - آماده و بدون فیلتر`,
+        message: `اتصال به سرور واسط موفقیت‌آمیز بود (${latency}ms)${d1Label} - آماده و بدون فیلتر`,
         latency
       };
     }
@@ -602,6 +611,19 @@ export function getSyncApiBase(): string {
     return getActiveServerUrls()[0];
   }
   return '';
+}
+
+function getSyncWriteHeaders(): Record<string, string> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  try {
+    const envSecret = (import.meta as any).env?.VITE_SYNC_WRITE_SECRET;
+    const storedSecret = typeof localStorage !== 'undefined' ? localStorage.getItem('shiftflow_sync_secret') : null;
+    const token = (typeof envSecret === 'string' && envSecret.trim()) || (storedSecret && storedSecret.trim()) || '';
+    if (token) {
+      headers['X-ShiftFlow-Secret'] = token;
+    }
+  } catch {}
+  return headers;
 }
 
 /**
@@ -844,13 +866,17 @@ export function subscribeToCloudRoster(
   }
 
   // Helper to fetch from custom/local server `/api/sync` without retrying dead 402/404 endpoints
-  const tryServerSyncGet = async (base: string): Promise<any | null> => {
+  const tryServerSyncGet = async (base: string, useDeltaSince = false): Promise<any | null> => {
     const key = base || '__local__';
     if (deadEndpointUrls.has(key)) return null;
     try {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 5000);
-      const url = base ? `${base}/api/sync?_t=${Date.now()}` : `/api/sync?_t=${Date.now()}`;
+      const sinceParam =
+        useDeltaSince && hasReceivedAnyData && lastKnownCloudUpdatedAt
+          ? `&since=${encodeURIComponent(lastKnownCloudUpdatedAt)}`
+          : '';
+      const url = base ? `${base}/api/sync?_t=${Date.now()}${sinceParam}` : `/api/sync?_t=${Date.now()}${sinceParam}`;
       const res = await fetch(url, { cache: 'no-store', signal: controller.signal });
       clearTimeout(timer);
 
@@ -879,7 +905,8 @@ export function subscribeToCloudRoster(
   // then upgrades seamlessly if another endpoint resolves later with a newer updatedAt/_revision.
   const fetchFromEndpoints = async (
     checkAllSources = true,
-    onProgressiveCandidate?: (result: any, source: 'server' | 'firestore') => void
+    onProgressiveCandidate?: (result: any, source: 'server' | 'firestore') => void,
+    useDeltaSince = false
   ): Promise<{ result: any; source: 'server' | 'firestore' }> => {
     type Candidate = {
       result: any;
@@ -911,11 +938,14 @@ export function subscribeToCloudRoster(
     let anyServerReachable = false;
 
     const wrapServerFetch = async (base: string): Promise<Candidate | null> => {
-      const json = await tryServerSyncGet(base);
+      const json = await tryServerSyncGet(base, useDeltaSince);
       if (!json) return null;
       anyServerReachable = true;
+      if (json.exists === true && json.modified === false) {
+        return null;
+      }
       if (json.exists === false) {
-        if (!base || !base.includes('.workers.dev')) {
+        if (json.d1Connected === true || !base || !base.includes('.workers.dev')) {
           sawExplicitEmpty = true;
         }
         return null;
@@ -1182,6 +1212,59 @@ export function subscribeToCloudRoster(
     connectSSE();
   }
 
+  // 2b. Optional Edge WebSocket Real-Time Hub (connects automatically when Worker SYNC_ROOM Durable Object is enabled)
+  let edgeWs: WebSocket | null = null;
+  let wsReconnectTimer: any = null;
+  let wsPingTimer: any = null;
+  const wsRelayBase = getCustomServerUrl();
+
+  const connectEdgeWebSocket = async () => {
+    if (isCancelled || typeof window === 'undefined' || !('WebSocket' in window) || !wsRelayBase) return;
+    if (deadEndpointUrls.has(wsRelayBase)) return;
+    try {
+      const healthRes = await fetch(`${wsRelayBase}/api/sync/health?_t=${Date.now()}`, { cache: 'no-store' });
+      if (!healthRes.ok) return;
+      const health = await healthRes.json();
+      if (!health?.websocketAvailable || isCancelled) return;
+
+      const wsUrl = wsRelayBase.replace(/^http:/i, 'ws:').replace(/^https:/i, 'wss:') + '/api/sync/ws';
+      edgeWs = new WebSocket(wsUrl);
+      edgeWs.onopen = () => {
+        if (wsPingTimer) clearInterval(wsPingTimer);
+        wsPingTimer = setInterval(() => {
+          try {
+            if (edgeWs && edgeWs.readyState === WebSocket.OPEN) {
+              edgeWs.send('ping');
+            }
+          } catch {}
+        }, 25000);
+      };
+      edgeWs.onmessage = (evt) => {
+        if (isCancelled || !evt.data || evt.data === 'pong') return;
+        try {
+          const parsed = JSON.parse(String(evt.data));
+          if (parsed && parsed.data) {
+            handleIncomingData(parsed.data, 'server', parsed.data._originClientId);
+          }
+        } catch {}
+      };
+      edgeWs.onclose = () => {
+        if (wsPingTimer) {
+          clearInterval(wsPingTimer);
+          wsPingTimer = null;
+        }
+        if (!isCancelled) {
+          if (wsReconnectTimer) clearTimeout(wsReconnectTimer);
+          wsReconnectTimer = setTimeout(connectEdgeWebSocket, 8000);
+        }
+      };
+      edgeWs.onerror = () => {
+        try { edgeWs?.close(); } catch {}
+      };
+    } catch {}
+  };
+  connectEdgeWebSocket();
+
   // 3. Smart Background Polling & Pending Offline Flush:
   const fetchLatestFromServer = (checkAllSources = false) => {
     if (isCancelled || activePendingMutations > 0) return;
@@ -1201,7 +1284,8 @@ export function subscribeToCloudRoster(
       return;
     }
     const reqStartedAt = Date.now();
-    fetchFromEndpoints(checkAllSources)
+    // Use ultra-lightweight ?since= delta checks on periodic polls once initial data has loaded
+    fetchFromEndpoints(checkAllSources, undefined, !checkAllSources && hasReceivedAnyData)
       .then(({ result: resData, source }) => {
         if (isCancelled || !resData || lastLocalMutationTimeMs > reqStartedAt || activePendingMutations > 0) return;
         updateSyncDetails({
@@ -1340,7 +1424,14 @@ export function subscribeToCloudRoster(
     isCancelled = true;
     if (pollTimer) clearInterval(pollTimer);
     if (sseReconnectTimer) clearTimeout(sseReconnectTimer);
+    if (wsReconnectTimer) clearTimeout(wsReconnectTimer);
+    if (wsPingTimer) clearInterval(wsPingTimer);
     if (firestoreReconnectTimer) clearTimeout(firestoreReconnectTimer);
+    if (edgeWs) {
+      try {
+        edgeWs.close();
+      } catch {}
+    }
     if (bgWorker) {
       try {
         bgWorker.terminate();
@@ -1729,7 +1820,7 @@ export async function saveCloudRoster(data: Partial<CloudRosterState>): Promise<
 
           const r = await fetch(url, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getSyncWriteHeaders(),
             body: JSON.stringify({
               data: effectivePayload,
               clientId: CLIENT_ID,
@@ -1994,7 +2085,7 @@ export async function resetCloudRoster(data: CloudRosterState): Promise<void> {
         ops.push(
           fetch(url, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getSyncWriteHeaders(),
             body: JSON.stringify({ data: payload, clientId: CLIENT_ID, forceOverwrite: true }),
           })
         );
@@ -2013,3 +2104,126 @@ export async function resetCloudRoster(data: CloudRosterState): Promise<void> {
   writeQueuePromise = chained.catch(() => {});
   return chained;
 }
+
+export interface CloudSnapshotMeta {
+  id: number;
+  createdAt: string;
+  type: 'manual' | 'cron' | 'pre_reset' | 'pre_restore' | string;
+  label: string;
+  version: number;
+  revision: number;
+  schedHash: string;
+  shiftCount: number;
+}
+
+function getPreferredSnapshotEndpoints(suffix: string): string[] {
+  const isAndroid = isStandaloneAndroidRuntime();
+  const isStaticHost = isStaticHostingOrigin();
+  const customUrl = getCustomServerUrl();
+  const urls: string[] = [];
+
+  if (!isAndroid && !isStaticHost && !deadEndpointUrls.has('__local__')) {
+    urls.push(`/api/sync${suffix}`);
+  }
+  if (customUrl && !deadEndpointUrls.has(customUrl)) {
+    urls.push(`${customUrl}/api/sync${suffix}`);
+  }
+  if (isAndroid) {
+    for (const base of getActiveServerUrls()) {
+      const candidate = `${base}/api/sync${suffix}`;
+      if (!urls.includes(candidate)) urls.push(candidate);
+    }
+  }
+  return urls;
+}
+
+/**
+ * Fetches available cloud/D1 snapshots ordered newest-first.
+ */
+export async function listCloudSnapshots(): Promise<CloudSnapshotMeta[]> {
+  const urls = getPreferredSnapshotEndpoints('/snapshots');
+  for (const url of urls) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 5000);
+      const res = await fetch(`${url}?_t=${Date.now()}`, { cache: 'no-store', signal: controller.signal });
+      clearTimeout(timer);
+      if (res.ok) {
+        const json = await res.json();
+        if (Array.isArray(json?.snapshots)) {
+          return json.snapshots as CloudSnapshotMeta[];
+        }
+      }
+    } catch {}
+  }
+  return [];
+}
+
+/**
+ * Creates a manual snapshot in Cloudflare D1 / local sync backend.
+ */
+export async function createCloudSnapshot(label?: string): Promise<CloudSnapshotMeta | null> {
+  const urls = getPreferredSnapshotEndpoints('/snapshots');
+  for (const url of urls) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 6000);
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: getSyncWriteHeaders(),
+        body: JSON.stringify({ label: label || '', clientId: CLIENT_ID }),
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+      if (res.ok) {
+        const json = await res.json();
+        if (json?.snapshot) return json.snapshot as CloudSnapshotMeta;
+      }
+    } catch {}
+  }
+  return null;
+}
+
+/**
+ * Restores a saved snapshot by ID in Cloudflare D1 / local sync backend
+ * and returns the restored CloudRosterState.
+ */
+export async function restoreCloudSnapshot(snapshotId: number): Promise<CloudRosterState | null> {
+  const urls = getPreferredSnapshotEndpoints('/restore');
+  for (const url of urls) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 8000);
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: getSyncWriteHeaders(),
+        body: JSON.stringify({ snapshotId, clientId: CLIENT_ID }),
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+      if (res.ok) {
+        const json = await res.json();
+        if (json?.success && json?.data) {
+          const restored = json.data as CloudRosterState;
+          if (restored.updatedAt) {
+            lastKnownCloudUpdatedAt = restored.updatedAt;
+            lastLocalMutationUpdatedAt = restored.updatedAt;
+          }
+          if (typeof restored._revision === 'number') {
+            lastKnownRevision = restored._revision;
+          }
+          if (Array.isArray(restored.schedule)) {
+            setLocalScheduleFingerprint(restored.schedule);
+          }
+          clearPendingSync();
+          lastLocalSaveFailed = false;
+          writeConfirmedCloudMeta(restored.updatedAt, restored._revision);
+          broadcastLocalStateChange(restored);
+          return restored;
+        }
+      }
+    } catch {}
+  }
+  return null;
+}
+

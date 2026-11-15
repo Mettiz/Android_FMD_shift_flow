@@ -107,11 +107,73 @@ async function startServer() {
   }
   const dataFilePath = path.join(dataDir, 'roster-state.json');
   const auditLogPath = path.join(dataDir, 'sync-audit.log');
+  const snapshotsFilePath = path.join(dataDir, 'snapshots.json');
 
   const LEGACY_STALE_SCHEDULE_HASH = '88aedc2d';
   const WORKER_RELAY_BASE = 'https://shiftflow-sync.rzcegpj.workers.dev';
   const WORKER_RELAY_SYNC_URL = `${WORKER_RELAY_BASE}/api/sync`;
   const WORKER_RELAY_RESET_URL = `${WORKER_RELAY_BASE}/api/sync/reset`;
+
+  interface SnapshotRecord {
+    id: number;
+    createdAt: string;
+    type: 'manual' | 'cron' | 'pre_reset' | 'pre_restore';
+    label: string;
+    version: number;
+    revision: number;
+    schedHash: string;
+    shiftCount: number;
+    data: any;
+  }
+
+  let snapshotsCache: SnapshotRecord[] = [];
+  let nextSnapshotId = 1;
+  try {
+    if (fs.existsSync(snapshotsFilePath)) {
+      const parsed = JSON.parse(fs.readFileSync(snapshotsFilePath, 'utf-8'));
+      if (Array.isArray(parsed)) {
+        snapshotsCache = parsed;
+        nextSnapshotId = snapshotsCache.reduce((m, s) => Math.max(m, Number(s?.id) || 0), 0) + 1;
+      }
+    }
+  } catch {}
+
+  function createLocalSnapshot(state: any, type: SnapshotRecord['type'] = 'manual', label = '', skipIfIdentical = false) {
+    if (!state) return null;
+    const schedHash = getSchedHash(state.schedule);
+    const version = typeof state._version === 'number' ? state._version : 1;
+    const revision = typeof state._revision === 'number' ? state._revision : 0;
+    const shiftCount = Array.isArray(state.schedule) ? state.schedule.length : 0;
+
+    if (skipIfIdentical && snapshotsCache.length > 0) {
+      const latest = snapshotsCache[0];
+      if (latest.schedHash === schedHash && latest.version === version && latest.revision === revision) {
+        return null;
+      }
+    }
+
+    const record: SnapshotRecord = {
+      id: nextSnapshotId++,
+      createdAt: new Date().toISOString(),
+      type,
+      label:
+        label ||
+        (type === 'pre_reset'
+          ? 'بکاپ ایمنی پیش از ریست'
+          : type === 'pre_restore'
+          ? 'بکاپ ایمنی پیش از بازیابی'
+          : 'اسنپ‌شات دستی'),
+      version,
+      revision,
+      schedHash,
+      shiftCount,
+      data: JSON.parse(JSON.stringify(state)),
+    };
+
+    snapshotsCache = [record, ...snapshotsCache].slice(0, 30);
+    fs.promises.writeFile(snapshotsFilePath, JSON.stringify(snapshotsCache), 'utf-8').catch(() => {});
+    return record;
+  }
 
   function getSchedHash(sched: any): string {
     if (!Array.isArray(sched) || sched.length === 0) return 'empty';
@@ -779,11 +841,97 @@ async function startServer() {
     }
   });
 
+  // GET /api/sync/snapshots
+  app.get('/api/sync/snapshots', (_req, res) => {
+    res.json({
+      storageEngine: 'local-disk',
+      d1Bound: false,
+      count: snapshotsCache.length,
+      snapshots: snapshotsCache.map(({ data: _data, ...meta }) => meta),
+    });
+  });
+
+  // POST /api/sync/snapshots (manual snapshot)
+  app.post('/api/sync/snapshots', (req, res) => {
+    if (!currentState) {
+      return res.status(404).json({ success: false, error: 'هیچ داده‌ای برای اسنپ‌شات موجود نیست.' });
+    }
+    const label = typeof req.body?.label === 'string' ? req.body.label.trim().slice(0, 80) : '';
+    const created = createLocalSnapshot(currentState, 'manual', label || 'اسنپ‌شات دستی');
+    if (!created) {
+      return res.status(500).json({ success: false, error: 'خطا در ایجاد اسنپ‌شات' });
+    }
+    const { data: _omit, ...meta } = created;
+    return res.json({ success: true, snapshot: meta });
+  });
+
+  // POST /api/sync/restore
+  app.post('/api/sync/restore', async (req, res) => {
+    try {
+      const snapshotId = Number(req.body?.snapshotId);
+      const found = snapshotsCache.find((s) => s.id === snapshotId);
+      if (!found || !found.data) {
+        return res.status(404).json({ success: false, error: 'اسنپ‌شات مورد نظر یافت نشد.' });
+      }
+      if (currentState) {
+        createLocalSnapshot(currentState, 'pre_restore', `بکاپ ایمنی پیش از بازگشت به #${found.id}`, true);
+      }
+
+      const clientId = req.body?.clientId || 'snapshot_restore';
+      const now = nextMonotonicIsoTimestamp(currentState?.updatedAt, found.data?.updatedAt);
+      stateVersion = Math.max(stateVersion, typeof found.data?._version === 'number' ? found.data._version : 0) + 1;
+      stateRevision = Math.max(stateRevision, typeof found.data?._revision === 'number' ? found.data._revision : 0) + 1;
+
+      currentState = {
+        ...found.data,
+        updatedAt: now,
+        _version: stateVersion,
+        _revision: stateRevision,
+        _originClientId: clientId,
+        _explicitReset: true,
+      };
+
+      persistToDisk(currentState);
+      broadcast({ type: 'restore', data: currentState, version: stateVersion, updatedAt: now });
+
+      const [firestorePersisted, workerPersisted] = await Promise.all([
+        persistToFirestore(currentState, false),
+        mirrorToWorkerRelay(currentState, true),
+      ]);
+
+      recordSyncAudit({
+        event: 'restore',
+        clientId,
+        snapshotId: found.id,
+        updatedAt: now,
+        version: stateVersion,
+        revision: stateRevision,
+        firestorePersisted,
+        workerPersisted,
+      });
+
+      return res.json({
+        success: true,
+        restoredSnapshotId: found.id,
+        version: stateVersion,
+        revision: stateRevision,
+        updatedAt: now,
+        data: currentState,
+      });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err?.message || 'Restore failed' });
+    }
+  });
+
   // POST /api/sync/reset
   app.post('/api/sync/reset', async (req, res) => {
     try {
       const incoming = req.body;
       const fullData = incoming.data || incoming;
+
+      if (currentState) {
+        createLocalSnapshot(currentState, 'pre_reset', 'بکاپ ایمنی پیش از ریست', true);
+      }
 
       const prevUpdatedAt = currentState?.updatedAt || null;
       const prevHash = getSchedHash(currentState?.schedule);

@@ -27,7 +27,11 @@ import {
   Info,
   Check,
   X,
-  FlaskConical
+  FlaskConical,
+  History,
+  RotateCcw,
+  Cloud,
+  RefreshCw
 } from 'lucide-react';
 import { AppData, Personnel, ShiftEntry } from '../types';
 import { 
@@ -43,6 +47,13 @@ import { parsePdfSchedule } from '../utils/pdfParser';
 import { OfficialSchedulePdfModal } from './OfficialSchedulePdfModal';
 import { toPersianDigits } from '../utils/persianDate';
 import { downloadProcessExcelTemplate } from '../utils/processExcelHandler';
+import {
+  CloudRosterState,
+  CloudSnapshotMeta,
+  createCloudSnapshot,
+  listCloudSnapshots,
+  restoreCloudSnapshot
+} from '../utils/firebase';
 
 // Reusable Date Select Box matching Dashboard design
 const DateFieldSelect = ({
@@ -89,6 +100,7 @@ interface StagedDataInfo {
 interface DataManagementProps {
   currentData: AppData;
   onImport: (data: AppData) => void;
+  onCloudRestore?: (cloudState: CloudRosterState) => void;
   onStagePreview?: (data: AppData, info: { source: string; rangeText?: string }) => void;
   onReset?: () => void;
   onOpenProcessesTab?: () => void;
@@ -103,6 +115,7 @@ interface DataManagementProps {
 export const DataManagement: React.FC<DataManagementProps> = ({ 
   currentData, 
   onImport, 
+  onCloudRestore,
   onStagePreview, 
   onReset,
   onOpenProcessesTab,
@@ -120,6 +133,73 @@ export const DataManagement: React.FC<DataManagementProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
+
+  // Cloud D1 Snapshots state
+  const [snapshots, setSnapshots] = useState<CloudSnapshotMeta[]>([]);
+  const [isSnapshotsLoading, setIsSnapshotsLoading] = useState(false);
+  const [isCreatingSnapshot, setIsCreatingSnapshot] = useState(false);
+  const [restoringSnapshotId, setRestoringSnapshotId] = useState<number | null>(null);
+  const [confirmRestoreId, setConfirmRestoreId] = useState<number | null>(null);
+  const [snapshotLabelInput, setSnapshotLabelInput] = useState('');
+
+  const loadSnapshots = async () => {
+    setIsSnapshotsLoading(true);
+    try {
+      const list = await listCloudSnapshots();
+      setSnapshots(list);
+    } finally {
+      setIsSnapshotsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadSnapshots().catch(() => {});
+  }, []);
+
+  const handleCreateSnapshot = async () => {
+    setIsCreatingSnapshot(true);
+    try {
+      const created = await createCloudSnapshot(snapshotLabelInput.trim() || undefined);
+      if (created) {
+        setSnapshotLabelInput('');
+        setStatusMessage({ type: 'success', text: `اسنپ‌شات ابری «${created.label}» با موفقیت ذخیره شد.` });
+        await loadSnapshots();
+      } else {
+        setStatusMessage({ type: 'error', text: 'ثبت اسنپ‌شات ابری انجام نشد. اتصال سرور/D1 را بررسی کنید.' });
+      }
+    } finally {
+      setIsCreatingSnapshot(false);
+    }
+  };
+
+  const handleRestoreSnapshot = async (snapshotId: number) => {
+    setRestoringSnapshotId(snapshotId);
+    setConfirmRestoreId(null);
+    try {
+      const restored = await restoreCloudSnapshot(snapshotId);
+      if (restored) {
+        if (onCloudRestore) {
+          onCloudRestore(restored);
+        } else {
+          onImport({
+            schedule: restored.schedule || [],
+            personnel: restored.personnelList || [],
+            lockedMonths: restored.unlockedMonths || [],
+            publishedRange: restored.publishedRange || null,
+            dailyProcesses: restored.dailyProcesses,
+            processDefinitions: restored.processDefinitions,
+            showProcessSchedule: restored.showProcessSchedule,
+          });
+        }
+        setStatusMessage({ type: 'success', text: 'برنامه با موفقیت از اسنپ‌شات انتخاب‌شده بازیابی گردید.' });
+        await loadSnapshots();
+      } else {
+        setStatusMessage({ type: 'error', text: 'بازیابی اسنپ‌شات ابری با خطا مواجه شد.' });
+      }
+    } finally {
+      setRestoringSnapshotId(null);
+    }
+  };
 
   // States for adding custom dropdown items
   const [newTemplateName, setNewTemplateName] = useState('');
@@ -1177,6 +1257,147 @@ export const DataManagement: React.FC<DataManagementProps> = ({
             </div>
           </div>
         </div>
+      </div>
+
+      {/* 5.9 Cloud Snapshots & Restore (D1 / Edge History) */}
+      <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-2xs space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 border border-indigo-100">
+              <History size={18} />
+            </div>
+            <div>
+              <h4 className="font-black text-slate-800 text-sm flex items-center gap-2 flex-wrap">
+                <span>اسنپ‌شات ابری و بازگشت به نسخه‌های قبلی</span>
+                <span className="text-[10px] bg-indigo-50 text-indigo-700 font-bold px-2 py-0.5 rounded border border-indigo-100">
+                  Cloudflare D1
+                </span>
+              </h4>
+              <p className="text-xs text-slate-500 mt-0.5">
+                بکاپ‌گیری خودکار روزانه + ثبت ایمنی پیش از ریست و امکان بازگردانی فوری برنامه
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="text"
+              value={snapshotLabelInput}
+              onChange={(e) => setSnapshotLabelInput(e.target.value)}
+              placeholder="عنوان دلخواه (اختیاری)..."
+              className="px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-indigo-500 w-44"
+            />
+            <button
+              type="button"
+              onClick={handleCreateSnapshot}
+              disabled={isCreatingSnapshot}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition shadow-2xs cursor-pointer disabled:opacity-60"
+            >
+              {isCreatingSnapshot ? <Loader2 size={14} className="animate-spin" /> : <Cloud size={14} />}
+              <span>ثبت اسنپ‌شات فوری</span>
+            </button>
+            <button
+              type="button"
+              onClick={loadSnapshots}
+              disabled={isSnapshotsLoading}
+              className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition cursor-pointer"
+              title="بروزرسانی لیست نسخه‌ها"
+            >
+              <RefreshCw size={14} className={isSnapshotsLoading ? 'animate-spin' : ''} />
+            </button>
+          </div>
+        </div>
+
+        {snapshots.length === 0 ? (
+          <div className="text-xs text-slate-500 bg-slate-50 rounded-xl p-4 text-center border border-dashed border-slate-200">
+            {isSnapshotsLoading
+              ? 'در حال دریافت لیست اسنپ‌شات‌های ابری...'
+              : 'هنوز اسنپ‌شاتی ثبت نشده است. با زدن «ثبت اسنپ‌شات فوری» یا فعال‌سازی کرون روزانه کلودفلر، تاریخچه نسخه‌ها اینجا نمایش داده می‌شود.'}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 max-h-64 overflow-y-auto pr-0.5">
+            {snapshots.slice(0, 12).map((snap) => {
+              const typeBadge =
+                snap.type === 'cron'
+                  ? { text: 'خودکار روزانه', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' }
+                  : snap.type === 'pre_reset'
+                  ? { text: 'پیش از ریست', cls: 'bg-amber-50 text-amber-800 border-amber-200' }
+                  : snap.type === 'pre_restore'
+                  ? { text: 'ایمنی بازیابی', cls: 'bg-purple-50 text-purple-700 border-purple-200' }
+                  : { text: 'دستی', cls: 'bg-indigo-50 text-indigo-700 border-indigo-200' };
+
+              let formattedTime = snap.createdAt;
+              try {
+                formattedTime = new Date(snap.createdAt).toLocaleString('fa-IR', {
+                  month: '2-digit',
+                  day: '2-digit',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                });
+              } catch {}
+
+              return (
+                <div
+                  key={snap.id}
+                  className="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50/90 border border-slate-200/90 hover:border-indigo-200 transition"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-xs font-black text-slate-800 truncate">{snap.label}</span>
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${typeBadge.cls}`}>
+                        {typeBadge.text}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-slate-500 mt-1 flex items-center gap-2 flex-wrap">
+                      <span>{formattedTime}</span>
+                      <span>•</span>
+                      <span>{toPersianDigits(snap.shiftCount)} روز</span>
+                      <span>•</span>
+                      <span className="font-mono text-[10px]">v{snap.version}</span>
+                    </div>
+                  </div>
+
+                  <div className="shrink-0">
+                    {confirmRestoreId === snap.id ? (
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleRestoreSnapshot(snap.id)}
+                          disabled={restoringSnapshotId === snap.id}
+                          className="px-2.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold rounded-lg transition cursor-pointer"
+                        >
+                          تایید بازگشت
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmRestoreId(null)}
+                          className="p-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg cursor-pointer"
+                          title="انصراف"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmRestoreId(snap.id)}
+                        disabled={restoringSnapshotId !== null}
+                        className="flex items-center gap-1 px-2.5 py-1.5 bg-white hover:bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-bold rounded-lg transition cursor-pointer disabled:opacity-50"
+                      >
+                        {restoringSnapshotId === snap.id ? (
+                          <Loader2 size={13} className="animate-spin" />
+                        ) : (
+                          <RotateCcw size={13} />
+                        )}
+                        <span>بازگردانی</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* 6. System Backup, Restore & Maintenance (JSON) */}

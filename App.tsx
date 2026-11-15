@@ -1854,6 +1854,59 @@ const App: React.FC = () => {
 
       setActiveTab('dashboard');
   };
+
+  const handleCloudRestore = (cloudData: CloudRosterState) => {
+      isRemoteUpdateRef.current = true;
+      hasUserEditedRef.current = true;
+      hasUserEditedScheduleRef.current = true;
+
+      const restoredSchedule = Array.isArray(cloudData.schedule) ? cloudData.schedule : scheduleRef.current;
+      const restoredPersonnel = Array.isArray(cloudData.personnelList) ? cloudData.personnelList : personnelListRef.current;
+      const restoredLocked = Array.isArray(cloudData.unlockedMonths) ? cloudData.unlockedMonths : unlockedMonthsRef.current;
+      const restoredPublishedRange = cloudData.publishedRange !== undefined ? cloudData.publishedRange : publishedRangeRef.current;
+      const restoredDailyProcesses = cloudData.dailyProcesses || dailyProcessesRef.current;
+      const restoredProcessDefs = cloudData.processDefinitions || processDefinitionsRef.current;
+      const restoredShowProcess = cloudData.showProcessSchedule !== undefined ? cloudData.showProcessSchedule : showProcessScheduleRef.current;
+
+      scheduleRef.current = restoredSchedule;
+      setLocalScheduleFingerprint(restoredSchedule);
+      setSchedule(restoredSchedule);
+      personnelListRef.current = restoredPersonnel;
+      setPersonnelList(restoredPersonnel);
+      unlockedMonthsRef.current = restoredLocked;
+      setUnlockedMonths(restoredLocked);
+      publishedRangeRef.current = restoredPublishedRange;
+      setPublishedRange(restoredPublishedRange);
+      dailyProcessesRef.current = restoredDailyProcesses;
+      setDailyProcesses(restoredDailyProcesses);
+      processDefinitionsRef.current = restoredProcessDefs;
+      setProcessDefinitions(restoredProcessDefs);
+      showProcessScheduleRef.current = restoredShowProcess;
+      setShowProcessSchedule(restoredShowProcess);
+
+      persistAllToLocalStorage({
+        schedule: restoredSchedule,
+        personnelList: restoredPersonnel,
+        unlockedMonths: restoredLocked,
+        publishedRange: restoredPublishedRange,
+        dailyProcesses: restoredDailyProcesses,
+        processDefinitions: restoredProcessDefs,
+        showProcessSchedule: restoredShowProcess,
+      });
+      if (cloudData.updatedAt) {
+        try {
+          localStorage.setItem(STORAGE_KEYS.UPDATED_AT, cloudData.updatedAt);
+        } catch {}
+      }
+
+      setSyncStatus('synced');
+      setSaveNotice({ type: 'success', message: 'نسخه انتخاب‌شده با موفقیت از اسنپ‌شات ابری بازگردانی شد.' });
+      setTimeout(() => setSaveNotice(null), 5000);
+      setTimeout(() => {
+        isRemoteUpdateRef.current = false;
+      }, 150);
+      setActiveTab('dashboard');
+  };
   
   const handleReset = () => {
       setConfirmDialog({
@@ -2605,6 +2658,7 @@ const App: React.FC = () => {
                         <DataManagement 
                     currentData={{ schedule, personnel: personnelList, lockedMonths: unlockedMonths, publishedRange, dailyProcesses, processDefinitions, showProcessSchedule }} 
                     onImport={handleImport}
+                    onCloudRestore={handleCloudRestore}
                     onStagePreview={handleStagePreview}
                     onReset={handleReset}
                 />
