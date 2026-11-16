@@ -2122,14 +2122,18 @@ export interface CloudSnapshotMeta {
 function getPreferredSnapshotEndpoints(suffix: string): string[] {
   const isAndroid = isStandaloneAndroidRuntime();
   const isStaticHost = isStaticHostingOrigin();
+  const isPages = isCloudflarePagesOrigin();
   const customUrl = getCustomServerUrl();
   const urls: string[] = [];
 
-  if (!isAndroid && !isStaticHost && !deadEndpointUrls.has('__local__')) {
+  if (isPages && !deadEndpointUrls.has('__local__')) {
     urls.push(`/api/sync${suffix}`);
   }
   if (customUrl && !deadEndpointUrls.has(customUrl)) {
     urls.push(`${customUrl}/api/sync${suffix}`);
+  }
+  if (!isAndroid && !isStaticHost && !isPages && !deadEndpointUrls.has('__local__')) {
+    urls.push(`/api/sync${suffix}`);
   }
   if (isAndroid) {
     for (const base of getActiveServerUrls()) {

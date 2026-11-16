@@ -842,8 +842,23 @@ async function startServer() {
   });
 
   // GET /api/sync/snapshots
-  app.get('/api/sync/snapshots', (_req, res) => {
-    res.json({
+  app.get('/api/sync/snapshots', async (_req, res) => {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 5000);
+      const upstream = await fetch(`${WORKER_RELAY_BASE}/api/sync/snapshots?_t=${Date.now()}`, {
+        headers: { Accept: 'application/json' },
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+      if (upstream.ok) {
+        const json: any = await upstream.json();
+        if (json && Array.isArray(json.snapshots)) {
+          return res.json(json);
+        }
+      }
+    } catch {}
+    return res.json({
       storageEngine: 'local-disk',
       d1Bound: false,
       count: snapshotsCache.length,
@@ -852,16 +867,41 @@ async function startServer() {
   });
 
   // POST /api/sync/snapshots (manual snapshot)
-  app.post('/api/sync/snapshots', (req, res) => {
-    if (!currentState) {
+  app.post('/api/sync/snapshots', async (req, res) => {
+    const label = typeof req.body?.label === 'string' ? req.body.label.trim().slice(0, 80) : '';
+    const clientId = req.body?.clientId || 'server_manual';
+
+    let localCreated: SnapshotRecord | null = null;
+    if (currentState) {
+      localCreated = createLocalSnapshot(currentState, 'manual', label || 'اسنپ‌شات دستی');
+    }
+
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 6000);
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      const writeSecret = process.env.SYNC_WRITE_SECRET || process.env.VITE_SYNC_WRITE_SECRET;
+      if (writeSecret) headers['X-ShiftFlow-Secret'] = writeSecret;
+
+      const upstream = await fetch(`${WORKER_RELAY_BASE}/api/sync/snapshots`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ label: label || 'اسنپ‌شات دستی', clientId }),
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+      if (upstream.ok) {
+        const json: any = await upstream.json();
+        if (json?.snapshot) {
+          return res.json(json);
+        }
+      }
+    } catch {}
+
+    if (!currentState || !localCreated) {
       return res.status(404).json({ success: false, error: 'هیچ داده‌ای برای اسنپ‌شات موجود نیست.' });
     }
-    const label = typeof req.body?.label === 'string' ? req.body.label.trim().slice(0, 80) : '';
-    const created = createLocalSnapshot(currentState, 'manual', label || 'اسنپ‌شات دستی');
-    if (!created) {
-      return res.status(500).json({ success: false, error: 'خطا در ایجاد اسنپ‌شات' });
-    }
-    const { data: _omit, ...meta } = created;
+    const { data: _omit, ...meta } = localCreated;
     return res.json({ success: true, snapshot: meta });
   });
 
@@ -869,6 +909,40 @@ async function startServer() {
   app.post('/api/sync/restore', async (req, res) => {
     try {
       const snapshotId = Number(req.body?.snapshotId);
+      const clientId = req.body?.clientId || 'snapshot_restore';
+
+      // Prefer restoring directly from Cloudflare Worker D1 snapshot when available
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 7000);
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        const writeSecret = process.env.SYNC_WRITE_SECRET || process.env.VITE_SYNC_WRITE_SECRET;
+        if (writeSecret) headers['X-ShiftFlow-Secret'] = writeSecret;
+
+        const upstream = await fetch(`${WORKER_RELAY_BASE}/api/sync/restore`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ snapshotId, clientId }),
+          signal: controller.signal,
+        });
+        clearTimeout(timer);
+        if (upstream.ok) {
+          const json: any = await upstream.json();
+          if (json?.success && json?.data) {
+            if (currentState) {
+              createLocalSnapshot(currentState, 'pre_restore', `بکاپ ایمنی پیش از بازگشت به #${snapshotId}`, true);
+            }
+            currentState = json.data;
+            stateVersion = typeof currentState._version === 'number' ? currentState._version : stateVersion + 1;
+            stateRevision = typeof currentState._revision === 'number' ? currentState._revision : stateRevision + 1;
+            persistToDisk(currentState);
+            broadcast({ type: 'restore', data: currentState, version: stateVersion, updatedAt: currentState.updatedAt });
+            persistToFirestore(currentState, false).catch(() => {});
+            return res.json(json);
+          }
+        }
+      } catch {}
+
       const found = snapshotsCache.find((s) => s.id === snapshotId);
       if (!found || !found.data) {
         return res.status(404).json({ success: false, error: 'اسنپ‌شات مورد نظر یافت نشد.' });
@@ -877,7 +951,6 @@ async function startServer() {
         createLocalSnapshot(currentState, 'pre_restore', `بکاپ ایمنی پیش از بازگشت به #${found.id}`, true);
       }
 
-      const clientId = req.body?.clientId || 'snapshot_restore';
       const now = nextMonotonicIsoTimestamp(currentState?.updatedAt, found.data?.updatedAt);
       stateVersion = Math.max(stateVersion, typeof found.data?._version === 'number' ? found.data._version : 0) + 1;
       stateRevision = Math.max(stateRevision, typeof found.data?._revision === 'number' ? found.data._revision : 0) + 1;
