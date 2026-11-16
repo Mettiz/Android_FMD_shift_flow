@@ -192,7 +192,7 @@ public class MainActivity extends Activity {
         webView.setDownloadListener(new AppDownloadListener(this));
     }
 
-    static final String VERCEL_SYNC_BASE = "https://shiftflow-sync.rzcegpj.workers.dev";
+    static final String VERCEL_SYNC_BASE = "https://fmd-shift-flow.mehdi8705-68c.workers.dev";
 
     WebResourceResponse proxyVercelSyncGet(Uri uri) {
         try {

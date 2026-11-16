@@ -7,7 +7,7 @@
 const FIRESTORE_PROJECT_ID = 'beaming-source-hcbh2';
 const FIRESTORE_DATABASE_ID = 'ai-studio-fmdproductionshi-3f0608ec-b995-44d1-a9c8-f98c589f0e16';
 const FIRESTORE_DOC_URL = `https://firestore.googleapis.com/v1/projects/${FIRESTORE_PROJECT_ID}/databases/${FIRESTORE_DATABASE_ID}/documents/roster_state/current`;
-const WORKER_RELAY_BASE = 'https://shiftflow-sync.rzcegpj.workers.dev';
+const WORKER_RELAY_BASE = 'https://fmd-shift-flow.mehdi8705-68c.workers.dev';
 
 function decodeFirestoreValue(val: any): any {
   if (!val || typeof val !== 'object') return val;

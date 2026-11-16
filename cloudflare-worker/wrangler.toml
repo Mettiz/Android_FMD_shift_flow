@@ -1,14 +1,13 @@
-name = "shiftflow-sync"
+name = "fmd-shift-flow"
 main = "worker.js"
 compatibility_date = "2026-01-01"
 workers_dev = true
 
-# After running `npx wrangler d1 create shiftflow-db`,
-# replace `REPLACE_WITH_YOUR_D1_DATABASE_ID` below with the database_id printed by Wrangler.
+# Replace `REPLACE_WITH_YOUR_D1_DATABASE_ID` with the Account 2 D1 database_id from Cloudflare Dashboard / `wrangler d1 create shiftflow-db`
 [[d1_databases]]
 binding = "DB"
 database_name = "shiftflow-db"
-database_id = "3f158e24-be4a-4766-8c2a-d8906b11d83c"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
 
 # Automated Cron Triggers:
 # - 20:30 UTC (00:00 Tehran): Daily automatic snapshot in D1

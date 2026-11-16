@@ -1870,7 +1870,7 @@ export const UserSettingsButton: React.FC<UserSettingsButtonProps> = ({
                             </span>
                           </div>
                           <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-                            به طور پیش‌فرض، سامانه روی GitHub Pages و اپلیکیشن اندروید از طریق رله ابری Cloudflare Worker (<span className="font-mono dir-ltr">shiftflow-sync.rzcegpj.workers.dev</span>) بدون نیاز به فیلترشکن با دیتابیس همگام می‌شود. در صورت نیاز می‌توانید آدرس رله سفارشی دیگری وارد و تست کنید.
+                            به طور پیش‌فرض، سامانه روی GitHub Pages و اپلیکیشن اندروید از طریق رله ابری Cloudflare Worker (<span className="font-mono dir-ltr">fmd-shift-flow.mehdi8705-68c.workers.dev</span>) بدون نیاز به فیلترشکن با دیتابیس همگام می‌شود. در صورت نیاز می‌توانید آدرس رله سفارشی دیگری وارد و تست کنید.
                           </p>
                         </div>
                       </div>
@@ -1909,12 +1909,12 @@ export const UserSettingsButton: React.FC<UserSettingsButtonProps> = ({
                               <span>ذخیره</span>
                             </button>
 
-                            {vercelServerUrl && vercelServerUrl !== 'https://shiftflow-sync.rzcegpj.workers.dev' && (
+                            {vercelServerUrl && vercelServerUrl !== 'https://fmd-shift-flow.mehdi8705-68c.workers.dev' && (
                               <button
                                 type="button"
                                 onClick={() => {
-                                  setVercelServerUrl('https://shiftflow-sync.rzcegpj.workers.dev');
-                                  setCustomServerUrl('https://shiftflow-sync.rzcegpj.workers.dev');
+                                  setVercelServerUrl('https://fmd-shift-flow.mehdi8705-68c.workers.dev');
+                                  setCustomServerUrl('https://fmd-shift-flow.mehdi8705-68c.workers.dev');
                                   setServerTestResult(null);
                                   showToast('آدرس رله به سرور پیش‌فرض کلودفلر بازگشت.');
                                 }}

@@ -110,7 +110,7 @@ async function startServer() {
   const snapshotsFilePath = path.join(dataDir, 'snapshots.json');
 
   const LEGACY_STALE_SCHEDULE_HASH = '88aedc2d';
-  const WORKER_RELAY_BASE = 'https://shiftflow-sync.rzcegpj.workers.dev';
+  const WORKER_RELAY_BASE = 'https://fmd-shift-flow.mehdi8705-68c.workers.dev';
   const WORKER_RELAY_SYNC_URL = `${WORKER_RELAY_BASE}/api/sync`;
   const WORKER_RELAY_RESET_URL = `${WORKER_RELAY_BASE}/api/sync/reset`;
 

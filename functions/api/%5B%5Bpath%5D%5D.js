@@ -6,7 +6,7 @@
 
 const FIRESTORE_DOC_URL =
   'https://firestore.googleapis.com/v1/projects/beaming-source-hcbh2/databases/ai-studio-fmdproductionshi-3f0608ec-b995-44d1-a9c8-f98c589f0e16/documents/roster_state/current';
-const WORKER_RELAY_BASE = 'https://shiftflow-sync.rzcegpj.workers.dev';
+const WORKER_RELAY_BASE = 'https://fmd-shift-flow.mehdi8705-68c.workers.dev';
 const LEGACY_STALE_SCHEDULE_HASH = '88aedc2d';
 const MAX_SNAPSHOTS = 30;
 

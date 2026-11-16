@@ -57,7 +57,7 @@ if (typeof caches !== 'undefined') {
     .catch(() => {});
 }
 
-const CLOUDFLARE_RELAY_URL = 'https://shiftflow-sync.rzcegpj.workers.dev';
+const CLOUDFLARE_RELAY_URL = 'https://fmd-shift-flow.mehdi8705-68c.workers.dev';
 const FIRESTORE_REST_URL =
   'https://firestore.googleapis.com/v1/projects/beaming-source-hcbh2/databases/ai-studio-fmdproductionshi-3f0608ec-b995-44d1-a9c8-f98c589f0e16/documents/roster_state/current';
 

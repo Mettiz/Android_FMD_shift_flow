@@ -348,9 +348,9 @@ export const isStandaloneAndroidRuntime = (): boolean => {
 };
 
 export const CUSTOM_SYNC_URL_STORAGE_KEY = 'shiftflow_custom_sync_url';
-export const DEFAULT_VERCEL_SYNC_URL = 'https://shiftflow-sync.rzcegpj.workers.dev';
+export const DEFAULT_VERCEL_SYNC_URL = 'https://fmd-shift-flow.mehdi8705-68c.workers.dev';
 
-export const REMOTE_SERVER_URLS: string[] = ['https://shiftflow-sync.rzcegpj.workers.dev'];
+export const REMOTE_SERVER_URLS: string[] = ['https://fmd-shift-flow.mehdi8705-68c.workers.dev'];
 
 // Remember endpoints that returned permanent failures (e.g. 402 DEPLOYMENT_DISABLED or 404 on static hosts)
 const deadEndpointUrls = new Set<string>();
@@ -512,8 +512,11 @@ export function getCustomServerUrl(): string {
     const custom = localStorage.getItem(CUSTOM_SYNC_URL_STORAGE_KEY);
     if (custom !== null) {
       const cleaned = custom.trim().replace(/\/+$/, '');
-      // Auto-migrate away from dead Vercel URL to the active Cloudflare Worker relay
-      if (cleaned === 'https://android-fmd-shift-flow.vercel.app') {
+      // Auto-migrate away from deprecated Vercel / old Worker URLs to the active Account 2 Worker relay
+      if (
+        cleaned === 'https://android-fmd-shift-flow.vercel.app' ||
+        cleaned === 'https://shiftflow-sync.rzcegpj.workers.dev'
+      ) {
         return DEFAULT_VERCEL_SYNC_URL;
       }
       return cleaned;
