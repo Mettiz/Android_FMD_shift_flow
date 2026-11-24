@@ -96,43 +96,59 @@ const App: React.FC = () => {
   };
 
   // --- PERSISTENCE LAYER ---
+  // Capture whether this browser ALREADY had a cached schedule BEFORE any initializer runs,
+  // so fresh/cleared browsers reliably wait for cloud hydration and open on the current month.
+  const hasInitialCachedScheduleRef = useRef<boolean | null>(null);
+  if (hasInitialCachedScheduleRef.current === null) {
+    try {
+      hasInitialCachedScheduleRef.current = Boolean(localStorage.getItem(STORAGE_KEYS.SCHEDULE));
+    } catch {
+      hasInitialCachedScheduleRef.current = false;
+    }
+  }
+
   const [schedule, setSchedule] = useState<ShiftEntry[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.SCHEDULE);
+      const hasSavedSchedule = Boolean(saved);
       let list: ShiftEntry[] = saved ? JSON.parse(saved) : SCHEDULE_DATA;
 
       // Filter out all 1404 entries
       list = list.filter(s => !s.date.startsWith('1404'));
 
-      // If empty after 1404 purge, or if localStorage still holds the old legacy 88aedc2d schedule, upgrade to latest SCHEDULE_DATA
+      // If cached schedule is empty after 1404 purge, or still holds the old legacy hash, upgrade in-memory (and only overwrite storage if it was already cached)
       if (list.length === 0 || getScheduleHash(list) === LEGACY_STALE_SCHEDULE_HASH) {
         list = SCHEDULE_DATA;
-        try {
-          localStorage.setItem(STORAGE_KEYS.SCHEDULE, JSON.stringify(SCHEDULE_DATA));
-        } catch {}
+        if (hasSavedSchedule) {
+          try {
+            localStorage.setItem(STORAGE_KEYS.SCHEDULE, JSON.stringify(SCHEDULE_DATA));
+          } catch {}
+        }
       }
 
-      // Upgrade cached schedule once for Aban 1405 final PDF base changes (days 23, 26, 27, 28, 29)
-      try {
-        if (localStorage.getItem('shiftflow_aban_base_v32_applied') !== 'true') {
-          const abanPatchDates = new Set(['1405/08/23', '1405/08/26', '1405/08/27', '1405/08/28', '1405/08/29']);
-          const baseByDate = new Map(SCHEDULE_DATA.map(s => [s.date, s]));
-          list = list.map(entry => {
-            if (abanPatchDates.has(entry.date) && baseByDate.has(entry.date)) {
-              const baseEntry = baseByDate.get(entry.date)!;
-              return {
-                ...entry,
-                dayShiftPerson: baseEntry.dayShiftPerson,
-                nightShiftPerson: baseEntry.nightShiftPerson,
-                onCallPerson: baseEntry.onCallPerson,
-              };
-            }
-            return entry;
-          });
-          localStorage.setItem(STORAGE_KEYS.SCHEDULE, JSON.stringify(list));
-          localStorage.setItem('shiftflow_aban_base_v32_applied', 'true');
-        }
-      } catch {}
+      // Upgrade cached schedule once for Aban 1405 final PDF base changes (ONLY when upgrading an existing cached schedule — never pollute fresh browsers)
+      if (hasSavedSchedule) {
+        try {
+          if (localStorage.getItem('shiftflow_aban_base_v32_applied') !== 'true') {
+            const abanPatchDates = new Set(['1405/08/23', '1405/08/26', '1405/08/27', '1405/08/28', '1405/08/29']);
+            const baseByDate = new Map(SCHEDULE_DATA.map(s => [s.date, s]));
+            list = list.map(entry => {
+              if (abanPatchDates.has(entry.date) && baseByDate.has(entry.date)) {
+                const baseEntry = baseByDate.get(entry.date)!;
+                return {
+                  ...entry,
+                  dayShiftPerson: baseEntry.dayShiftPerson,
+                  nightShiftPerson: baseEntry.nightShiftPerson,
+                  onCallPerson: baseEntry.onCallPerson,
+                };
+              }
+              return entry;
+            });
+            localStorage.setItem(STORAGE_KEYS.SCHEDULE, JSON.stringify(list));
+            localStorage.setItem('shiftflow_aban_base_v32_applied', 'true');
+          }
+        } catch {}
+      }
 
       // Always guarantee each entry's dayName is strictly mathematically accurate for the Iranian calendar
       list = list.map(entry => {
@@ -634,13 +650,7 @@ const App: React.FC = () => {
     }
   };
 
-  const [isCloudLoading, setIsCloudLoading] = useState<boolean>(() => {
-    try {
-      return !localStorage.getItem(STORAGE_KEYS.SCHEDULE);
-    } catch {
-      return true;
-    }
-  });
+  const [isCloudLoading, setIsCloudLoading] = useState<boolean>(() => !hasInitialCachedScheduleRef.current);
   const isRemoteUpdateRef = useRef(false);
   const isInitialLoadCompletedRef = useRef(false);
   const hasCloudHydratedRef = useRef(false);
@@ -937,18 +947,34 @@ const App: React.FC = () => {
   const hasUserNavigatedMonthRef = useRef(false);
   
   // Sync calendar to today's Persian month once schedule hydrates from cloud
-  // (avoids getting stuck on an older fallback month in fresh/cleared browsers)
+  // (prevents getting stuck on an older fallback month in fresh/cleared browsers)
   useEffect(() => {
     if (hasUserNavigatedMonthRef.current) return;
 
     const today = getTodayPersianParts();
     const currentMonthPrefix = `${today.year}/${today.month}/`;
     const hasTodayMonth = schedule.some(s => s.date.startsWith(currentMonthPrefix));
-    
+
     if (hasTodayMonth) {
       setCurrentYear(today.year);
       setMonthIndex(today.monthIndex);
-    } else if (!isCloudLoading && schedule.length > 0) {
+      return;
+    }
+
+    // Fallback 1: If device clock year differs slightly, still prefer the same Persian month if present
+    const sameMonthEntries = schedule
+      .filter(s => s.date.includes(`/${today.month}/`))
+      .sort((a, b) => a.date.localeCompare(b.date));
+    if (sameMonthEntries.length > 0) {
+      const latestSameMonth = sameMonthEntries[sameMonthEntries.length - 1].date;
+      const yNum = parseInt(latestSameMonth.split('/')[0], 10);
+      if (yNum) setCurrentYear(yNum);
+      setMonthIndex(today.monthIndex);
+      return;
+    }
+
+    // Fallback 2: Only after cloud loading completes, fall back to the latest available month in schedule
+    if (!isCloudLoading && schedule.length > 0) {
       const sorted = [...schedule].sort((a, b) => a.date.localeCompare(b.date));
       const latestDate = sorted[sorted.length - 1].date;
       const [y, m] = latestDate.split('/');

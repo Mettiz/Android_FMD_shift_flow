@@ -776,15 +776,20 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set +e
+          set -e
           PAGES_DIR="/tmp/shiftflow_gh_pages"
           rm -rf "$PAGES_DIR"
           mkdir -p "$PAGES_DIR"
 
           if [ -d "dist" ] && [ -f "dist/index.html" ]; then
+            echo "📦 Copying fresh dist/ bundle to GitHub Pages..."
             cp -r dist/* "$PAGES_DIR/"
-          elif [ -d "android/app/src/main/assets/public" ]; then
+          elif [ -d "android/app/src/main/assets/public" ] && [ -f "android/app/src/main/assets/public/index.html" ]; then
+            echo "⚠️ dist/ missing; falling back to android/app/src/main/assets/public/"
             cp -r android/app/src/main/assets/public/* "$PAGES_DIR/"
+          else
+            echo "❌ Neither dist/index.html nor fallback bundle exists!"
+            exit 1
           fi
 
           [ -f "public/sw.js" ] && cp -f public/sw.js "$PAGES_DIR/sw.js" || true
@@ -802,8 +807,14 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -b gh-pages
           git add -A
-          git commit -m "Deploy ShiftFlow FMD ${RELEASE_TAG} to GitHub Pages"
-          git push -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" gh-pages
+          git commit -m "Deploy ShiftFlow FMD ${RELEASE_TAG} (${GITHUB_SHA::7}) to GitHub Pages"
+
+          REMOTE_URL="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if ! git push --force "$REMOTE_URL" HEAD:refs/heads/gh-pages; then
+            echo "⚠️ First push to gh-pages failed; retrying in 3s..."
+            sleep 3
+            git push --force "$REMOTE_URL" HEAD:refs/heads/gh-pages
+          fi
 
           # فعال‌سازی خودکار GitHub Pages روی شاخه gh-pages از طریق API گیت‌هاب
           gh api -X POST "/repos/${GITHUB_REPOSITORY}/pages" \
@@ -815,5 +826,4 @@ jobs:
             -f "source[path]=/" 2>/dev/null || true
 
           echo "✅ GitHub Pages published to branch gh-pages -> https://mettiz.github.io/Android_FMD_shift_flow/"
-          exit 0
 

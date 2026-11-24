@@ -48,54 +48,87 @@ export function getDayNameForJalali(jy: number, jm: number, jd: number): string 
 }
 
 /**
- * Returns Persian date string for right now in Asia/Tehran timezone: YYYY/MM/DD
- * (e.g. "1405/06/17")
+ * Fixed Asia/Tehran UTC offset (+03:30, Iran permanently abolished DST in 2022)
  */
-export function getTodayPersianDateStr(date: Date = new Date()): string {
-  const formatter = new Intl.DateTimeFormat('fa-IR-u-nu-latn', {
-    timeZone: IRAN_TIMEZONE,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  });
-  return formatter.format(date);
+const TEHRAN_OFFSET_MS = 3.5 * 60 * 60 * 1000;
+
+/**
+ * Converts Gregorian year, month (1-12), day (1-31) to Jalali year, month (1-12), day (1-31)
+ * Pure mathematical conversion — 100% deterministic across all browsers, Safari, and Android WebViews.
+ */
+export function gregorianToJalali(gy: number, gm: number, gd: number): { jy: number; jm: number; jd: number } {
+  const g_d_m = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
+  const gy2 = (gm > 2) ? (gy + 1) : gy;
+  let days =
+    355666 +
+    (365 * gy) +
+    Math.floor((gy2 + 3) / 4) -
+    Math.floor((gy2 + 99) / 100) +
+    Math.floor((gy2 + 399) / 400) +
+    gd +
+    g_d_m[gm - 1];
+  let jy = -1595 + (33 * Math.floor(days / 12053));
+  days %= 12053;
+  jy += 4 * Math.floor(days / 1461);
+  days %= 1461;
+  if (days > 365) {
+    jy += Math.floor((days - 1) / 365);
+    days = (days - 1) % 365;
+  }
+  const jm = (days < 186) ? 1 + Math.floor(days / 31) : 7 + Math.floor((days - 186) / 30);
+  const jd = 1 + ((days < 186) ? (days % 31) : ((days - 186) % 30));
+  return { jy, jm, jd };
 }
 
 /**
- * Returns current Persian date parts in Asia/Tehran timezone
+ * Returns current Persian date parts in Asia/Tehran timezone (pure mathematical, zero Intl quirks)
  */
 export function getTodayPersianParts(date: Date = new Date()): { year: number; month: string; day: string; monthIndex: number } {
-  const str = getTodayPersianDateStr(date);
-  const parts = str.split('/');
-  const year = parseInt(parts[0], 10) || 1405;
-  const month = parts[1] || '06';
-  const day = parts[2] || '17';
-  const monthIndex = parseInt(month, 10) - 1;
-  return { year, month, day, monthIndex };
+  const safeDate = date instanceof Date && !isNaN(date.getTime()) ? date : new Date();
+  const tehran = new Date(safeDate.getTime() + TEHRAN_OFFSET_MS);
+  const { jy, jm, jd } = gregorianToJalali(
+    tehran.getUTCFullYear(),
+    tehran.getUTCMonth() + 1,
+    tehran.getUTCDate()
+  );
+  const month = String(jm).padStart(2, '0');
+  const day = String(jd).padStart(2, '0');
+  return {
+    year: jy,
+    month,
+    day,
+    monthIndex: Math.max(0, Math.min(11, jm - 1))
+  };
+}
+
+/**
+ * Returns Persian date string for right now in Asia/Tehran timezone: YYYY/MM/DD
+ * (e.g. "1405/09/04")
+ */
+export function getTodayPersianDateStr(date: Date = new Date()): string {
+  const { year, month, day } = getTodayPersianParts(date);
+  return `${year}/${month}/${day}`;
 }
 
 /**
  * Returns current time in Asia/Tehran timezone formatted as Persian digits: HH:MM
  */
 export function getTodayPersianTimeStr(date: Date = new Date()): string {
-  const formatter = new Intl.DateTimeFormat('fa-IR', {
-    timeZone: IRAN_TIMEZONE,
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false
-  });
-  return formatter.format(date);
+  const safeDate = date instanceof Date && !isNaN(date.getTime()) ? date : new Date();
+  const tehran = new Date(safeDate.getTime() + TEHRAN_OFFSET_MS);
+  const hh = String(tehran.getUTCHours()).padStart(2, '0');
+  const mm = String(tehran.getUTCMinutes()).padStart(2, '0');
+  return toPersianDigits(`${hh}:${mm}`);
 }
 
 /**
  * Returns current day of week in Persian (e.g. "سه‌شنبه") in Asia/Tehran timezone
  */
 export function getTodayPersianWeekday(date: Date = new Date()): string {
-  const formatter = new Intl.DateTimeFormat('fa-IR', {
-    timeZone: IRAN_TIMEZONE,
-    weekday: 'long'
-  });
-  return formatter.format(date);
+  const safeDate = date instanceof Date && !isNaN(date.getTime()) ? date : new Date();
+  const tehran = new Date(safeDate.getTime() + TEHRAN_OFFSET_MS);
+  const weekDays = ['یک‌شنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه', 'شنبه'];
+  return weekDays[tehran.getUTCDay()];
 }
 
 /**
@@ -103,13 +136,12 @@ export function getTodayPersianWeekday(date: Date = new Date()): string {
  * (e.g. "09.09.2026")
  */
 export function getTodayGregorianDateStr(date: Date = new Date()): string {
-  const formatter = new Intl.DateTimeFormat('en-GB', {
-    timeZone: IRAN_TIMEZONE,
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  });
-  return formatter.format(date).replace(/\//g, '.');
+  const safeDate = date instanceof Date && !isNaN(date.getTime()) ? date : new Date();
+  const tehran = new Date(safeDate.getTime() + TEHRAN_OFFSET_MS);
+  const dd = String(tehran.getUTCDate()).padStart(2, '0');
+  const mm = String(tehran.getUTCMonth() + 1).padStart(2, '0');
+  const yyyy = String(tehran.getUTCFullYear());
+  return `${dd}.${mm}.${yyyy}`;
 }
 
 /**
@@ -132,17 +164,12 @@ export const toEnglishDigits = (s: string | number | null | undefined): string =
  * Returns a new Jalali date string (YYYY/MM/DD) offset by `daysToAdd` days
  */
 export function getNextJalaliDate(jalaliDate: string, daysToAdd: number = 1): string {
-  const parts = jalaliDate.split('/').map(Number);
+  const parts = toEnglishDigits(jalaliDate).split('/').map(Number);
   if (parts.length !== 3 || isNaN(parts[0]) || isNaN(parts[1]) || isNaN(parts[2])) {
     return jalaliDate;
   }
   const g = jalaliToGregorian(parts[0], parts[1], parts[2]);
   const dt = new Date(Date.UTC(g.gy, g.gm - 1, g.gd + daysToAdd, 12, 0, 0));
-  const formatter = new Intl.DateTimeFormat('fa-IR-u-nu-latn', {
-    timeZone: 'UTC',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  });
-  return formatter.format(dt);
+  const { jy, jm, jd } = gregorianToJalali(dt.getUTCFullYear(), dt.getUTCMonth() + 1, dt.getUTCDate());
+  return `${jy}/${String(jm).padStart(2, '0')}/${String(jd).padStart(2, '0')}`;
 }
