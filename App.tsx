@@ -934,9 +934,13 @@ const App: React.FC = () => {
     const today = getTodayPersianParts();
     return today.monthIndex >= 0 ? today.monthIndex : 5;
   });
+  const hasUserNavigatedMonthRef = useRef(false);
   
-  // Initialize monthIndex based on today or latest schedule month (never old first month)
+  // Sync calendar to today's Persian month once schedule hydrates from cloud
+  // (avoids getting stuck on an older fallback month in fresh/cleared browsers)
   useEffect(() => {
+    if (hasUserNavigatedMonthRef.current) return;
+
     const today = getTodayPersianParts();
     const currentMonthPrefix = `${today.year}/${today.month}/`;
     const hasTodayMonth = schedule.some(s => s.date.startsWith(currentMonthPrefix));
@@ -944,7 +948,7 @@ const App: React.FC = () => {
     if (hasTodayMonth) {
       setCurrentYear(today.year);
       setMonthIndex(today.monthIndex);
-    } else if (schedule.length > 0) {
+    } else if (!isCloudLoading && schedule.length > 0) {
       const sorted = [...schedule].sort((a, b) => a.date.localeCompare(b.date));
       const latestDate = sorted[sorted.length - 1].date;
       const [y, m] = latestDate.split('/');
@@ -953,9 +957,10 @@ const App: React.FC = () => {
       if (yNum) setCurrentYear(yNum);
       if (idx !== -1) setMonthIndex(idx);
     }
-  }, []);
+  }, [schedule, isCloudLoading]);
 
   const handleNavigateToToday = () => {
+    hasUserNavigatedMonthRef.current = true;
     const today = getTodayPersianParts();
     setCurrentYear(today.year);
     setMonthIndex(today.monthIndex);
@@ -1059,6 +1064,7 @@ const App: React.FC = () => {
       const focusDate = useEndMonth ? targetRange.to : targetRange.from;
       const yNum = parseInt(focusDate.year, 10);
       const mIdx = MONTHS.findIndex(mObj => mObj.code === focusDate.month);
+      hasUserNavigatedMonthRef.current = true;
       if (yNum) setCurrentYear(yNum);
       if (mIdx !== -1) setMonthIndex(mIdx);
     }
@@ -1372,7 +1378,8 @@ const App: React.FC = () => {
              syncUpdatedSchedule(updated);
     }
 
-    setMonthIndex(nextIdx);
+    hasUserNavigatedMonthRef.current = true;
+    setMonthIndex(nextIdx % MONTHS.length);
     if (nextYear !== currentYear) setCurrentYear(nextYear);
   };
 
@@ -1461,7 +1468,8 @@ const App: React.FC = () => {
            newYear = currentYear - 1;
        }
        
-       setMonthIndex(newIndex);
+       hasUserNavigatedMonthRef.current = true;
+       setMonthIndex((newIndex + MONTHS.length) % MONTHS.length);
        setCurrentYear(newYear);
   };
 
@@ -1730,6 +1738,7 @@ const App: React.FC = () => {
 
     // Switch calendar to target month & year so manager immediately sees the arranged schedule
     const mIdx = MONTHS.findIndex(m => m.code === targetMonthCode);
+    hasUserNavigatedMonthRef.current = true;
     if (targetYear) setCurrentYear(targetYear);
     if (mIdx !== -1) setMonthIndex(mIdx);
     setActiveTab('dashboard');
@@ -1817,6 +1826,7 @@ const App: React.FC = () => {
           const focusDate = useEndMonth ? data.publishedRange.to : data.publishedRange.from;
           const yNum = parseInt(focusDate.year, 10);
           const mIdx = MONTHS.findIndex(mObj => mObj.code === focusDate.month);
+          hasUserNavigatedMonthRef.current = true;
           if (yNum) setCurrentYear(yNum);
           if (mIdx !== -1) setMonthIndex(mIdx);
         }
